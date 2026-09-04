@@ -8,7 +8,6 @@ export async function GET(request: Request) {
     const token = searchParams.get('hub.verify_token');
     const challenge = searchParams.get('hub.challenge');
 
-    // 🔑 Verify Token (អាចកំណត់តាមចិត្ត ឬយកទុកក្នុង .env ដូចជា WEBHOOK_VERIFY_TOKEN)
     const VERIFY_TOKEN = process.env.WEBHOOK_VERIFY_TOKEN || 'ads_manager_pro_verify_token';
 
     if (mode === 'subscribe' && token === VERIFY_TOKEN) {
@@ -27,7 +26,6 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
 
-    // ពិនិត្យមើលថាតើវាជា Event មកពី Page មែនទេ
     if (body.object === 'page') {
       for (const entry of body.entry) {
         const pageId = entry.id;
@@ -35,7 +33,7 @@ export async function POST(request: Request) {
         // 📥 ករណីមាន Comment ថ្មីនៅលើ Post របស់ Page
         if (entry.changes) {
           for (const change of entry.changes) {
-            if (change.field === 'feed' && change.value.item === 'comment') {
+            if (change.field === 'feed' && change.value?.item === 'comment') {
               const val = change.value;
               const commentId = val.comment_id;
               const postId = val.post_id;
@@ -44,10 +42,9 @@ export async function POST(request: Request) {
               const commenterId = val.from?.id;
               const verb = val.verb; // 'add', 'edited', 'delete'
 
-              if (verb === 'add') {
+              if (verb === 'add' && commentId) {
                 console.log(` nhậnបាន Comment ថ្មីពី ${commenterName}: "${message}" លើ Post ID: ${postId}`);
 
-                // 🚀 ហៅមុខងារដំណើរការ Bot (តបខំមិន, ផ្ញើ Inbox និងលាក់ខំមិន)
                 await handleAutoReplyAndHide({
                   pageId,
                   commentId,
@@ -57,6 +54,21 @@ export async function POST(request: Request) {
                   commenterId
                 });
               }
+            }
+          }
+        }
+
+        // 💬 ករណីមានអតិថិជនផ្ញើសារឆាតផ្ទាល់មកកាន់ Messenger (Messaging Event)
+        if (entry.messaging) {
+          for (const messagingEvent of entry.messaging) {
+            if (messagingEvent.message && !messagingEvent.message.is_echo) {
+              const senderPsid = messagingEvent.sender.id;
+              const messageText = messagingEvent.message.text || '';
+              
+              console.log(`📩 បានទទួលសារ Messenger ពី ${senderPsid}: "${messageText}"`);
+              
+              // ហ្វังก์ชันឆ្លើយតបសារឆាតផ្ទាល់ (Inbox Auto-Reply)
+              await handleMessengerAutoReply(senderPsid, messageText);
             }
           }
         }
@@ -79,11 +91,9 @@ async function handleAutoReplyAndHide(data: {
   postId: string;
   message: string;
   commenterName: string;
-  commenterId: string;
+  commenterId?: string;
 }) {
   try {
-    // 💡 (ចំណាំ៖ ត្រង់នេះបងអាចទាញយក Page Access Token ពី Database ឬហៅទិន្នន័យដែលបាន Save ទុក)
-    // សម្រាប់ពេលនេះ យើងទាញយកពី Environment Variable ឬ Token ស្តង់ដារ
     const pageAccessToken = process.env.FACEBOOK_PAGE_ACCESS_TOKEN || process.env.FACEBOOK_ACCESS_TOKEN;
 
     if (!pageAccessToken) {
@@ -91,10 +101,10 @@ async function handleAutoReplyAndHide(data: {
       return;
     }
 
-    const { pageId, commentId, message, commenterName } = data;
+    const { commentId, message, commenterName } = data;
     const lowerMsg = message.toLowerCase();
 
-    // 1. 🛡️ ពិនិត្យលក្ខខណ្ឌលាក់ខំមិនអវិជ្ជមាន (Auto-Hide Negative)
+    // 1. 🛡️ លាក់ខំមិនអវិជ្ជមាន (Auto-Hide Negative)
     const bannedKeywords = ["ថ្លៃម៉្លេះ", "ថ្លៃ", "បោក", "មិនល្អ", "fake", "bad"];
     const isNegative = bannedKeywords.some(keyword => lowerMsg.includes(keyword));
 
@@ -111,7 +121,7 @@ async function handleAutoReplyAndHide(data: {
     }
 
     // 2. 💬 ឆ្លើយតបខំមិនស្វ័យប្រវត្តិ (Auto Comment Reply)
-    const replyText = `ជម្រាបសួរបង ${commenterName}! ហាងយើងខ្ញុំបានផ្ញើព័ត៌មានលម្អិតជូនក្នុងប្រអប់សារ (Inbox) ແລ້វុចណា៎! 🙏✨`;
+    const replyText = `ជម្រាបសួរបង ${commenterName}! ហាងយើងខ្ញុំបានផ្ញើព័ត៌មានលម្អិតជូនក្នុងប្រអប់សារ (Inbox) ហើយណ៎ា! 🙏✨`;
     
     const commentReplyRes = await fetch(`https://graph.facebook.com/v18.0/${commentId}/comments`, {
       method: 'POST',
@@ -125,7 +135,6 @@ async function handleAutoReplyAndHide(data: {
     }
 
     // 3. 📥 ផ្ញើសារចូល Inbox ស្វ័យប្រវត្តិ (Private Reply / Messenger)
-    // លក្ខខណ្ឌ Facebook API: ការផ្ញើ Private Reply ទៅកាន់ Comment គឺត្រូវប្រើ Endpoint /{comment_id}/private_replies
     const inboxText = `សួស្តីបង ${commenterName}! អរគុណខ្លាំងណាស់ដែលបានចាប់អារម្មណ៍ផលិតផលយើងខ្ញុំ។ តើបងចង់សាកសួរពីម៉ូដ ឬទំហំមួយណាដែរអូន? 😊`;
 
     const privateReplyRes = await fetch(`https://graph.facebook.com/v18.0/${commentId}/private_replies`, {
@@ -141,5 +150,33 @@ async function handleAutoReplyAndHide(data: {
 
   } catch (err) {
     console.error("Auto-Reply Execution Error:", err);
+  }
+}
+
+// 💬 មុខងារឆ្លើយតបសារឆាតផ្ទាល់ (Messenger Direct Chat Auto-Reply)
+async function handleMessengerAutoReply(senderPsid: string, userMessage: string) {
+  try {
+    const pageAccessToken = process.env.FACEBOOK_PAGE_ACCESS_TOKEN || process.env.FACEBOOK_ACCESS_TOKEN;
+    if (!pageAccessToken) return;
+
+    let replyText = 'បាទ/ចាស៎! សួស្តីបង។ តើចង់ឱ្យហាងយើងខ្ញុំជួយណែនាំស្បែកជើងម៉ូដអវីដែរបង?';
+    const lowerMsg = userMessage.toLowerCase();
+
+    if (lowerMsg.includes('តម្លៃ') || lowerMsg.includes('price') || lowerMsg.includes('ប៉ុន្មាន')) {
+      replyText = 'ស្បែកជើងរបស់យើងមានតម្លៃពិសេសចាប់ពី ១៥ដុល្លារឡើងទៅបង! អាចផ្ញូរូបម៉ូដដែលបងពេញចិត្តមកបានណា៎ 😊';
+    }
+
+    await fetch(`https://graph.facebook.com/v18.0/me/messages?access_token=${pageAccessToken}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        recipient: { id: senderPsid },
+        message: { text: replyText },
+      }),
+    });
+
+    console.log(`✅ បានឆ្លើយតបសារ Messenger ទៅកាន់ PSID: ${senderPsid}`);
+  } catch (error) {
+    console.error("Messenger Auto-Reply Error:", error);
   }
 }

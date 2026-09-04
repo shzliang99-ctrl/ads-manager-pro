@@ -19,6 +19,28 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState("CREATE");
   const [isMounted, setIsMounted] = useState(false);
 
+  // 👈 យកកូដ useEffect សម្រាប់ Load saved_autoreply_configs មកដាក់នៅត្រង់ចន្លោះនេះបានយ៉ាងស្រួល
+  useEffect(() => {
+    try {
+      const savedConfigs = localStorage.getItem("saved_autoreply_configs");
+      if (savedConfigs) {
+        const parsedConfigs = JSON.parse(savedConfigs);
+        let configsObj: Record<string, any> = {};
+        let pageIds: string[] = [];
+        
+        parsedConfigs.forEach((item: any) => {
+          configsObj[item.pageId] = item.config;
+          pageIds.push(item.pageId);
+        });
+
+        setAutoReplyConfigs(configsObj);
+        setSavedPagesList(pageIds);
+      }
+    } catch (e) {
+      console.error("Error loading saved configs", e);
+    }
+  }, []);
+
   useEffect(() => {
     setIsMounted(true);
     if (typeof window !== "undefined") {
@@ -243,11 +265,9 @@ export default function Home() {
     }
   };
 
-  // 🌟 1. ດึงข้อมูล Pages ໂດຍອັດຕະໂນມັດໂດຍໃຊ້ Client Token
+  // 🌟 1. ດຶງຂໍ້ມູນ Pages ໂດຍອັດຕະໂນມັດ ພ້ອມទាំងទាញយក Page ដែលធ្លាប់ Save ទុកក្នុង localStorage មកវិញភ្លាមៗ
   useEffect(() => {
     const token = localStorage.getItem('fb_user_token');
-    
-    // ຖ້າບໍ່ມີ Token ໃຫ້ໃຊ້ Admin Token (ຖ່າມີໃນ .env ຜ່ານ API) ຫຼັກການແມ່ນໃຫ້ສົ່ງ token ໄປນຳສະເໝີ
     const tokenParam = token ? `?access_token=${token}` : '';
 
     fetch(`/api/pages${tokenParam}`)
@@ -255,11 +275,17 @@ export default function Home() {
       .then(data => {
         if (data.success && data.pages && data.pages.length > 0) {
           setPages(data.pages);
+          
+          // 🔍 ឆែកមើលក្នុង localStorage ថាតើធ្លាប់ Save Page ណាទុកមុនពេល Refresh ទេ?
           const savedPage = localStorage.getItem("selectedPage");
+          
+          // បើមាន Save ទុក ហើយ Page នោះមានក្នុង List របស់ Meta គឺទាញយកមកដាក់វិញភ្លាម
           if (savedPage && data.pages.find((p: any) => p.id === savedPage)) {
             setSelectedPage(savedPage);
           } else {
+            // បើអត់ទាន់មាន ទើបយក Page ទីមួយ
             setSelectedPage(data.pages[0].id);
+            localStorage.setItem("selectedPage", data.pages[0].id);
           }
         }
       })
@@ -1681,7 +1707,7 @@ export default function Home() {
                                     key={p.id}
                                     onClick={() => {
                                       setSelectedPage(p.id);
-                                      localStorage.setItem("selectedPage", p.id);
+                                      localStorage.setItem("selectedPage", p.id); // 👈 រក្សាទុកទីនេះ ដើម្បីកុំឱ្យបាត់ពេល Refresh
                                       setIsPageMenuOpen(false);
                                     }}
                                     className={`p-2.5 rounded-lg flex items-center gap-3 cursor-pointer transition ${selectedPage === p.id ? (theme === 'dark' ? 'bg-blue-900/50 text-white font-bold' : 'bg-blue-50 text-blue-700 font-bold') : (theme === 'dark' ? 'hover:bg-[#3A3B3C]' : 'hover:bg-slate-100 text-slate-700')}`}
@@ -1862,20 +1888,49 @@ export default function Home() {
 
                     {/* ប៊ូតុង Save */}
                     <div className="flex justify-end mt-2">
+                      // ចាប់ផ្តើមជំនួសត្រង់ប៊ូតុង Save នេះ៖
                       <button 
                         type="button"
                         onClick={() => {
+                          // ១. បង្កើតទម្រង់ទិន្នន័យសម្រាប់ Page នេះ
+                          const pageDataToSave = {
+                            pageId: selectedPage,
+                            pageName: selectedPageData?.name || "Unknown Page",
+                            config: currentConfig
+                          };
+
+                          // ២. ទាញយកបញ្ជីដែលធ្លាប់ Save ទុកពីមុនមកផ្ទៀងផ្ទាត់
+                          let existingSavedConfigs = [];
+                          try {
+                            const savedLocal = localStorage.getItem("saved_autoreply_configs");
+                            if (savedLocal) existingSavedConfigs = JSON.parse(savedLocal);
+                          } catch (e) {
+                            console.error(e);
+                          }
+
+                          // ៣. ពិនិត្យមើលថាតើ Page នេះធ្លាប់ Save រួចហើយឬยัง? បើមានហើយ Update ថ្មី បើអត់ទាន់មាន Add ចូល
+                          const index = existingSavedConfigs.findIndex((item: any) => item.pageId === selectedPage);
+                          if (index >= 0) {
+                            existingSavedConfigs[index] = pageDataToSave;
+                          } else {
+                            existingSavedConfigs.push(pageDataToSave);
+                          }
+
+                          // ៤. រក្សាទុកចូលក្នុង localStorage ជាផ្លូវការ
+                          localStorage.setItem("saved_autoreply_configs", JSON.stringify(existingSavedConfigs));
+
+                          // ៥. Update State ក្នុង Screen ឱ្យលោតបង្ហាញបញ្ជីខាងក្រោមភ្លាមៗ
                           if (!savedPagesList.includes(selectedPage)) {
                             setSavedPagesList([...savedPagesList, selectedPage]);
                           }
-                          alert(`✅ បានរក្សាទុកការកំណត់ Pro សម្រាប់ Page "${selectedPageData?.name}" ដោយជោគជ័យ!`);
+
+                          alert(`✅ បានរក្សាទុកការកំណត់ Pro សម្រាប់ Page "${selectedPageData?.name}" ចូលក្នុងប្រព័ន្ធដោយជោគជ័យ!`);
                         }}
                         className="px-8 py-3 bg-[#1877F2] hover:bg-[#166FE5] text-white font-bold rounded-xl shadow-md transition-transform hover:scale-[1.02] active:scale-95 flex items-center gap-2 cursor-pointer"
                       >
                         <span>💾</span> រក្សាទុកការកំណត់សម្រាប់ Page នេះ
                       </button>
                     </div>
-
                   </div>
 
                   {/* ========================================================= */}
