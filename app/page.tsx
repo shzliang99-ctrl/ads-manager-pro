@@ -1343,7 +1343,8 @@ export default function Home() {
             <button 
               onClick={() => {
                 const appId = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID;
-                const redirectUri = encodeURIComponent('http://localhost:3000/api/auth/facebook/callback');
+                // ប្រើ window.location.origin ដើម្បីឱ្យវាស្គាល់ទាំង Localhost និង Vercel
+                const redirectUri = encodeURIComponent(`${window.location.origin}/api/auth/facebook/callback`);
                 const scope = 'public_profile,ads_management,ads_read,pages_read_engagement,pages_show_list,pages_manage_ads';
                 window.location.href = `https://www.facebook.com/v18.0/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code`;
               }}
