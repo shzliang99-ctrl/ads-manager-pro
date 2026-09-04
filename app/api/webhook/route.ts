@@ -25,34 +25,38 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
+    console.log("📥 Raw Webhook Payload Received:", JSON.stringify(body, null, 2));
 
     if (body.object === 'page') {
       for (const entry of body.entry) {
         const pageId = entry.id;
         
-        // 📥 ករណីមាន Comment ថ្មីនៅលើ Post របស់ Page
+        // 📥 ករណីមាន Comment ឬ Feed Change ថ្មីនៅលើ Page
         if (entry.changes) {
           for (const change of entry.changes) {
-            if (change.field === 'feed' && change.value?.item === 'comment') {
+            if (change.field === 'feed') {
               const val = change.value;
-              const commentId = val.comment_id;
-              const postId = val.post_id;
-              const message = val.message || '';
-              const commenterName = val.sender_name || 'អតិថិជន';
-              const commenterId = val.from?.id;
-              const verb = val.verb; // 'add', 'edited', 'delete'
+              // ពិនិត្យមើលថាតើជា comment ឬ reply លើ comment
+              if (val?.item === 'comment' || val?.verb === 'add') {
+                const commentId = val.comment_id || val.id;
+                const postId = val.post_id;
+                const message = val.message || val.text || '';
+                const commenterName = val.sender_name || val.from?.name || 'អតិថិជន';
+                const commenterId = val.from?.id || val.sender_id;
+                const verb = val.verb; // 'add', 'edited', 'delete'
 
-              if (verb === 'add' && commentId) {
-                console.log(` nhậnបាន Comment ថ្មីពី ${commenterName}: "${message}" លើ Post ID: ${postId}`);
+                if (commentId) {
+                  console.log(`💬 បានទទួល Comment ថ្មីពី ${commenterName}: "${message}" (Post ID: ${postId})`);
 
-                await handleAutoReplyAndHide({
-                  pageId,
-                  commentId,
-                  postId,
-                  message,
-                  commenterName,
-                  commenterId
-                });
+                  await handleAutoReplyAndHide({
+                    pageId,
+                    commentId,
+                    postId,
+                    message,
+                    commenterName,
+                    commenterId
+                  });
+                }
               }
             }
           }
@@ -67,7 +71,6 @@ export async function POST(request: Request) {
               
               console.log(`📩 បានទទួលសារ Messenger ពី ${senderPsid}: "${messageText}"`);
               
-              // ហ្វังก์ชันឆ្លើយតបសារឆាតផ្ទាល់ (Inbox Auto-Reply)
               await handleMessengerAutoReply(senderPsid, messageText);
             }
           }
@@ -79,7 +82,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Not a page event' }, { status: 404 });
     }
   } catch (error: any) {
-    console.error("Webhook Error:", error);
+    console.error("❌ Webhook Critical Error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
@@ -97,14 +100,14 @@ async function handleAutoReplyAndHide(data: {
     const pageAccessToken = process.env.FACEBOOK_PAGE_ACCESS_TOKEN || process.env.FACEBOOK_ACCESS_TOKEN;
 
     if (!pageAccessToken) {
-      console.error("រកមិនឃើញ Page Access Token សម្រាប់ Bot ទេ។");
+      console.error("❌ រកមិនឃើញ Page Access Token ក្នុង Environment Variables ទេ។");
       return;
     }
 
     const { commentId, message, commenterName } = data;
     const lowerMsg = message.toLowerCase();
 
-    // 1. 🛡️ លាក់ខំមិនអវិជ្ជមាន (Auto-Hide Negative)
+    // 1. 🛡️ លាក់ខំមិនអវិជ្ជមាន (Auto-Hide Negative Keywords)
     const bannedKeywords = ["ថ្លៃម៉្លេះ", "ថ្លៃ", "បោក", "មិនល្អ", "fake", "bad"];
     const isNegative = bannedKeywords.some(keyword => lowerMsg.includes(keyword));
 
@@ -115,9 +118,7 @@ async function handleAutoReplyAndHide(data: {
         body: JSON.stringify({ is_hidden: true, access_token: pageAccessToken })
       });
       const hideData = await hideRes.json();
-      if (hideData.success) {
-        console.log(`🛡️ បានលាក់ខំមិនអវិជ្ជមានដោយជោគជ័យ (Comment ID: ${commentId})`);
-      }
+      console.log("🛡️ Hide Comment Result:", hideData);
     }
 
     // 2. 💬 ឆ្លើយតបខំមិនស្វ័យប្រវត្តិ (Auto Comment Reply)
@@ -129,13 +130,10 @@ async function handleAutoReplyAndHide(data: {
       body: JSON.stringify({ message: replyText, access_token: pageAccessToken })
     });
     const commentReplyData = await commentReplyRes.json();
+    console.log("✅ Comment Reply Response:", commentReplyData);
 
-    if (commentReplyData.id) {
-      console.log(`✅ Bot បានតប Comment ជោគជ័យ ID: ${commentReplyData.id}`);
-    }
-
-    // 3. 📥 ផ្ញើសារចូល Inbox ស្វ័យប្រវត្តិ (Private Reply / Messenger)
-    const inboxText = `សួស្តីបង ${commenterName}! អរគុណខ្លាំងណាស់ដែលបានចាប់អារម្មណ៍ផលិតផលយើងខ្ញុំ។ តើបងចង់សាកសួរពីម៉ូដ ឬទំហំមួយណាដែរអូន? 😊`;
+    // 3. 📥 ផ្ញើសារចូល Inbox ស្វ័យប្រវត្តិ (Private Reply)
+    const inboxText = `សួស្តីបង ${commenterName}! អរគុណខ្លាំងណាស់ដែលបានចាប់អារម្មណ៍ផលិតផលស្បែកជើងយើងខ្ញុំ។ ស្បែកជើងម៉ូដនេះមានតម្លៃពិសេស និងទំហំពេញលេញ តើបងចង់មើលពណ៌ ឬទំហំមួយណាដែរអូន? 😊`;
 
     const privateReplyRes = await fetch(`https://graph.facebook.com/v18.0/${commentId}/private_replies`, {
       method: 'POST',
@@ -143,13 +141,10 @@ async function handleAutoReplyAndHide(data: {
       body: JSON.stringify({ message: inboxText, access_token: pageAccessToken })
     });
     const privateReplyData = await privateReplyRes.json();
-
-    if (privateReplyData.id) {
-      console.log(`📨 Bot បានផ្ញើ Private Reply ចូល Inbox ជោគជ័យ ID: ${privateReplyData.id}`);
-    }
+    console.log("📨 Private Reply Response:", privateReplyData);
 
   } catch (err) {
-    console.error("Auto-Reply Execution Error:", err);
+    console.error("❌ Auto-Reply Execution Error:", err);
   }
 }
 
@@ -159,14 +154,14 @@ async function handleMessengerAutoReply(senderPsid: string, userMessage: string)
     const pageAccessToken = process.env.FACEBOOK_PAGE_ACCESS_TOKEN || process.env.FACEBOOK_ACCESS_TOKEN;
     if (!pageAccessToken) return;
 
-    let replyText = 'បាទ/ចាស៎! សួស្តីបង។ តើចង់ឱ្យហាងយើងខ្ញុំជួយណែនាំស្បែកជើងម៉ូដអវីដែរបង?';
+    let replyText = 'បាទ/ចាស៎! សួស្តីបង។ ហាងស្បែកជើង Wear Luxury Cambodia មានលក់ស្បែកជើងស្អាតៗ និងគុណភាពខ្ពស់ តើចង់ឱ្យហាងយើងខ្ញុំជួយណែនាំម៉ូដអវីដែរបង?';
     const lowerMsg = userMessage.toLowerCase();
 
     if (lowerMsg.includes('តម្លៃ') || lowerMsg.includes('price') || lowerMsg.includes('ប៉ុន្មាន')) {
-      replyText = 'ស្បែកជើងរបស់យើងមានតម្លៃពិសេសចាប់ពី ១៥ដុល្លារឡើងទៅបង! អាចផ្ញូរូបម៉ូដដែលបងពេញចិត្តមកបានណា៎ 😊';
+      replyText = 'ស្បែកជើងរបស់យើងមានតម្លៃពិសេសចាប់ពី ១៥ដុល្លារឡើងទៅបង! អាចផ្ញូរូបម៉ូដដែលបងពេញចិត្តមកបានណា៎ 👟✨';
     }
 
-    await fetch(`https://graph.facebook.com/v18.0/me/messages?access_token=${pageAccessToken}`, {
+    const res = await fetch(`https://graph.facebook.com/v18.0/me/messages?access_token=${pageAccessToken}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -174,9 +169,9 @@ async function handleMessengerAutoReply(senderPsid: string, userMessage: string)
         message: { text: replyText },
       }),
     });
-
-    console.log(`✅ បានឆ្លើយតបសារ Messenger ទៅកាន់ PSID: ${senderPsid}`);
+    const data = await res.json();
+    console.log(`✅ Messenger Auto-Reply Response for PSID ${senderPsid}:`, data);
   } catch (error) {
-    console.error("Messenger Auto-Reply Error:", error);
+    console.error("❌ Messenger Auto-Reply Error:", error);
   }
 }
