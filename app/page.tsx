@@ -2045,18 +2045,71 @@ export default function Home() {
             )}
 
             {/* ========================================================= */}
-            {/* 🌟 ផ្ទាំងទី២៖ សារស្វាគមន៍អតិថិជនថ្មី (Welcome Message) */}
+            {/* 🌟 ផ្ទាំងសារស្វាគមន៍អតិថិជនថ្មី (Welcome Message Settings) */}
             {/* ========================================================= */}
             {activeTab === "WELCOME_SETTINGS" && (
               <div className={`p-6 min-h-screen rounded-xl shadow-sm border animate-in fade-in duration-300 transition-colors ${theme === 'dark' ? 'bg-[#18191A] border-slate-800' : 'bg-[#F0F2F5] border-slate-200'}`}>
                 <div className={`p-6 rounded-xl border shadow-sm max-w-4xl mx-auto ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-800'}`}>
+                  
+                  {/* Header */}
                   <h3 className={`text-[18px] font-bold mb-2 flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
                     <span className="text-xl">👋</span> កំណត់សារស្វាគមន៍អតិថិជនថ្មី (Messenger Welcome Message)
                   </h3>
                   <p className={`text-[13px] mb-6 border-b pb-4 ${theme === 'dark' ? 'text-slate-400 border-slate-700' : 'text-gray-500 border-slate-100'}`}>
-                    សារនេះនឹងត្រូវផ្ញើស្វ័យប្រវត្តិទៅកាន់អតិថិជនដែលផ្ញើសារចូល Page របស់បងជាលើកដំបូង។
+                    សារនេះនឹងត្រូវផ្ញើស្វ័យប្រវត្តិទៅកាន់អតិថិជនដែលផ្ញើសារចូល Page របស់បង។
                   </p>
 
+                  {/* 🌟 ១. ប្រអប់ជ្រើសរើស Page (អាច Select ផ្លាស់ប្តូរ Page បានដូច Chatbot) */}
+                  <div className="mb-5">
+                    <label className={`block font-bold text-[14px] mb-2 ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`}>១. ជ្រើសរើស Facebook Page៖</label>
+                    <div className="relative">
+                      <div
+                        onClick={() => setIsPageMenuOpen(!isPageMenuOpen)}
+                        className={`w-full border rounded-xl p-3 pl-12 pr-10 flex items-center justify-between cursor-pointer shadow-sm transition ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-blue-200 text-slate-800'}`}
+                      >
+                        <div className="absolute left-3 top-2.5 pointer-events-none">
+                          {selectedPageData?.picture?.data?.url ? (
+                            <img src={selectedPageData.picture.data.url} className="w-7 h-7 rounded-full object-cover border border-slate-200 shadow-xs" />
+                          ) : (
+                            <div className="w-7 h-7 bg-slate-400 rounded-full flex items-center justify-center text-[10px] text-white">Page</div>
+                          )}
+                        </div>
+                        <span className="text-[14px] font-bold truncate">{selectedPageData ? selectedPageData.name : "Select a Page..."}</span>
+                        <span className="text-xs text-[#1877F2] font-bold">▼</span>
+                      </div>
+
+                      {/* Dropdown Menu បង្ហាញបញ្ជី Page ទាំងអស់ */}
+                      {isPageMenuOpen && (
+                        <>
+                          <div className="fixed inset-0 z-40" onClick={() => setIsPageMenuOpen(false)}></div>
+                          <div className={`absolute top-[110%] left-0 w-full border rounded-xl shadow-2xl z-50 max-h-60 overflow-y-auto p-1.5 flex flex-col gap-1 ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-white' : 'bg-white border-slate-300'}`}>
+                            {pages.map(p => (
+                              <div
+                                key={p.id}
+                                onClick={() => {
+                                  setSelectedPage(p.id);
+                                  localStorage.setItem("selectedPage", p.id);
+                                  setIsPageMenuOpen(false);
+                                }}
+                                className={`p-2.5 rounded-lg flex items-center gap-3 cursor-pointer transition ${selectedPage === p.id ? (theme === 'dark' ? 'bg-blue-900/50 text-white font-bold' : 'bg-blue-50 text-blue-700 font-bold') : (theme === 'dark' ? 'hover:bg-[#3A3B3C]' : 'hover:bg-slate-100 text-slate-700')}`}
+                              >
+                                {p.picture?.data?.url ? (
+                                  <img src={p.picture.data.url} className="w-8 h-8 rounded-full object-cover border border-slate-200 shrink-0" />
+                                ) : (
+                                  <div className="w-8 h-8 bg-slate-300 rounded-full shrink-0 flex items-center justify-center text-[10px]">Page</div>
+                                )}
+                                <span className="text-[14px] truncate">{p.name}</span>
+                                {selectedPage === p.id && <span className="ml-auto text-xs text-[#1877F2]">✓</span>}
+                              </div>
+                            ))}
+                            {pages.length === 0 && <div className="p-3 text-center text-slate-400 text-xs">មិនទាន់មាន Page ទេ...</div>}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* ២. អត្ថបទសារស្វាគមន៍ */}
                   <div className="mb-4">
                     <label className={`block text-[14px] font-bold mb-2 ${theme === 'dark' ? 'text-slate-300' : 'text-gray-700'}`}>អត្ថបទសារស្វាគមន៍៖</label>
                     <textarea
@@ -2068,14 +2121,32 @@ export default function Home() {
                     />
                   </div>
 
+                  {/* ៣. កំណត់ពេលវេលា (Frequency / Cooldown) */}
+                  <div className="mb-6">
+                    <label className={`block text-[14px] font-bold mb-2 ${theme === 'dark' ? 'text-slate-300' : 'text-gray-700'}`}>⏱️ កម្រិតញឹកញាប់នៃការផ្ញើសារ (Frequency Capping):</label>
+                    <select 
+                      id="welcomeFrequency"
+                      defaultValue="24h"
+                      className={`w-full p-3 border rounded-xl outline-none font-semibold text-[14px] ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-slate-50 border-gray-300 text-slate-800'}`}
+                    >
+                      <option value="once">បង្ហាញតែ ១ ដងគត់ក្នុងប្រវត្តិសាស្ត្រឆាត (Once ever)</option>
+                      <option value="24h">បង្ហាញ ១ ដងក្នុងរយៈពេល ២៤ ម៉ោង (Once every 24 hours) - ណែនាំ ⭐</option>
+                      <option value="12h">បង្ហាញ ១ ដងក្នុងរយៈពេល ១២ ម៉ោង (Once every 12 hours)</option>
+                    </select>
+                    <p className="text-[12px] text-slate-400 mt-1.5">ការពារកុំឱ្យអតិថិជនរំខាន ឬโดន Facebook ប្លុកផ្ញើសារញឹកញាប់ពេក។</p>
+                  </div>
+
                   <div className="flex justify-end mt-4">
                     <button
                       type="button"
-                      onClick={handleSaveWelcomeMessage}
+                      onClick={() => {
+                        const freqElement = (document.getElementById('welcomeFrequency') as HTMLSelectElement)?.value;
+                        handleSaveWelcomeMessage();
+                      }}
                       disabled={isSavingWelcome}
                       className="bg-[#1877F2] hover:bg-[#166FE5] text-white font-bold py-2.5 px-8 rounded-xl transition duration-200 disabled:bg-gray-400 cursor-pointer shadow-sm text-[14px] flex items-center gap-2"
                     >
-                      {isSavingWelcome ? 'កំពុងរក្សាទុក...' : '💾 រក្សាទុកសារស្វាគមន៍'}
+                      {isSavingWelcome ? 'កំពុងរក្សាទុក...' : '💾 រក្សាទុកការកំណត់សារស្វាគមន៍'}
                     </button>
                   </div>
 

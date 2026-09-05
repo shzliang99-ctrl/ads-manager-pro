@@ -8,23 +8,29 @@ const filePath = path.join(process.cwd(), 'welcome-config.json');
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { message } = body;
+    const { message, pageId, frequency } = body;
 
     if (!message) {
       return NextResponse.json({ success: false, error: 'Message is required' }, { status: 400 });
     }
 
-    // រៀបចំទុកដាក់ទិន្នន័យចូលក្នុង File JSON (បងអាចប្ដូរទៅរក្សាទុកក្នុង Database តាមក្រោយបាន)
-    const dataToSave = { message, updatedAt: new Date().toISOString() };
+    // រៀបចំទុកដាក់ទិន្នន័យរួមមាន message, pageId និង frequency ចូលក្នុង File JSON
+    const dataToSave = { 
+      pageId: pageId || 'default', 
+      message, 
+      frequency: frequency || '24h', 
+      updatedAt: new Date().toISOString() 
+    };
+    
     fs.writeFileSync(filePath, JSON.stringify(dataToSave, null, 2));
 
-    console.log("✅ Saved Welcome Message successfully:", message);
+    console.log("✅ Saved Welcome Message successfully for Page:", pageId);
 
     // ប្រសិនបើបងចង់ឱ្យវាបញ្ជូនទិន្នន័យទៅ Facebook Page API ក្នុងពេលជាមួយគ្នា អាចដាក់កូដ Graph API ទីនេះបាន
 
     return NextResponse.json({ 
       success: true, 
-      message: 'រក្សាទុកសារស្វាគមន៍ដោយជោគជ័យ!',
+      message: 'រក្សាទុកសារស្វាគមន៍ និងការកំណត់ដោយជោគជ័យ!',
       data: dataToSave 
     });
 
@@ -44,7 +50,7 @@ export async function GET() {
       const fileData = fs.readFileSync(filePath, 'utf8');
       return NextResponse.json({ success: true, data: JSON.parse(fileData) });
     }
-    return NextResponse.json({ success: true, data: { message: '' } });
+    return NextResponse.json({ success: true, data: { message: '', frequency: '24h', pageId: '' } });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
