@@ -16,15 +16,37 @@ const datePresetOptions = [
 
 export default function Home() {
 
-  // 1. ដាក់កូដ State នេះនៅកន្លែងប្រកាស States ក្នុង Component Home (ឧទាហរណ៍ ដាក់ក្បែរ isFbConnected)
+  // 1. ដាក់កូដ State នេះនៅកន្លែងប្រកាស States ក្នុង Component Home
   const [activeTab, setActiveTab] = useState("CREATE");
   const [isMounted, setIsMounted] = useState(false);
 
-  // 🌟 States និងមុខងារសម្រាប់សារស្វាគមន៍ (Welcome Message)
+  // 🌟 States សម្រាប់ Pages និង Selected Page (ត្រូវប្រកាសមុនគេ)
+  const [pages, setPages] = useState<any[]>([]);
+  const [selectedPage, setSelectedPage] = useState("");
+
+  // 🌟 States និងមុខងារសម្រាប់សារស្វាគមន៍ (Welcome Message) - ប្រកាសតែម្តងគត់
   const [isAutoReplyOpen, setIsAutoReplyOpen] = useState(false);
-  const [welcomeMessage, setWelcomeMessage] = useState('បាទ/ចាស៎! សួស្តីបង! ហាង Wear Luxury Cambodia មានស្បែកជើងស្អាតៗ តើចង់ឱ្យជួយណែនាំម៉ូដមួយណាដែរ?');
+  const [welcomeMessage, setWelcomeMessage] = useState("");
   const [isSavingWelcome, setIsSavingWelcome] = useState(false);
   const [welcomeStatus, setWelcomeStatus] = useState('');
+
+  // ✅ useEffect សម្រាប់ទាញយកទិន្នន័យ Welcome Message តាម Page នីមួយៗ
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const currentSelectedPage = localStorage.getItem("selectedPage") || selectedPage;
+      if (currentSelectedPage) {
+        const saved = localStorage.getItem(`welcome_config_${currentSelectedPage}`);
+        if (saved) {
+          try {
+            const parsed = JSON.parse(saved);
+            setWelcomeMessage(parsed.message || "");
+          } catch (e) {}
+        } else {
+          setWelcomeMessage("");
+        }
+      }
+    }
+  }, [selectedPage]);
 
   const handleSaveWelcomeMessage = async () => {
     setIsSavingWelcome(true);
@@ -254,8 +276,21 @@ export default function Home() {
 // ប្រើប្រាស់ t ដើម្បីទាញយកភាសាដែលកំពុងជ្រើសរើស
   const t = langText[lang];
 
-  const [pages, setPages] = useState<any[]>([]);
-  const [selectedPage, setSelectedPage] = useState("");
+  // ៣. ប្រើ useEffect ដើម្បីទាញយកសារដែលធ្លាប់ Save មកដាក់តាមក្រោយពេល selectedPage ដូរម្តងៗ
+  useEffect(() => {
+    if (selectedPage && typeof window !== "undefined") {
+      const saved = localStorage.getItem(`welcome_config_${selectedPage}`);
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          setWelcomeMessage(parsed.message || "");
+        } catch (e) {}
+      } else {
+        setWelcomeMessage("");
+      }
+    }
+  }, [selectedPage]);
+
   const [isPageMenuOpen, setIsPageMenuOpen] = useState(false);
   
   const [posts, setPosts] = useState<any[]>([]);
@@ -831,6 +866,8 @@ export default function Home() {
       updateCurrentPageConfig('commentTexts', newTexts);
     }
   };
+
+  
 
   // បញ្ជី Emoji ទាំង ៧ របស់ Facebook
   const fbReactions = [

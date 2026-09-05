@@ -1,5 +1,18 @@
 import { NextResponse } from 'next/server';
 
+// 🛡️ មុខងារទប់ស្កាត់ការផ្ញើសារซ้ำ (Deduplication Map) ដើម្បីការពារកុំឱ្យផ្ញើចូល Inbox ឬ Comment ស្ទួនៗច្រើនដង
+const processedEvents = new Map<string, number>();
+
+// លុប Cache ចាស់ៗចេញជារៀងរាល់ ១០ នាទី ដើម្បីកុំឱ្យ memory ធ្ងន់ពេក
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, timestamp] of processedEvents.entries()) {
+    if (now - timestamp > 600000) { // ៦០០វិនាទី (១០នាទី)
+      processedEvents.delete(key);
+    }
+  }
+}, 600000);
+
 // 🌟 1. GET Method: សម្រាប់ឱ្យ Facebook ផ្ទៀងផ្ទាត់ Webhook (Verify Token)
 export async function GET(request: Request) {
   try {
@@ -36,16 +49,22 @@ export async function POST(request: Request) {
           for (const change of entry.changes) {
             if (change.field === 'feed') {
               const val = change.value;
-              // ពិនិត្យមើលថាតើជា comment ឬ reply លើ comment
               if (val?.item === 'comment' || val?.verb === 'add') {
                 const commentId = val.comment_id || val.id;
                 const postId = val.post_id;
                 const message = val.message || val.text || '';
                 const commenterName = val.sender_name || val.from?.name || 'អតិថិជន';
                 const commenterId = val.from?.id || val.sender_id;
-                const verb = val.verb; // 'add', 'edited', 'delete'
 
                 if (commentId) {
+                  // 🛡️ [ការពារស្ទួន] ឆែកមើលថាតើ Comment ID នេះធ្លាប់បានឆ្លើយតបហើយឬยัง?
+                  if (processedEvents.has(`comment_${commentId}`)) {
+                    console.log(`⚠️ រំលង Comment ID ${commentId} ព្រោះធ្លាប់បានឆ្លើយតបរួចហើយ (Duplicate Prevented)`);
+                    continue;
+                  }
+                  // កត់ត្រាថា Comment ID នេះត្រូវបានដំណើរការរួច
+                  processedEvents.set(`comment_${commentId}`, Date.now());
+
                   console.log(`💬 បានទទួល Comment ថ្មីពី ${commenterName}: "${message}" (Post ID: ${postId})`);
 
                   await handleAutoReplyAndHide({
@@ -67,8 +86,18 @@ export async function POST(request: Request) {
           for (const messagingEvent of entry.messaging) {
             if (messagingEvent.message && !messagingEvent.message.is_echo) {
               const senderPsid = messagingEvent.sender.id;
+              const messageId = messagingEvent.message.mid; // Message ID សម្រាប់ទប់ស្កួន
               const messageText = messagingEvent.message.text || '';
               
+              // 🛡️ [ការពារស្ទួន] ឆែកមើល Message ID
+              if (messageId && processedEvents.has(`msg_${messageId}`)) {
+                console.log(`⚠️ រំលង Message ID ${messageId} ព្រោះធ្លាប់បានឆ្លើយតបរួចហើយ`);
+                continue;
+              }
+              if (messageId) {
+                processedEvents.set(`msg_${messageId}`, Date.now());
+              }
+
               console.log(`📩 បានទទួលសារ Messenger ពី ${senderPsid}: "${messageText}"`);
               
               await handleMessengerAutoReply(senderPsid, messageText);
