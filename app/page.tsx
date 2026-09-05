@@ -46,6 +46,8 @@ export default function Home() {
     }
   };
 
+
+
   // 👈 យកកូដ useEffect សម្រាប់ Load saved_autoreply_configs មកដាក់នៅត្រង់ចន្លោះនេះបានយ៉ាងស្រួល
   useEffect(() => {
     try {
@@ -1698,13 +1700,13 @@ export default function Home() {
                       <p className={`text-[14px] ${theme === 'dark' ? 'text-slate-400' : 'text-[#65676B]'}`}>កំណត់លក្ខខណ្ឌ React, Comment, Inbox, Delay និងលាក់ខំមិនជាមួយ Logo ផេកយ៉ាងទំនើប។</p>
                     </div>
                     <div className="flex items-center gap-2">
-                       <span className="text-[14px] font-semibold">ស្ថានភាព Bot:</span>
-                       <div 
-                         onClick={() => updateCurrentPageConfig('enabled', !currentConfig.enabled)} 
-                         className={`w-12 h-6 rounded-full relative cursor-pointer shadow-inner transition-colors duration-300 ${currentConfig.enabled ? 'bg-[#31A24C]' : 'bg-slate-400'}`}
-                       >
-                         <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 shadow-sm transition-transform duration-300 ${currentConfig.enabled ? 'right-0.5' : 'left-0.5'}`}></div>
-                       </div>
+                      <span className="text-[14px] font-semibold">ស្ថានភាព Bot:</span>
+                      <div 
+                        onClick={() => updateCurrentPageConfig('enabled', !currentConfig.enabled)} 
+                        className={`w-12 h-6 rounded-full relative cursor-pointer shadow-inner transition-colors duration-300 ${currentConfig.enabled ? 'bg-[#31A24C]' : 'bg-slate-400'}`}
+                      >
+                        <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 shadow-sm transition-transform duration-300 ${currentConfig.enabled ? 'right-0.5' : 'left-0.5'}`}></div>
+                      </div>
                     </div>
                   </div>
 
@@ -1921,20 +1923,53 @@ export default function Home() {
                       )}
                     </div>
 
+                    {/* ========================================================= */}
+                    {/* 🌟 ផ្ទាំងកូនចៅ៖ កំណត់សារស្វាគមន៍អតិថិជនថ្មី (Welcome Message Section) */}
+                    {/* ========================================================= */}
+                    <div className={`p-6 rounded-xl border shadow-sm ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-800'}`}>
+                      <h3 className={`text-[16px] font-bold mb-2 flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
+                        ⚙️ កំណត់សារស្វាគមន៍អតិថិជនថ្មី (Messenger Welcome Message)
+                      </h3>
+                      <p className={`text-[13px] mb-4 ${theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>
+                        សារនេះនឹងត្រូវផ្ញើស្វ័យប្រវត្តិទៅកាន់អតិថិជនដែលផ្ញើសារចូល Page របស់បងជាលើកដំបូង។
+                      </p>
+
+                      <div className="mb-4">
+                        <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-slate-300' : 'text-gray-700'}`}>អត្ថបទសារស្វាគមន៍៖</label>
+                        <textarea
+                          rows={4}
+                          value={welcomeMessage}
+                          onChange={(e) => setWelcomeMessage(e.target.value)}
+                          className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-[13px] ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-gray-300 text-slate-800'}`}
+                          placeholder="វាយបញ្ចូលសារស្វាគមន៍របស់អ្នកទីនេះ..."
+                        />
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={handleSaveWelcomeMessage}
+                        disabled={isSavingWelcome}
+                        className="w-full bg-[#1877F2] hover:bg-[#166FE5] text-white font-bold py-2.5 px-4 rounded-xl transition duration-200 disabled:bg-gray-400 cursor-pointer shadow-sm text-[14px]"
+                      >
+                        {isSavingWelcome ? 'កំពុងរក្សាទុក...' : 'រក្សាទុកការកំណត់សារស្វាគមន៍ (Save Welcome Message)'}
+                      </button>
+
+                      {welcomeStatus && (
+                        <p className={`mt-3 text-center text-sm font-medium ${theme === 'dark' ? 'text-slate-300' : 'text-gray-700'}`}>{welcomeStatus}</p>
+                      )}
+                    </div>
+
                     {/* ប៊ូតុង Save */}
                     <div className="flex justify-end mt-2">
-                      // ចាប់ផ្តើមជំនួសត្រង់ប៊ូតុង Save នេះ៖
                       <button 
                         type="button"
                         onClick={() => {
-                          // ១. បង្កើតទម្រង់ទិន្នន័យសម្រាប់ Page នេះ
                           const pageDataToSave = {
                             pageId: selectedPage,
                             pageName: selectedPageData?.name || "Unknown Page",
                             config: currentConfig
                           };
 
-                          // ២. ទាញយកបញ្ជីដែលធ្លាប់ Save ទុកពីមុនមកផ្ទៀងផ្ទាត់
                           let existingSavedConfigs = [];
                           try {
                             const savedLocal = localStorage.getItem("saved_autoreply_configs");
@@ -1943,7 +1978,6 @@ export default function Home() {
                             console.error(e);
                           }
 
-                          // ៣. ពិនិត្យមើលថាតើ Page នេះធ្លាប់ Save រួចហើយឬยัง? បើមានហើយ Update ថ្មី បើអត់ទាន់មាន Add ចូល
                           const index = existingSavedConfigs.findIndex((item: any) => item.pageId === selectedPage);
                           if (index >= 0) {
                             existingSavedConfigs[index] = pageDataToSave;
@@ -1951,10 +1985,8 @@ export default function Home() {
                             existingSavedConfigs.push(pageDataToSave);
                           }
 
-                          // ៤. រក្សាទុកចូលក្នុង localStorage ជាផ្លូវការ
                           localStorage.setItem("saved_autoreply_configs", JSON.stringify(existingSavedConfigs));
 
-                          // ៥. Update State ក្នុង Screen ឱ្យលោតបង្ហាញបញ្ជីខាងក្រោមភ្លាមៗ
                           if (!savedPagesList.includes(selectedPage)) {
                             setSavedPagesList([...savedPagesList, selectedPage]);
                           }
@@ -1969,7 +2001,7 @@ export default function Home() {
                   </div>
 
                   {/* ========================================================= */}
-                  {/* 🌟 ផ្នែកបង្ហាញបញ្ជី Page ដែលបាន Save ជាប់ខាងក្រោម (Saved Pages List) */}
+                  {/* ផ្នែកបង្ហាញបញ្ជី Page ដែលបាន Save ជាប់ខាងក្រោម (Saved Pages List) */}
                   {/* ========================================================= */}
                   <div className={`mt-10 pt-6 border-t ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
                     <h3 className={`text-[16px] font-bold mb-4 flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>
@@ -2031,6 +2063,7 @@ export default function Home() {
               <p className={`text-sm mb-4 ${theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>
                 សារនេះនឹងត្រូវផ្ញើស្វ័យប្រវត្តិទៅកាន់អតិថិជនដែលផ្ញើសារចូល Page របស់បងជាលើកដំបូង។
               </p>
+
 
               <div className="mb-4">
                 <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-slate-300' : 'text-gray-700'}`}>អត្ថបទសារស្វាគមន៍៖</label>
