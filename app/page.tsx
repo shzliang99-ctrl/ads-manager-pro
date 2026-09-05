@@ -33,6 +33,16 @@ export default function Home() {
       const pageInfo = pages.find(p => p.id === selectedPage);
       const freqValue = (document.getElementById('welcomeFrequency') as HTMLSelectElement)?.value || '24h';
 
+      // 1. រក្សាទុកចូល Browser localStorage ជាបណ្ដោះអាសន្ន
+      const welcomeConfigData = {
+        pageId: selectedPage,
+        message: welcomeMessage,
+        frequency: freqValue,
+        updatedAt: new Date().toISOString()
+      };
+      localStorage.setItem(`welcome_config_${selectedPage}`, JSON.stringify(welcomeConfigData));
+
+      // 2. បញ្ជូនសំណើទៅ API ដើម្បីភ្ជាប់ជាមួយ Facebook Page
       const response = await fetch('/api/settings/welcome', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

@@ -1,9 +1,4 @@
 import { NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
-
-// កន្លែងសម្រាប់រក្សាទុកទិន្នន័យ Welcome Message ជាបណ្ដោះអាសន្ន (JSON File)
-const filePath = path.join(process.cwd(), 'welcome-config.json');
 
 export async function POST(request: Request) {
   try {
@@ -14,7 +9,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'Message and Page ID are required' }, { status: 400 });
     }
 
-    // 🌟 1. បញ្ជូនសំណើ (API Call) ទៅកាន់ Facebook Messenger Profile API ផ្លូវការ ដើម្បីលុបបំបាត់ការ Loading
+    // 🌟 1. បញ្ជូនសំណើ (API Call) ទៅកាន់ Facebook Messenger Profile API ផ្លូវការ
     if (pageToken) {
       const fbResponse = await fetch(`https://graph.facebook.com/v18.0/me/messenger_profile?access_token=${pageToken}`, {
         method: 'POST',
@@ -37,17 +32,15 @@ export async function POST(request: Request) {
       }
     }
 
-    // 🌟 2. រក្សាទុកទិន្នន័យរួមមាន message, pageId, pageToken និង frequency ចូលក្នុង File JSON
+    // 🌟 2. ส่งទិន្នន័យឆ្លើយតបត្រឡប់ទៅវិញដោយជោគជ័យ (ដោយមិនសរសេរចូល File Server)
     const dataToSave = { 
       pageId, 
       message, 
       frequency: frequency || '24h', 
       updatedAt: new Date().toISOString() 
     };
-    
-    fs.writeFileSync(filePath, JSON.stringify(dataToSave, null, 2));
 
-    console.log("✅ Saved Welcome Message successfully for Page:", pageId);
+    console.log("✅ Configured Welcome Message successfully for Page:", pageId);
 
     return NextResponse.json({ 
       success: true, 
@@ -64,13 +57,9 @@ export async function POST(request: Request) {
   }
 }
 
-// មុខងារសម្រាប់ទាញយកទិន្នន័យមកបង្ហាញវិញបើចាំបាច់
+// មុខងារសម្រាប់ទាញយកទិន្នន័យមកបង្ហាញវិញ
 export async function GET() {
   try {
-    if (fs.existsSync(filePath)) {
-      const fileData = fs.readFileSync(filePath, 'utf8');
-      return NextResponse.json({ success: true, data: JSON.parse(fileData) });
-    }
     return NextResponse.json({ success: true, data: { message: '', frequency: '24h', pageId: '' } });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
