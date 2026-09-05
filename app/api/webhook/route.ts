@@ -86,21 +86,12 @@ export async function POST(request: Request) {
           for (const messagingEvent of entry.messaging) {
             if (messagingEvent.message && !messagingEvent.message.is_echo) {
               const senderPsid = messagingEvent.sender.id;
-              const messageId = messagingEvent.message.mid; // Message ID សម្រាប់ទប់ស្កួន
               const messageText = messagingEvent.message.text || '';
               
-              // 🛡️ [ការពារស្ទួន] ឆែកមើល Message ID
-              if (messageId && processedEvents.has(`msg_${messageId}`)) {
-                console.log(`⚠️ រំលង Message ID ${messageId} ព្រោះធ្លាប់បានឆ្លើយតបរួចហើយ`);
-                continue;
-              }
-              if (messageId) {
-                processedEvents.set(`msg_${messageId}`, Date.now());
-              }
-
               console.log(`📩 បានទទួលសារ Messenger ពី ${senderPsid}: "${messageText}"`);
               
-              await handleMessengerAutoReply(senderPsid, messageText);
+              // 🛑 យកសញ្ញា // มาដាក់កន្លែងនេះ ដើម្បីបិទកុំឱ្យវា Auto-Reply សារឆាតផ្ទាល់
+              // await handleMessengerAutoReply(senderPsid, messageText);
             }
           }
         }
