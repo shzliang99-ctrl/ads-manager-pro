@@ -21,6 +21,7 @@ export default function Home() {
   const [isMounted, setIsMounted] = useState(false);
 
  // 🌟 States និងមុខងារសម្រាប់សារស្វាគមន៍ (Welcome Message)
+ const [isAutoReplyOpen, setIsAutoReplyOpen] = useState(false);
   const [welcomeMessage, setWelcomeMessage] = useState('បាទ/ចាស៎! សួស្តីបង! ហាង Wear Luxury Cambodia មានស្បែកជើងស្អាតៗ តើចង់ឱ្យជួយណែនាំម៉ូដមួយណាដែរ?');
   const [isSavingWelcome, setIsSavingWelcome] = useState(false);
   const [welcomeStatus, setWelcomeStatus] = useState('');
@@ -1507,44 +1508,79 @@ export default function Home() {
 
       {/* 🌟 Layout Main + Left Sidebar */}
       <div className="flex flex-1 w-full items-stretch">
-        
+
         {/* 🌟 Layout Main + Left Sidebar (Multi-Language & Dark Mode Supported) */}
         <aside className={`hidden md:flex flex-col w-[260px] shrink-0 border-r min-h-[calc(100vh-64px)] shadow-sm z-10 transition-colors ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'}`}>
-         <div className="sticky top-[64px] p-4 flex flex-col gap-2 pt-6">
-             <div className="text-[11px] font-bold text-slate-400 mb-2 px-3 uppercase tracking-widest">{lang === 'kh' ? 'Main Menu' : 'Main Menu'}</div>
-             
-             <button 
-               onClick={() => handleTabChange("CREATE")}
-               className={`w-full text-left px-4 py-3.5 rounded-xl font-bold transition-all flex items-center gap-3 cursor-pointer ${activeTab === "CREATE" ? "bg-blue-600 text-white shadow-md" : (theme === 'dark' ? 'text-slate-300 hover:bg-[#3A3B3C] hover:text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900')}`}
-             >
-               <span className="text-lg leading-none">✍️</span> <span className="text-[13.5px]">{t.menuCreate}</span>
-             </button>
+        <div className="sticky top-[64px] p-4 flex flex-col gap-2 pt-6">
+            <div className="text-[11px] font-bold text-slate-400 mb-2 px-3 uppercase tracking-widest">{lang === 'kh' ? 'Main Menu' : 'Main Menu'}</div>
+            
+            <button 
+              onClick={() => handleTabChange("CREATE")}
+              className={`w-full text-left px-4 py-3.5 rounded-xl font-bold transition-all flex items-center gap-3 cursor-pointer ${activeTab === "CREATE" ? "bg-blue-600 text-white shadow-md" : (theme === 'dark' ? 'text-slate-300 hover:bg-[#3A3B3C] hover:text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900')}`}
+            >
+              <span className="text-lg leading-none">✍️</span> <span className="text-[13.5px]">{t.menuCreate}</span>
+            </button>
 
-             <button 
-               onClick={() => handleTabChange("MANAGE")}
-               className={`w-full text-left px-4 py-3.5 rounded-xl font-bold transition-all flex items-center gap-3 cursor-pointer ${activeTab === "MANAGE" ? "bg-blue-600 text-white shadow-md" : (theme === 'dark' ? 'text-slate-300 hover:bg-[#3A3B3C] hover:text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900')}`}
-             >
-               <span className="text-lg leading-none">📊</span> <span className="text-[13.5px]">{t.menuManage}</span>
-             </button>
+            <button 
+              onClick={() => handleTabChange("MANAGE")}
+              className={`w-full text-left px-4 py-3.5 rounded-xl font-bold transition-all flex items-center gap-3 cursor-pointer ${activeTab === "MANAGE" ? "bg-blue-600 text-white shadow-md" : (theme === 'dark' ? 'text-slate-300 hover:bg-[#3A3B3C] hover:text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900')}`}
+            >
+              <span className="text-lg leading-none">📊</span> <span className="text-[13.5px]">{t.menuManage}</span>
+            </button>
 
-             {/* 👇 Tab ឆ្លើយតបស្វ័យប្រវត្តិ (Auto-Reply) */}
-             <button 
-               onClick={() => handleTabChange("AUTO_REPLY")}
-               className={`w-full text-left px-4 py-3.5 rounded-xl font-bold transition-all flex items-center gap-3 cursor-pointer ${activeTab === "AUTO_REPLY" ? "bg-blue-600 text-white shadow-md" : (theme === 'dark' ? 'text-slate-300 hover:bg-[#3A3B3C] hover:text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900')}`}
-             >
-               <span className="text-lg leading-none">🤖</span> <span className="text-[13.5px]">{t.menuAutoReply}</span>
-             </button>
-             
-             {/* 🌟 ផ្នែក Tools: ប៊ូតុង AI Copywriter */}
-             <div className={`border-t my-2 mt-4 ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}></div>
-             <div className="text-[11px] font-bold text-slate-400 mb-2 px-3 uppercase tracking-widest">{t.tools}</div>
-             <button 
-               onClick={() => handleTabChange("AI")}
-               className={`w-full text-left px-4 py-3.5 rounded-xl font-bold transition-all flex items-center gap-3 cursor-pointer ${activeTab === "AI" ? "bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-md" : (theme === 'dark' ? 'text-slate-300 hover:bg-[#3A3B3C] hover:text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900')}`}
-             >
-               <span className="text-lg leading-none">✨</span> <span className="text-[13.5px]">{t.menuAI}</span>
-             </button>
-         </div>
+            {/* 👇 ផ្នែក Tab ឆ្លើយតបស្វ័យប្រវត្តិ និង Dropdown កូនចៅ */}
+            <div className="flex flex-col">
+              <div 
+                onClick={() => setIsAutoReplyOpen(!isAutoReplyOpen)}
+                className={`w-full text-left px-4 py-3.5 rounded-xl font-bold transition-all flex items-center justify-between cursor-pointer ${
+                  (activeTab === "AUTO_REPLY" || activeTab === "WELCOME_SETTINGS")
+                    ? (theme === 'dark' ? 'bg-[#3A3B3C] text-white' : 'bg-slate-100 text-slate-900 shadow-sm')
+                    : (theme === 'dark' ? 'text-slate-300 hover:bg-[#3A3B3C] hover:text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900')
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-lg leading-none">🤖</span> <span className="text-[13.5px]">{t.menuAutoReply}</span>
+                </div>
+                <span className={`text-[10px] transform transition-transform duration-200 ${isAutoReplyOpen ? 'rotate-180' : ''}`}>▼</span>
+              </div>
+
+              {/* 🌟 ម៉ឺនុយកូនចៅ (Sub-menu មាន Icon ស្អាត និងដកឃ្លាត្រូវក្បួន) */}
+              {isAutoReplyOpen && (
+                <div className={`ml-3 mt-2 pl-2 border-l-2 flex flex-col gap-1.5 ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                  <button 
+                    onClick={() => handleTabChange("AUTO_REPLY")}
+                    className={`w-full text-left px-3 py-2.5 rounded-xl text-[13px] font-bold transition-all flex items-center gap-2.5 cursor-pointer ${
+                      activeTab === "AUTO_REPLY" 
+                        ? "bg-blue-600 text-white shadow-md" 
+                        : (theme === 'dark' ? 'text-slate-400 hover:text-white hover:bg-[#3A3B3C]/50' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100')
+                    }`}
+                  >
+                    <span className="text-base leading-none">⚙️</span> ការកំណត់ Chatbot
+                  </button>
+                  <button 
+                    onClick={() => handleTabChange("WELCOME_SETTINGS")}
+                    className={`w-full text-left px-3 py-2.5 rounded-xl text-[13px] font-bold transition-all flex items-center gap-2.5 cursor-pointer ${
+                      activeTab === "WELCOME_SETTINGS" 
+                        ? "bg-blue-600 text-white shadow-md" 
+                        : (theme === 'dark' ? 'text-slate-400 hover:text-white hover:bg-[#3A3B3C]/50' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100')
+                    }`}
+                  >
+                    <span className="text-base leading-none">👋</span> សារស្វាគមន៍ថ្មី
+                  </button>
+                </div>
+              )}
+            </div>
+            
+            {/* 🌟 ផ្នែក Tools: ប៊ូតុង AI Copywriter */}
+            <div className={`border-t my-2 mt-4 ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}></div>
+            <div className="text-[11px] font-bold text-slate-400 mb-2 px-3 uppercase tracking-widest">{t.tools}</div>
+            <button 
+              onClick={() => handleTabChange("AI")}
+              className={`w-full text-left px-4 py-3.5 rounded-xl font-bold transition-all flex items-center gap-3 cursor-pointer ${activeTab === "AI" ? "bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-md" : (theme === 'dark' ? 'text-slate-300 hover:bg-[#3A3B3C] hover:text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900')}`}
+            >
+              <span className="text-lg leading-none">✨</span> <span className="text-[13.5px]">{t.menuAI}</span>
+            </button>
+        </div>
         </aside>
 
         {/* Main Content Area */}
@@ -1678,7 +1714,8 @@ export default function Home() {
               </div>
             )}
 
-            {/* 🌟 ផ្ទាំងគ្រប់គ្រង Auto Reply Bot Pro (រួមទាំងសារស្វាគមន៍នៅខាងក្រោម) */}
+            {/* ========================================================= */}
+            {/* 🌟 ផ្ទាំងទី១៖ ការកំណត់ប្រអប់សារ (Chatbot / Auto Reply) */}
             {/* ========================================================= */}
             {activeTab === 'AUTO_REPLY' && (
               <div className={`p-6 min-h-screen rounded-xl shadow-sm border animate-in fade-in duration-300 transition-colors ${theme === 'dark' ? 'bg-[#18191A] border-slate-800' : 'bg-[#F0F2F5] border-slate-200'}`}>
@@ -1910,42 +1947,6 @@ export default function Home() {
                       )}
                     </div>
 
-                    {/* ========================================================= */}
-                    {/* 🌟 ផ្នែកកូនចៅ៖ កំណត់សារស្វាគមន៍អតិថិជនថ្មី (Welcome Message Section) */}
-                    {/* ========================================================= */}
-                    <div className={`p-6 rounded-xl border shadow-sm ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-800'}`}>
-                      <h3 className={`text-[16px] font-bold mb-2 flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
-                        ⚙️ កំណត់សារស្វាគមន៍អតិថិជនថ្មី (Messenger Welcome Message)
-                      </h3>
-                      <p className={`text-[13px] mb-4 ${theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>
-                        សារនេះនឹងត្រូវផ្ញើស្វ័យប្រវត្តិទៅកាន់អតិថិជនដែលផ្ញើសារចូល Page របស់បងជាលើកដំបូង។
-                      </p>
-
-                      <div className="mb-4">
-                        <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-slate-300' : 'text-gray-700'}`}>អត្ថបទសារស្វាគមន៍៖</label>
-                        <textarea
-                          rows={4}
-                          value={welcomeMessage}
-                          onChange={(e) => setWelcomeMessage(e.target.value)}
-                          className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-[13px] ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-gray-300 text-slate-800'}`}
-                          placeholder="វាយបញ្ចូលសារស្វាគមន៍របស់អ្នកទីនេះ..."
-                        />
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={handleSaveWelcomeMessage}
-                        disabled={isSavingWelcome}
-                        className="w-full bg-[#1877F2] hover:bg-[#166FE5] text-white font-bold py-2.5 px-4 rounded-xl transition duration-200 disabled:bg-gray-400 cursor-pointer shadow-sm text-[14px]"
-                      >
-                        {isSavingWelcome ? 'កំពុងរក្សាទុក...' : 'រក្សាទុកការកំណត់សារស្វាគមន៍ (Save Welcome Message)'}
-                      </button>
-
-                      {welcomeStatus && (
-                        <p className={`mt-3 text-center text-sm font-medium ${theme === 'dark' ? 'text-slate-300' : 'text-gray-700'}`}>{welcomeStatus}</p>
-                      )}
-                    </div>
-
                     {/* ប៊ូតុង Save របស់ Auto-Reply */}
                     <div className="flex justify-end mt-2">
                       <button 
@@ -1985,6 +1986,7 @@ export default function Home() {
                         <span>💾</span> រក្សាទុកការកំណត់សម្រាប់ Page នេះ
                       </button>
                     </div>
+
                   </div>
 
                   {/* ផ្នែកបង្ហាញបញ្ជី Page ដែលបាន Save ជាប់ខាងក្រោម */}
@@ -2043,73 +2045,46 @@ export default function Home() {
             )}
 
             {/* ========================================================= */}
-            {/* 🌟 ផ្ទាំងកូនចៅ៖ កំណត់សារស្វាគមន៍អតិថិជនថ្មី (Welcome Message Section) */}
+            {/* 🌟 ផ្ទាំងទី២៖ សារស្វាគមន៍អតិថិជនថ្មី (Welcome Message) */}
             {/* ========================================================= */}
-            <div className={`mt-8 p-6 rounded-xl border shadow-sm ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-800'}`}>
-              <h3 className={`text-[16px] font-bold mb-2 flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
-                ⚙️ កំណត់សារស្វាគមន៍អតិថិជនថ្មី (Messenger Welcome Message)
-              </h3>
-              <p className={`text-[13px] mb-4 ${theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>
-                សារនេះនឹងត្រូវផ្ញើស្វ័យប្រវត្តិទៅកាន់អតិថិជនដែលផ្ញើសារចូល Page របស់បងជាលើកដំបូង។
-              </p>
-
-              <div className="mb-4">
-                <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-slate-300' : 'text-gray-700'}`}>អត្ថបទសារស្វាគមន៍៖</label>
-                <textarea
-                  rows={4}
-                  value={welcomeMessage}
-                  onChange={(e) => setWelcomeMessage(e.target.value)}
-                  className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-[13px] ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-gray-300 text-slate-800'}`}
-                  placeholder="វាយបញ្ចូលសារស្វាគមន៍របស់អ្នកទីនេះ..."
-                />
-              </div>
-
-              <button
-                type="button"
-                onClick={handleSaveWelcomeMessage}
-                disabled={isSavingWelcome}
-                className="w-full bg-[#1877F2] hover:bg-[#166FE5] text-white font-bold py-2.5 px-4 rounded-xl transition duration-200 disabled:bg-gray-400 cursor-pointer shadow-sm text-[14px]"
-              >
-                {isSavingWelcome ? 'កំពុងរក្សាទុក...' : 'រក្សាទុកការកំណត់សារស្វាគមន៍ (Save Welcome Message)'}
-              </button>
-
-              {welcomeStatus && (
-                <p className={`mt-3 text-center text-sm font-medium ${theme === 'dark' ? 'text-slate-300' : 'text-gray-700'}`}>{welcomeStatus}</p>
-              )}
-            </div>
-            
             {activeTab === "WELCOME_SETTINGS" && (
-            <div className={`p-6 rounded-xl shadow-sm border max-w-xl mx-auto my-6 animate-in fade-in duration-300 ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-900'}`}>
-              <h2 className={`text-xl font-bold mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>⚙️ កំណត់សារស្វាគមន៍អតិថិជនថ្មី (Messenger Welcome Message)</h2>
-              <p className={`text-sm mb-4 ${theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>
-                សារនេះនឹងត្រូវផ្ញើស្វ័យប្រវត្តិទៅកាន់អតិថិជនដែលផ្ញើសារចូល Page របស់បងជាលើកដំបូង។
-              </p>
+              <div className={`p-6 min-h-screen rounded-xl shadow-sm border animate-in fade-in duration-300 transition-colors ${theme === 'dark' ? 'bg-[#18191A] border-slate-800' : 'bg-[#F0F2F5] border-slate-200'}`}>
+                <div className={`p-6 rounded-xl border shadow-sm max-w-4xl mx-auto ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-800'}`}>
+                  <h3 className={`text-[18px] font-bold mb-2 flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
+                    <span className="text-xl">👋</span> កំណត់សារស្វាគមន៍អតិថិជនថ្មី (Messenger Welcome Message)
+                  </h3>
+                  <p className={`text-[13px] mb-6 border-b pb-4 ${theme === 'dark' ? 'text-slate-400 border-slate-700' : 'text-gray-500 border-slate-100'}`}>
+                    សារនេះនឹងត្រូវផ្ញើស្វ័យប្រវត្តិទៅកាន់អតិថិជនដែលផ្ញើសារចូល Page របស់បងជាលើកដំបូង។
+                  </p>
 
+                  <div className="mb-4">
+                    <label className={`block text-[14px] font-bold mb-2 ${theme === 'dark' ? 'text-slate-300' : 'text-gray-700'}`}>អត្ថបទសារស្វាគមន៍៖</label>
+                    <textarea
+                      rows={4}
+                      value={welcomeMessage}
+                      onChange={(e) => setWelcomeMessage(e.target.value)}
+                      className={`w-full p-4 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none text-[14px] leading-relaxed ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-slate-50 border-gray-300 text-slate-800'}`}
+                      placeholder="ឧ. បាទ/ចាស៎! សួស្តីបង! ហាង Wear Luxury Cambodia មានស្បែកជើងស្អាតៗ..."
+                    />
+                  </div>
 
-              <div className="mb-4">
-                <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-slate-300' : 'text-gray-700'}`}>អត្ថបទសារស្វាគមន៍៖</label>
-                <textarea
-                  rows={4}
-                  value={welcomeMessage}
-                  onChange={(e) => setWelcomeMessage(e.target.value)}
-                  className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-gray-300'}`}
-                  placeholder="វាយបញ្ចូលសារស្វាគមន៍របស់អ្នកទីនេះ..."
-                />
+                  <div className="flex justify-end mt-4">
+                    <button
+                      type="button"
+                      onClick={handleSaveWelcomeMessage}
+                      disabled={isSavingWelcome}
+                      className="bg-[#1877F2] hover:bg-[#166FE5] text-white font-bold py-2.5 px-8 rounded-xl transition duration-200 disabled:bg-gray-400 cursor-pointer shadow-sm text-[14px] flex items-center gap-2"
+                    >
+                      {isSavingWelcome ? 'កំពុងរក្សាទុក...' : '💾 រក្សាទុកសារស្វាគមន៍'}
+                    </button>
+                  </div>
+
+                  {welcomeStatus && (
+                    <p className={`mt-4 text-right text-[13px] font-bold ${welcomeStatus.includes('✅') ? 'text-emerald-500' : 'text-red-500'}`}>{welcomeStatus}</p>
+                  )}
+                </div>
               </div>
-
-              <button
-                onClick={handleSaveWelcomeMessage}
-                disabled={isSavingWelcome}
-                className="w-full bg-blue-600 text-white font-semibold py-2.5 px-4 rounded-lg hover:bg-blue-700 transition duration-200 disabled:bg-gray-400 cursor-pointer"
-              >
-                {isSavingWelcome ? 'កំពុងរក្សាទុក...' : 'រក្សាទុកការកំណត់ (Save Settings)'}
-              </button>
-
-              {welcomeStatus && (
-                <p className={`mt-3 text-center text-sm font-medium ${theme === 'dark' ? 'text-slate-300' : 'text-gray-700'}`}>{welcomeStatus}</p>
-              )}
-            </div>
-          )}
+            )}
 
             {/* ========================================================= */}
             {/* ផ្ទាំងបង្កើតយុទ្ធនាការ (CREATE) - Dark Mode Supported */}
