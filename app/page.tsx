@@ -20,26 +20,35 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState("CREATE");
   const [isMounted, setIsMounted] = useState(false);
 
- // 🌟 States និងមុខងារសម្រាប់សារស្វាគមន៍ (Welcome Message)
- const [isAutoReplyOpen, setIsAutoReplyOpen] = useState(false);
-  const [welcomeMessage, setWelcomeMessage] = useState('បាទ/ចាស៎! សួស្តីបង! ហាង Wear Luxury Cambodia មានស្បែកជើងស្អាតៗ តើចង់ឱ្យជួយណែនាំម៉ូដមួយណាដែរ?');
-  const [isSavingWelcome, setIsSavingWelcome] = useState(false);
-  const [welcomeStatus, setWelcomeStatus] = useState('');
+  // 🌟 States និងមុខងារសម្រាប់សារស្វាគមន៍ (Welcome Message)
+  const [isAutoReplyOpen, setIsAutoReplyOpen] = useState(false);
+    const [welcomeMessage, setWelcomeMessage] = useState('បាទ/ចាស៎! សួស្តីបង! ហាង Wear Luxury Cambodia មានស្បែកជើងស្អាតៗ តើចង់ឱ្យជួយណែនាំម៉ូដមួយណាដែរ?');
+    const [isSavingWelcome, setIsSavingWelcome] = useState(false);
+    const [welcomeStatus, setWelcomeStatus] = useState('');
 
-  const handleSaveWelcomeMessage = async () => {
+    const handleSaveWelcomeMessage = async () => {
     setIsSavingWelcome(true);
     setWelcomeStatus('');
     try {
+      const pageInfo = pages.find(p => p.id === selectedPage);
+      const freqValue = (document.getElementById('welcomeFrequency') as HTMLSelectElement)?.value || '24h';
+
       const response = await fetch('/api/settings/welcome', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: welcomeMessage }),
+        body: JSON.stringify({ 
+          message: welcomeMessage,
+          pageId: selectedPage,
+          pageToken: pageInfo?.access_token || '',
+          frequency: freqValue
+        }),
       });
       
-      if (response.ok) {
-        setWelcomeStatus('✅ រក្សាទុកសារស្វាគមន៍ដោយជោគជ័យ!');
+      const result = await response.json();
+      if (result.success) {
+        setWelcomeStatus('✅ រក្សាទុក និងភ្ជាប់ជាមួយ Facebook Page ដោយជោគជ័យ!');
       } else {
-        setWelcomeStatus('❌ មានបញ្ហាក្នុងការរក្សាទុក សូមព្យាយាមម្តងទៀត។');
+        setWelcomeStatus('❌ បរាជ័យ៖ ' + result.error);
       }
     } catch (error) {
       setWelcomeStatus('❌ កំហុសបច្ចេកទេសប្រព័ន្ធ។');

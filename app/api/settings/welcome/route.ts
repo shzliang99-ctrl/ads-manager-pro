@@ -8,15 +8,38 @@ const filePath = path.join(process.cwd(), 'welcome-config.json');
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { message, pageId, frequency } = body;
+    const { message, pageId, pageToken, frequency } = body;
 
-    if (!message) {
-      return NextResponse.json({ success: false, error: 'Message is required' }, { status: 400 });
+    if (!message || !pageId) {
+      return NextResponse.json({ success: false, error: 'Message and Page ID are required' }, { status: 400 });
     }
 
-    // រៀបចំទុកដាក់ទិន្នន័យរួមមាន message, pageId និង frequency ចូលក្នុង File JSON
+    // 🌟 1. បញ្ជូនសំណើ (API Call) ទៅកាន់ Facebook Messenger Profile API ផ្លូវការ ដើម្បីលុបបំបាត់ការ Loading
+    if (pageToken) {
+      const fbResponse = await fetch(`https://graph.facebook.com/v18.0/me/messenger_profile?access_token=${pageToken}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          get_started: { payload: "WELCOME_PAYLOAD" },
+          greeting: [
+            {
+              locale: "default",
+              text: message
+            }
+          ]
+        })
+      });
+
+      const fbResult = await fbResponse.json();
+      if (fbResult.error) {
+        console.error("Facebook API Error:", fbResult.error);
+        return NextResponse.json({ success: false, error: fbResult.error.message }, { status: 400 });
+      }
+    }
+
+    // 🌟 2. រក្សាទុកទិន្នន័យរួមមាន message, pageId, pageToken និង frequency ចូលក្នុង File JSON
     const dataToSave = { 
-      pageId: pageId || 'default', 
+      pageId, 
       message, 
       frequency: frequency || '24h', 
       updatedAt: new Date().toISOString() 
@@ -26,11 +49,9 @@ export async function POST(request: Request) {
 
     console.log("✅ Saved Welcome Message successfully for Page:", pageId);
 
-    // ប្រសិនបើបងចង់ឱ្យវាបញ្ជូនទិន្នន័យទៅ Facebook Page API ក្នុងពេលជាមួយគ្នា អាចដាក់កូដ Graph API ទីនេះបាន
-
     return NextResponse.json({ 
       success: true, 
-      message: 'រក្សាទុកសារស្វាគមន៍ និងការកំណត់ដោយជោគជ័យ!',
+      message: 'រក្សាទុកសារស្វាគមន៍ និងភ្ជាប់ជាមួយ Facebook Page ដោយជោគជ័យ!',
       data: dataToSave 
     });
 
