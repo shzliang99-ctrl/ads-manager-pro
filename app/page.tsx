@@ -15,9 +15,36 @@ const datePresetOptions = [
 ];
 
 export default function Home() {
-  // 🌟 [កែប្រែត្រង់នេះ៖ ដាក់ state activeTab ឱ្យស្ថិតក្នុង Component Home() ត្រឹមត្រូវ]
+
+  // 1. ដាក់កូដ State នេះនៅកន្លែងប្រកាស States ក្នុង Component Home (ឧទាហរណ៍ ដាក់ក្បែរ isFbConnected)
   const [activeTab, setActiveTab] = useState("CREATE");
   const [isMounted, setIsMounted] = useState(false);
+  const [welcomeMessage, setWelcomeMessage] = useState('បាទ/ចាស៎! សួស្តីបង! ហាង Wear Luxury Cambodia មានស្បែកជើងស្អាតៗ តើចង់ឱ្យជួយណែនាំម៉ូដមួយណាដែរ?');
+  const [isSavingWelcome, setIsSavingWelcome] = useState(false);
+  const [welcomeStatus, setWelcomeStatus] = useState('');
+
+  // មុខងារសម្រាប់ Save សារស្វាគមន៍
+  const handleSaveWelcomeMessage = async () => {
+    setIsSavingWelcome(true);
+    setWelcomeStatus('');
+    try {
+      const response = await fetch('/api/settings/welcome', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: welcomeMessage }),
+      });
+      
+      if (response.ok) {
+        setWelcomeStatus('✅ រក្សាទុកសារស្វាគមន៍ដោយជោគជ័យ!');
+      } else {
+        setWelcomeStatus('❌ មានបញ្ហាក្នុងការរក្សាទុក សូមព្យាយាមម្តងទៀត។');
+      }
+    } catch (error) {
+      setWelcomeStatus('❌ កំហុសបច្ចេកទេសប្រព័ន្ធ។');
+    } finally {
+      setIsSavingWelcome(false);
+    }
+  };
 
   // 👈 យកកូដ useEffect សម្រាប់ Load saved_autoreply_configs មកដាក់នៅត្រង់ចន្លោះនេះបានយ៉ាងស្រួល
   useEffect(() => {
@@ -1506,6 +1533,13 @@ export default function Home() {
              >
                <span className="text-lg leading-none">🤖</span> <span className="text-[13.5px]">{t.menuAutoReply}</span>
              </button>
+
+             <button 
+                onClick={() => handleTabChange("WELCOME_SETTINGS")}
+                className={`w-full text-left px-4 py-3.5 rounded-xl font-bold transition-all flex items-center gap-3 cursor-pointer ${activeTab === "WELCOME_SETTINGS" ? "bg-blue-600 text-white shadow-md" : (theme === 'dark' ? 'text-slate-300 hover:bg-[#3A3B3C] hover:text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900')}`}
+              >
+                <span className="text-lg leading-none">⚙️</span> <span className="text-[13.5px]">សារស្វាគមន៍ (Welcome)</span>
+              </button>
              
              {/* 🌟 ផ្នែក Tools: ប៊ូតុង AI Copywriter */}
              <div className={`border-t my-2 mt-4 ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}></div>
@@ -1990,6 +2024,38 @@ export default function Home() {
                 </div>
               </div>
             )}
+
+            {activeTab === "WELCOME_SETTINGS" && (
+            <div className={`p-6 rounded-xl shadow-sm border max-w-xl mx-auto my-6 animate-in fade-in duration-300 ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-900'}`}>
+              <h2 className={`text-xl font-bold mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>⚙️ កំណត់សារស្វាគមន៍អតិថិជនថ្មី (Messenger Welcome Message)</h2>
+              <p className={`text-sm mb-4 ${theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>
+                សារនេះនឹងត្រូវផ្ញើស្វ័យប្រវត្តិទៅកាន់អតិថិជនដែលផ្ញើសារចូល Page របស់បងជាលើកដំបូង។
+              </p>
+
+              <div className="mb-4">
+                <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-slate-300' : 'text-gray-700'}`}>អត្ថបទសារស្វាគមន៍៖</label>
+                <textarea
+                  rows={4}
+                  value={welcomeMessage}
+                  onChange={(e) => setWelcomeMessage(e.target.value)}
+                  className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-gray-300'}`}
+                  placeholder="វាយបញ្ចូលសារស្វាគមន៍របស់អ្នកទីនេះ..."
+                />
+              </div>
+
+              <button
+                onClick={handleSaveWelcomeMessage}
+                disabled={isSavingWelcome}
+                className="w-full bg-blue-600 text-white font-semibold py-2.5 px-4 rounded-lg hover:bg-blue-700 transition duration-200 disabled:bg-gray-400 cursor-pointer"
+              >
+                {isSavingWelcome ? 'កំពុងរក្សាទុក...' : 'រក្សាទុកការកំណត់ (Save Settings)'}
+              </button>
+
+              {welcomeStatus && (
+                <p className={`mt-3 text-center text-sm font-medium ${theme === 'dark' ? 'text-slate-300' : 'text-gray-700'}`}>{welcomeStatus}</p>
+              )}
+            </div>
+          )}
 
             {/* ========================================================= */}
             {/* ផ្ទាំងបង្កើតយុទ្ធនាការ (CREATE) - Dark Mode Supported */}
