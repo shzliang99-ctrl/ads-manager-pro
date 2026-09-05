@@ -1686,7 +1686,8 @@ export default function Home() {
               </div>
             )}
 
-            {/* 🌟 ផ្ទាំងគ្រប់គ្រង Auto Reply Bot Pro (Modern UI with All Features & Custom Page Dropdown) */}
+            {/* 🌟 ផ្ទាំងគ្រប់គ្រង Auto Reply Bot Pro (រួមទាំងសារស្វាគមន៍នៅខាងក្រោម) */}
+            {/* ========================================================= */}
             {activeTab === 'AUTO_REPLY' && (
               <div className={`p-6 min-h-screen rounded-xl shadow-sm border animate-in fade-in duration-300 transition-colors ${theme === 'dark' ? 'bg-[#18191A] border-slate-800' : 'bg-[#F0F2F5] border-slate-200'}`}>
                 <div className={`rounded-xl shadow-sm border p-6 max-w-4xl mx-auto transition-colors ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-800'}`}>
@@ -1712,12 +1713,10 @@ export default function Home() {
 
                   <div className={`flex flex-col gap-6 transition-opacity duration-300 ${!currentConfig.enabled ? 'opacity-50 pointer-events-none' : ''}`}>
                     
-                    {/* ១. មុខងារជ្រើសរើស Page (Custom Dropdown ជាមួយ Logo គ្រប់ Page) */}
+                    {/* ១. មុខងារជ្រើសរើស Page */}
                     <div className={`p-4 rounded-xl border flex flex-col md:flex-row gap-4 items-center ${theme === 'dark' ? 'bg-blue-900/20 border-blue-800' : 'bg-blue-50/50 border-blue-100'}`}>
                       <div className="flex-1 w-full">
                         <label className="block font-bold text-[14px] mb-2">១. ជ្រើសរើស Facebook Page៖</label>
-                        
-                        {/* Custom Select Box */}
                         <div className="relative">
                           <div
                             onClick={() => setIsPageMenuOpen(!isPageMenuOpen)}
@@ -1734,7 +1733,6 @@ export default function Home() {
                             <span className="text-xs text-[#1877F2] font-bold">▼</span>
                           </div>
 
-                          {/* Dropdown Menu ពេលចុចបើក */}
                           {isPageMenuOpen && (
                             <>
                               <div className="fixed inset-0 z-40" onClick={() => setIsPageMenuOpen(false)}></div>
@@ -1744,7 +1742,7 @@ export default function Home() {
                                     key={p.id}
                                     onClick={() => {
                                       setSelectedPage(p.id);
-                                      localStorage.setItem("selectedPage", p.id); // 👈 រក្សាទុកទីនេះ ដើម្បីកុំឱ្យបាត់ពេល Refresh
+                                      localStorage.setItem("selectedPage", p.id);
                                       setIsPageMenuOpen(false);
                                     }}
                                     className={`p-2.5 rounded-lg flex items-center gap-3 cursor-pointer transition ${selectedPage === p.id ? (theme === 'dark' ? 'bg-blue-900/50 text-white font-bold' : 'bg-blue-50 text-blue-700 font-bold') : (theme === 'dark' ? 'hover:bg-[#3A3B3C]' : 'hover:bg-slate-100 text-slate-700')}`}
@@ -1763,10 +1761,8 @@ export default function Home() {
                             </>
                           )}
                         </div>
-
                       </div>
 
-                      {/* ⏱️ ពេលវេលារង់ចាំ (Delay Timer) */}
                       <div className="w-full md:w-[220px]">
                         <label className="block font-bold text-[14px] mb-2">⏱️ រង់ចាំមុនតប៖</label>
                         <div className="relative">
@@ -1807,7 +1803,7 @@ export default function Home() {
                         </div>
                       </div>
 
-                      {/* លក្ខខណ្ឌពាក្យគន្លឹះ (Keyword Rules) */}
+                      {/* លក្ខខណ្ឌពាក្យគន្លឹះ */}
                       <div className={`p-4 rounded-xl border shadow-sm ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-700' : 'bg-white border-slate-200'}`}>
                         <label className="block font-bold text-[14px] mb-3">លក្ខខណ្ឌនៃការឆ្លើយតប</label>
                         <div className="flex gap-4 mb-3">
@@ -1832,7 +1828,7 @@ export default function Home() {
                       </div>
                     </div>
 
-                    {/* ៣. Auto Comment (Spintax & Variables & Hide After Reply) */}
+                    {/* ៣. Auto Comment */}
                     <div className={`p-5 rounded-xl border shadow-sm ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-700' : 'bg-white border-slate-200'}`}>
                       <div className="flex justify-between items-end mb-3">
                         <div>
@@ -1867,7 +1863,7 @@ export default function Home() {
                         ))}
                       </div>
 
-                      {/* 🌟 មុខងារលាក់ខំមិនក្រោយពេលតបរួច */}
+                      {/* លាក់ខំមិនក្រោយពេលតបរួច */}
                       <div className={`mt-5 pt-4 border-t flex justify-between items-center p-3 rounded-lg border ${theme === 'dark' ? 'bg-[#242526] border-slate-600' : 'bg-[#F8FAFC] border-slate-200'}`}>
                         <div>
                           <label className="font-bold text-[13px] flex items-center gap-1.5">
@@ -1882,10 +1878,9 @@ export default function Home() {
                           <div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 shadow-sm transition-transform duration-300 ${currentConfig.hideAfterReply ? 'right-0.5' : 'left-0.5'}`}></div>
                         </div>
                       </div>
-
                     </div>
 
-                    {/* ៤. Auto Inbox ជាមួយ Variables */}
+                    {/* ៤. Auto Inbox */}
                     <div className={`p-5 rounded-xl border shadow-sm ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-700' : 'bg-white border-slate-200'}`}>
                       <label className="block font-bold text-[14px] mb-1">៤. អត្ថបទផ្ញើចូល Inbox (Auto Inbox)</label>
                       <div className={`relative border rounded-xl overflow-hidden focus-within:border-[#1877F2] transition mt-2 ${theme === 'dark' ? 'bg-[#242526] border-slate-600' : 'bg-[#F9FAFB] border-slate-300'}`}>
@@ -1902,7 +1897,7 @@ export default function Home() {
                       </div>
                     </div>
 
-                    {/* លាក់ខំមិនអវិជ្ជមានស្វ័យប្រវត្តិ (Auto-Hide Negative) */}
+                    {/* លាក់ខំមិនអវិជ្ជមានស្វ័យប្រវត្តិ */}
                     <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-red-950/20 border-red-900/50' : 'bg-red-50/50 border-red-100'}`}>
                       <div className="flex justify-between items-center mb-2">
                         <label className="font-bold text-[14px] text-red-500">🛡️ លាក់ខំមិនអវិជ្ជមានស្វ័យប្រវត្តិ (Auto-Hide Negative)</label>
@@ -1924,7 +1919,7 @@ export default function Home() {
                     </div>
 
                     {/* ========================================================= */}
-                    {/* 🌟 ផ្ទាំងកូនចៅ៖ កំណត់សារស្វាគមន៍អតិថិជនថ្មី (Welcome Message Section) */}
+                    {/* 🌟 ផ្នែកកូនចៅ៖ កំណត់សារស្វាគមន៍អតិថិជនថ្មី (Welcome Message Section) */}
                     {/* ========================================================= */}
                     <div className={`p-6 rounded-xl border shadow-sm ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-800'}`}>
                       <h3 className={`text-[16px] font-bold mb-2 flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
@@ -1959,7 +1954,7 @@ export default function Home() {
                       )}
                     </div>
 
-                    {/* ប៊ូតុង Save */}
+                    {/* ប៊ូតុង Save របស់ Auto-Reply */}
                     <div className="flex justify-end mt-2">
                       <button 
                         type="button"
@@ -2000,9 +1995,7 @@ export default function Home() {
                     </div>
                   </div>
 
-                  {/* ========================================================= */}
-                  {/* ផ្នែកបង្ហាញបញ្ជី Page ដែលបាន Save ជាប់ខាងក្រោម (Saved Pages List) */}
-                  {/* ========================================================= */}
+                  {/* ផ្នែកបង្ហាញបញ្ជី Page ដែលបាន Save ជាប់ខាងក្រោម */}
                   <div className={`mt-10 pt-6 border-t ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
                     <h3 className={`text-[16px] font-bold mb-4 flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>
                       <span>📌</span> ផេកដែលបានរក្សាទុកការកំណត់រួច ({savedPagesList.length})
