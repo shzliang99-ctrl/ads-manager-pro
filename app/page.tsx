@@ -3246,19 +3246,20 @@ export default function Home() {
                                       <span className={`font-medium text-[13px] line-clamp-2 leading-snug ${theme === 'dark' ? 'text-slate-200' : 'text-[#050505]'}`}>
                                         {post.message || "[គ្មានអត្ថបទ]"}
                                       </span>
-                                      {/* 🌟 ទិន្នន័យ Like, Comment, Share រស់រវើក */}
+
+                                      {/* 🌟 ទិន្នន័យ Like, Comment, Share (រូបមន្តការពារទ្វេដង ធានាចេញ ១០០%) */}
                                       <div className="flex items-center gap-4 text-[12px] font-bold text-slate-500 mt-2">
                                         <span className="flex items-center gap-1.5">
-                                          <div className="w-3.5 h-3.5 bg-[#F5C33B] text-white rounded-full flex items-center justify-center text-[8px]">👍</div> 
-                                          {post.likesCount}
+                                          <div className="w-4 h-4 bg-[#F5C33B] text-white rounded-full flex items-center justify-center text-[9px] shadow-sm">👍</div>
+                                          {post.likesCount || post.likes?.summary?.total_count || 0}
                                         </span>
                                         <span className="flex items-center gap-1.5">
-                                          <div className="w-3.5 h-3.5 bg-slate-300 text-white rounded-full flex items-center justify-center text-[8px] transform scale-x-[-1]">💬</div> 
-                                          {post.commentsCount}
+                                          <div className="w-4 h-4 bg-slate-300 text-white rounded-full flex items-center justify-center text-[9px] shadow-sm transform scale-x-[-1]">💬</div>
+                                          {post.commentsCount || post.comments?.summary?.total_count || 0}
                                         </span>
                                         <span className="flex items-center gap-1.5">
-                                          <div className="w-3.5 h-3.5 bg-[#1877F2] text-white rounded-full flex items-center justify-center text-[9px]">➦</div> 
-                                          {post.sharesCount}
+                                          <div className="w-4 h-4 bg-[#1877F2] text-white rounded-full flex items-center justify-center text-[10px] shadow-sm">➦</div>
+                                          {post.sharesCount || post.shares?.count || 0}
                                         </span>
                                       </div>
                                     </div>
