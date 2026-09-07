@@ -956,27 +956,38 @@ export default function Home() {
     if (!pageInfo) return;
 
     setFetchingPosts(true);
+    // បោះ user_token ទៅជា Backup ក្រែងលោ page token អត់ដើរ
+    const userToken = localStorage.getItem('fb_user_token');
+    
     fetch('/api/posts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pageId: pageInfo.id, pageToken: pageInfo.access_token })
+      body: JSON.stringify({ 
+        pageId: pageInfo.id, 
+        pageToken: pageInfo.access_token,
+        access_token: userToken 
+      })
     }).then(res => res.json()).then(data => {
       setFetchingPosts(false);
       
-      if (data.success && data.posts.length > 0) {
-        // 🌟 លែងត្រូវការ Promise.all() និងមិនបាច់ហៅ fetchPostEngagement នាំឱ្យគាំងទៀតទេ 
-        // ព្រោះ API ថ្មីបាញ់ទិន្នន័យមកមានស្រាប់គ្រប់គ្រាន់ទាំងអស់ហើយ ១០០%
-        setPosts(data.posts);
-
-        const savedPost = localStorage.getItem("selectedPost");
-        if (savedPost && data.posts.find((p: any) => p.id === savedPost)) {
-          setSelectedPost(savedPost);
+      if (data.success) {
+        if (data.posts && data.posts.length > 0) {
+          setPosts(data.posts);
+          const savedPost = localStorage.getItem("selectedPost");
+          if (savedPost && data.posts.find((p: any) => p.id === savedPost)) {
+            setSelectedPost(savedPost);
+          } else {
+            setSelectedPost(data.posts[0].id);
+          }
         } else {
-          setSelectedPost(data.posts[0].id);
+          setPosts([]);
+          setSelectedPost("");
         }
       } else {
+        // 🌟 បើកកុងតាក់ឱ្យវាលោតប្រាប់ Error ច្បាស់ៗពី Facebook
         setPosts([]);
         setSelectedPost("");
+        alert("❌ មិនអាចទាញ Post បានទេ:\n" + (data.error || "សូម Reconnect Facebook ម្ដងទៀត!"));
       }
     }).catch((err) => {
       console.error("Fetch Posts Error:", err);
