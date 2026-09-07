@@ -16,6 +16,10 @@ const datePresetOptions = [
 
 export default function Home() {
 
+  const [postSearchQuery, setPostSearchQuery] = useState("");
+  const [postFilterType, setPostFilterType] = useState("Published posts");
+  const [isPostFilterMenuOpen, setIsPostFilterMenuOpen] = useState(false);
+
   // 1. ដាក់កូដ State នេះនៅកន្លែងប្រកាស States ក្នុង Component Home
   const [activeTab, setActiveTab] = useState("CREATE");
   const [isMounted, setIsMounted] = useState(false);
@@ -3171,14 +3175,52 @@ export default function Home() {
                     <span className="text-slate-500 hover:text-slate-700 cursor-pointer flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#F5C33B]"></span> Partner Content</span>
                   </div>
 
-                  <div className={`px-4 py-2 border-b flex items-center gap-2 ${theme === 'dark' ? 'border-slate-700 bg-[#242526]' : 'border-slate-200 bg-white'}`}>
+                  {/* 🌟 ប្រអប់ Filter Dropdown និង Search ថ្មីដូច Facebook 100% */}
+                  <div className={`px-4 py-2 border-b flex items-center gap-3 ${theme === 'dark' ? 'border-slate-700 bg-[#242526]' : 'border-slate-200 bg-white'}`}>
                     <div className="text-[12px] text-slate-500 font-medium whitespace-nowrap">Filter by:</div>
-                    <select className={`border rounded p-1.5 text-[12px] font-semibold outline-none ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-700'}`}>
-                      <option>Published posts</option>
-                    </select>
+                    
+                    {/* Dropdown ជ្រើសរើសប្រភេទ Post (All, Published, Ads, Scheduled, Available) */}
+                    <div className="relative">
+                      <button 
+                        type="button"
+                        onClick={() => setIsPostFilterMenuOpen(!isPostFilterMenuOpen)}
+                        className={`flex items-center justify-between border rounded p-1.5 px-3 text-[13px] font-semibold outline-none min-w-[160px] shadow-xs transition-colors cursor-pointer ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-[#F0F2F5] hover:bg-[#E4E6EB] border-[#CED0D4] text-[#050505]'}`}
+                      >
+                        <span>{postFilterType}</span>
+                        <span className="text-[10px] ml-2 text-slate-500">▼</span>
+                      </button>
+                      
+                      {isPostFilterMenuOpen && (
+                        <>
+                          <div className="fixed inset-0 z-40" onClick={() => setIsPostFilterMenuOpen(false)}></div>
+                          <div className={`absolute top-full left-0 mt-1 w-[220px] border rounded-lg shadow-xl z-50 py-1.5 ${theme === 'dark' ? 'bg-[#242526] border-slate-600 text-white' : 'bg-white border-[#CED0D4] text-[#050505]'}`}>
+                            {['All post types', 'Published posts', 'Ads posts', 'Scheduled posts', 'Available posts only'].map((type) => (
+                              <div 
+                                key={type}
+                                onClick={() => { setPostFilterType(type); setIsPostFilterMenuOpen(false); }}
+                                className={`px-3 py-2 flex items-center gap-3 cursor-pointer text-[13px] transition-colors ${theme === 'dark' ? 'hover:bg-[#3A3B3C]' : 'hover:bg-[#F0F2F5]'}`}
+                              >
+                                <span className="w-4 flex justify-center text-[#1877F2] font-bold text-[14px]">
+                                  {postFilterType === type ? '✓' : ''}
+                                </span>
+                                <span>{type}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </div>
+
+                    {/* ប្រអប់ Search សម្រាប់ស្វែងរក Post តាម Keywords ឬ ID */}
                     <div className="relative w-full max-w-sm ml-2">
-                      <span className="absolute left-2.5 top-1.5 text-slate-400 text-xs">🔍</span>
-                      <input type="text" placeholder="Post, image or video IDs, or other keywords" className={`w-full border rounded p-1.5 pl-7 text-[12px] outline-none ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-slate-50 border-slate-300 text-slate-700'}`} />
+                      <span className="absolute left-3 top-2 text-slate-500 text-[12px] font-bold">🔍</span>
+                      <input 
+                        type="text" 
+                        value={postSearchQuery}
+                        onChange={(e) => setPostSearchQuery(e.target.value)}
+                        placeholder="Post, image or video IDs, or other keywords" 
+                        className={`w-full border rounded p-1.5 pl-8 text-[12px] outline-none shadow-xs transition-colors focus:border-[#1877F2] ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white placeholder-slate-400' : 'bg-white hover:bg-[#F5F6F8] border-[#CED0D4] text-[#050505] placeholder-[#65676B]'}`} 
+                      />
                     </div>
                   </div>
 
@@ -3197,86 +3239,118 @@ export default function Home() {
                         </tr>
                       </thead>
                       <tbody className={`text-[13px] ${theme === 'dark' ? 'divide-slate-700' : 'divide-slate-200'} divide-y`}>
-                        {fetchingPosts ? (
-                          <tr>
-                            <td colSpan={6} className="text-center py-20 text-slate-500 font-medium text-[14px]">
-                              <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-                              កំពុងទាញយកទិន្នន័យពី Facebook...
-                            </td>
-                          </tr>
-                        ) : posts.length === 0 ? (
-                          <tr>
-                            <td colSpan={6} className="text-center py-20 text-slate-400 font-medium">គ្មាន Post ណាមួយត្រូវបានរកឃើញទេ។</td>
-                          </tr>
-                        ) : (
-                          posts.map((post) => {
-                            const isSelected = tempSelectedPost === post.id;
-                            
-                            let mediaType = "Photo";
-                            if (post.full_picture?.includes(".mp4") || post.status_type === "added_video") mediaType = "Video";
-                            else if (post.attachments?.data?.[0]?.subattachments) mediaType = "Album";
+                        {(() => {
+                          // 🌟 មុខងារចម្រាញ់ទិន្នន័យ (Filter & Search Real-time Logic)
+                          const filteredPosts = posts.filter(post => {
+                            // ၁. Logic សម្រាប់ Search (តាមអត្ថបទ Message ឬ Post ID)
+                            const query = postSearchQuery.toLowerCase();
+                            const messageMatch = (post.message || "").toLowerCase().includes(query);
+                            const idMatch = (post.id || "").toLowerCase().includes(query);
+                            const isSearchMatched = messageMatch || idMatch;
 
-                            return (
-                              <tr 
-                                key={post.id}
-                                onClick={() => setTempSelectedPost(post.id)}
-                                className={`cursor-pointer transition-colors ${
-                                  isSelected 
-                                    ? (theme === 'dark' ? 'bg-blue-900/30' : 'bg-[#EBF5FF]') 
-                                    : (theme === 'dark' ? 'hover:bg-[#3A3B3C]' : 'hover:bg-slate-50')
-                                }`}
-                              >
-                                <td className="p-3 text-center align-middle border-r border-slate-200 dark:border-slate-700">
-                                  <input 
-                                    type="radio" 
-                                    name="modalPostRadio" 
-                                    checked={isSelected}
-                                    onChange={() => setTempSelectedPost(post.id)}
-                                    className="w-4 h-4 text-[#1877F2] cursor-pointer accent-[#1877F2]"
-                                  />
-                                </td>
-                                <td className="p-3 align-middle border-r border-slate-200 dark:border-slate-700">
-                                  <div className="flex items-start gap-3">
-                                    {post.full_picture ? (
-                                      <img src={post.full_picture} className="w-[50px] h-[50px] object-cover rounded shadow-sm shrink-0" alt="Thumbnail" />
-                                    ) : (
-                                      <div className="w-[50px] h-[50px] bg-slate-200 rounded shrink-0 flex items-center justify-center text-[10px] text-slate-500">No Img</div>
-                                    )}
-                                    <div className="flex flex-col min-w-0">
-                                      <span className={`font-medium text-[13px] line-clamp-2 leading-snug ${theme === 'dark' ? 'text-slate-200' : 'text-[#050505]'}`}>
-                                        {post.message || "[គ្មានអត្ថបទ]"}
-                                      </span>
+                            // ២. Logic សម្រាប់ Dropdown Filter ทั้ง 5 ប្រភេទ
+                            let isFilterMatched = true;
+                            if (postFilterType === "Published posts") {
+                              // ពិនិត្យថាជា Post ដែលបានផុសរួច (អាចផ្អែកលើ status_type ឬ created_time)
+                              isFilterMatched = !post.isDraft;
+                            } else if (postFilterType === "Ads posts") {
+                              // ត្រងយកเฉพาะ Post ដែលធ្លាប់ប្រើប្រាស់ជា Ads 
+                              isFilterMatched = post.status_type === "shared_story" || post.isAdPost;
+                            } else if (postFilterType === "Scheduled posts") {
+                              // ត្រងយក Post ដែលគ្រោងទុកเวลา (Scheduled)
+                              isFilterMatched = post.isScheduled || false;
+                            } else if (postFilterType === "Available posts only") {
+                              // ត្រងយក Post ណាដែលສາມາດយកមក Boost បាន
+                              isFilterMatched = true; 
+                            } else {
+                              // "All post types" គឺទាញយកទាំងអស់
+                              isFilterMatched = true;
+                            }
 
-                                      {/* 🌟 ទិន្នន័យ Like, Comment, Share (រូបមន្តការពារទ្វេដង ធានាចេញ ១០០%) */}
-                                      <div className="flex items-center gap-4 text-[12px] font-bold text-slate-500 mt-2">
-                                        <span className="flex items-center gap-1.5">
-                                          <div className="w-4 h-4 bg-[#F5C33B] text-white rounded-full flex items-center justify-center text-[9px] shadow-sm">👍</div>
-                                          {post.likesCount || post.likes?.summary?.total_count || 0}
+                            return isSearchMatched && isFilterMatched;
+                          });
+
+                          return fetchingPosts ? (
+                            <tr>
+                              <td colSpan={6} className="text-center py-20 text-slate-500 font-medium text-[14px]">
+                                <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+                                កំពុងទាញយកទិន្នន័យពី Facebook...
+                              </td>
+                            </tr>
+                          ) : filteredPosts.length === 0 ? (
+                            <tr>
+                              <td colSpan={6} className="text-center py-20 text-slate-400 font-medium">គ្មាន Post ណាមួយត្រូវបានរកឃើញទេ</td>
+                            </tr>
+                          ) : (
+                            filteredPosts.map((post) => {
+                              const isSelected = tempSelectedPost === post.id;
+                              
+                              let mediaType = "Photo";
+                              if (post.full_picture?.includes(".mp4") || post.status_type === "added_video") mediaType = "Video";
+                              else if (post.attachments?.data?.[0]?.subattachments) mediaType = "Album";
+
+                              return (
+                                <tr 
+                                  key={post.id}
+                                  onClick={() => setTempSelectedPost(post.id)}
+                                  className={`cursor-pointer transition-colors ${
+                                    isSelected 
+                                      ? (theme === 'dark' ? 'bg-blue-900/30' : 'bg-[#EBF5FF]') 
+                                      : (theme === 'dark' ? 'hover:bg-[#3A3B3C]' : 'hover:bg-slate-50')
+                                  }`}
+                                >
+                                  <td className="p-3 text-center align-middle border-r border-slate-200 dark:border-slate-700">
+                                    <input 
+                                      type="radio" 
+                                      name="modalPostRadio" 
+                                      checked={isSelected}
+                                      onChange={() => setTempSelectedPost(post.id)}
+                                      className="w-4 h-4 text-[#1877F2] cursor-pointer accent-[#1877F2]"
+                                    />
+                                  </td>
+                                  <td className="p-3 align-middle border-r border-slate-200 dark:border-slate-700">
+                                    <div className="flex items-start gap-3">
+                                      {post.full_picture ? (
+                                        <img src={post.full_picture} className="w-[50px] h-[50px] object-cover rounded shadow-sm shrink-0" alt="Thumbnail" />
+                                      ) : (
+                                        <div className="w-[50px] h-[50px] bg-slate-200 rounded shrink-0 flex items-center justify-center text-[10px] text-slate-500">No Img</div>
+                                      )}
+                                      <div className="flex flex-col min-w-0">
+                                        <span className={`font-medium text-[13px] line-clamp-2 leading-snug ${theme === 'dark' ? 'text-slate-200' : 'text-[#050505]'}`}>
+                                          {post.message || "[គ្មានអត្ថបទ]"}
                                         </span>
-                                        <span className="flex items-center gap-1.5">
-                                          <div className="w-4 h-4 bg-slate-300 text-white rounded-full flex items-center justify-center text-[9px] shadow-sm transform scale-x-[-1]">💬</div>
-                                          {post.commentsCount || post.comments?.summary?.total_count || 0}
-                                        </span>
-                                        <span className="flex items-center gap-1.5">
-                                          <div className="w-4 h-4 bg-[#1877F2] text-white rounded-full flex items-center justify-center text-[10px] shadow-sm">➦</div>
-                                          {post.sharesCount || post.shares?.count || 0}
-                                        </span>
+
+                                        {/* 🌟 ទិន្នន័យ Like, Comment, Share រលោង */}
+                                        <div className="flex items-center gap-4 text-[12px] font-bold text-slate-500 mt-2">
+                                          <span className="flex items-center gap-1.5">
+                                            <div className="w-4 h-4 bg-[#F5C33B] text-white rounded-full flex items-center justify-center text-[9px] shadow-sm">👍</div>
+                                            {post.likesCount || post.likes?.summary?.total_count || 0}
+                                          </span>
+                                          <span className="flex items-center gap-1.5">
+                                            <div className="w-4 h-4 bg-slate-300 text-white rounded-full flex items-center justify-center text-[9px] shadow-sm transform scale-x-[-1]">💬</div>
+                                            {post.commentsCount || post.comments?.summary?.total_count || 0}
+                                          </span>
+                                          <span className="flex items-center gap-1.5">
+                                            <div className="w-4 h-4 bg-[#1877F2] text-white rounded-full flex items-center justify-center text-[10px] shadow-sm">➦</div>
+                                            {post.sharesCount || post.shares?.count || 0}
+                                          </span>
+                                        </div>
                                       </div>
                                     </div>
-                                  </div>
-                                </td>
-                                <td className={`p-3 align-middle text-[12.5px] border-r border-slate-200 dark:border-slate-700 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>{post.id}</td>
-                                <td className={`p-3 align-middle text-[12.5px] font-semibold border-r border-slate-200 dark:border-slate-700 ${theme === 'dark' ? 'text-slate-300' : 'text-slate-800'}`}>
-                                  <span className="flex items-center gap-1.5"><span className="w-3 h-3 bg-slate-800 text-white rounded-full flex items-center justify-center text-[8px]">f</span> Feed</span>
-                                </td>
-                                <td className={`p-3 align-middle text-[12.5px] font-semibold border-r border-slate-200 dark:border-slate-700 ${theme === 'dark' ? 'text-slate-300' : 'text-slate-800'}`}>{mediaType}</td>
-                                <td className={`p-3 align-middle text-[12.5px] ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
-                                  {post.created_time ? new Date(post.created_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '-'}
-                                </td>
-                              </tr>
-                            );
-                          })
-                        )}
+                                  </td>
+                                  <td className={`p-3 align-middle text-[12.5px] border-r border-slate-200 dark:border-slate-700 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>{post.id}</td>
+                                  <td className={`p-3 align-middle text-[12.5px] font-semibold border-r border-slate-200 dark:border-slate-700 ${theme === 'dark' ? 'text-slate-300' : 'text-slate-800'}`}>
+                                    <span className="flex items-center gap-1.5"><span className="w-3 h-3 bg-slate-800 text-white rounded-full flex items-center justify-center text-[8px]">f</span> Feed</span>
+                                  </td>
+                                  <td className={`p-3 align-middle text-[12.5px] font-semibold border-r border-slate-200 dark:border-slate-700 ${theme === 'dark' ? 'text-slate-300' : 'text-slate-800'}`}>{mediaType}</td>
+                                  <td className={`p-3 align-middle text-[12.5px] ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
+                                    {post.created_time ? new Date(post.created_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '-'}
+                                  </td>
+                                </tr>
+                              );
+                            })
+                          );
+                        })()}
                       </tbody>
                     </table>
                   </div>
