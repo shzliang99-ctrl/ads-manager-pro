@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-// Helper function សម្រាប់ទាញយក Token ទាំងពី Query Parameters ឬ Headers / Body
+// Helper function សម្រាប់ទាញយក Token ទាំងពី Query Parameters ឬ Request Body
 function getAccessToken(request: Request, body?: any) {
   const { searchParams } = new URL(request.url);
   const clientToken = searchParams.get('access_token') || body?.access_token;

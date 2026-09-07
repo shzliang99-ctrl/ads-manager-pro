@@ -348,26 +348,27 @@ export default function Home() {
     }
   };
 
-  // 🌟 1. ດຶງຂໍ້ມູນ Pages ទាំងអស់អូតូដោយប្រើ Graph API ផ្ទាល់ ພ້ອມទាំងទាញយក Page ដែលធ្លាប់ Save ទុកក្នុង localStorage មកវិញ
+  // 🌟 1. ດຶງຂໍ້ມູນ Pages ໂດຍອັດຕະໂນມັດ ພ້ອມទាំងទាញយក Page ដែលធ្លាប់ Save ទុកក្នុង localStorage មកវិញភ្លាមៗ
   useEffect(() => {
     const token = localStorage.getItem('fb_user_token');
-    if (!token) return;
+    const tokenParam = token ? `?access_token=${token}` : '';
 
-    fetch(`https://graph.facebook.com/v18.0/me/accounts?access_token=${token}`)
+    fetch(`/api/pages${tokenParam}`)
       .then(res => res.json())
       .then(data => {
-        if (data && data.data) {
-          setPages(data.data);
+        if (data.success && data.pages && data.pages.length > 0) {
+          setPages(data.pages);
           
           // 🔍 ឆែកមើលក្នុង localStorage ថាតើធ្លាប់ Save Page ណាទុកមុនពេល Refresh ទេ?
           const savedPage = localStorage.getItem("selectedPage");
           
-          if (savedPage && data.data.find((p: any) => p.id === savedPage)) {
+          // បើមាន Save ទុក ហើយ Page នោះមានក្នុង List របស់ Meta គឺទាញយកមកដាក់វិញភ្លាម
+          if (savedPage && data.pages.find((p: any) => p.id === savedPage)) {
             setSelectedPage(savedPage);
-          } else if (data.data.length > 0) {
+          } else {
             // បើអត់ទាន់មាន ទើបយក Page ទីមួយ
-            setSelectedPage(data.data[0].id);
-            localStorage.setItem("selectedPage", data.data[0].id);
+            setSelectedPage(data.pages[0].id);
+            localStorage.setItem("selectedPage", data.pages[0].id);
           }
         }
       })
