@@ -4,7 +4,7 @@ export async function POST(request: Request) {
   try {
     const contentType = request.headers.get("content-type") || "";
 
-    // 🌟 ករណីទី១៖ សម្រាប់ទាញយក Posts មកបង្ហាញក្នុង Table 
+    // 🌟 ករណីទី១៖ បើ Frontend ផ្ញើមកជា JSON (សម្រាប់ទាញយក Posts មកបង្ហាញក្នុង Table)
     if (contentType.includes("application/json")) {
       const body = await request.json();
       const { pageId, pageToken, access_token } = body;
@@ -12,11 +12,11 @@ export async function POST(request: Request) {
       const token = pageToken || access_token || process.env.FACEBOOK_ACCESS_TOKEN;
 
       if (!pageId || !token) {
-        return NextResponse.json({ success: false, error: "Missing pageId or Token" }, { status: 400 });
+        return NextResponse.json({ success: false, error: "Missing pageId or pageToken" }, { status: 400 });
       }
 
-      // 🔥 កន្លែងពិសេស: ប្តូរពី /posts ទៅ /published_posts ដើម្បីឱ្យវាទាញទិន្នន័យបាន ១០០% ដោយមិនសូវរើសសិទ្ធិ
-      const url = `https://graph.facebook.com/v18.0/${pageId}/published_posts?fields=id,message,story,created_time,full_picture,status_type,attachments,likes.summary(true),comments.summary(true),shares&limit=50&access_token=${token}`;
+      // 🌟 ទាញយកទិន្នន័យដោយសុវត្ថិភាព មិនប្រើ summary(true) ដើម្បីការពារកុំឱ្យគាំង Server
+      const url = `https://graph.facebook.com/v18.0/${pageId}/posts?fields=id,message,created_time,full_picture,status_type,attachments,shares&limit=100&access_token=${token}`;
       
       const res = await fetch(url, { cache: 'no-store' });
       const data = await res.json();
@@ -26,18 +26,18 @@ export async function POST(request: Request) {
          return NextResponse.json({ success: false, error: data.error.message }, { status: 400 });
       }
 
-      // ចម្រាញ់ទិន្នន័យទាញយកចំនួន Like, Comment, Share
+      // ចម្រាញ់ទិន្នន័យឱ្យស្រួលប្រើប្រាស់លើ Frontend
       const formattedPosts = (data.data || []).map((p: any) => ({
         ...p,
-        likesCount: p.likes?.summary?.total_count || 0,
-        commentsCount: p.comments?.summary?.total_count || 0,
+        likesCount: 0,     // ជៀសវាងការគាំងរឿង summary
+        commentsCount: 0,  // ជៀសវាងការគាំងរឿង summary
         sharesCount: p.shares?.count || 0
       }));
 
       return NextResponse.json({ success: true, posts: formattedPosts });
     }
 
-    // 🌟 ករណីទី២៖ សម្រាប់បង្កើត Post ថ្មី (Create Post)
+    // 🌟 ករណីទី២៖ បើ Frontend ផ្ញើមកជា FormData (សម្រាប់បង្កើត Post ថ្មី)
     const formData = await request.formData();
     const pageId = formData.get("pageId") as string;
     const pageToken = formData.get("pageToken") as string;
@@ -46,7 +46,7 @@ export async function POST(request: Request) {
     const imageUrl = formData.get("imageUrl") as string | null;
 
     if (!pageId || !pageToken) {
-      return NextResponse.json({ success: false, error: "Missing pageId or Token" }, { status: 400 });
+      return NextResponse.json({ success: false, error: "Missing pageId or pageToken" }, { status: 400 });
     }
 
     let url = `https://graph.facebook.com/v18.0/${pageId}/feed`;
@@ -66,7 +66,6 @@ export async function POST(request: Request) {
       fbFormData.append("message", message);
     }
 
-    // បន្ថែមប៊ូតុង Send Message ស្វ័យប្រវត្តិ
     fbFormData.append("call_to_action", JSON.stringify({ type: "MESSAGE_PAGE" }));
 
     const response = await fetch(url, { method: 'POST', body: fbFormData });
