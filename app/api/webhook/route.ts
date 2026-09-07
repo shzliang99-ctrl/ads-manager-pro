@@ -1,16 +1,16 @@
 import { NextResponse } from 'next/server';
 
-// 🛡️ មុខងារទប់ស្កាត់ការផ្ញើសារซ้ำ (Deduplication Map) ដើម្បីការពារកុំឱ្យផ្ញើចូល Inbox ឬ Comment ស្ទួនៗច្រើនដង
+// 🛡️ មុខងារទប់ស្កាត់ការផ្ញើសារស្ទួន (Deduplication Map) ដោយប្រើប្រាស់ Array.from ដើម្បីការពារ Error លើ Vercel
 const processedEvents = new Map<string, number>();
 
-// លុប Cache ចាស់ៗចេញជារៀងរាល់ ១០ នាទី ដើម្បីកុំឱ្យ memory ធ្ងន់ពេក
+// លុប Cache ចាស់ៗចេញជារៀងរាល់ ១០ នាទី
 setInterval(() => {
   const now = Date.now();
-  for (const [key, timestamp] of processedEvents.entries()) {
+  Array.from(processedEvents.entries()).forEach(([key, timestamp]) => {
     if (now - timestamp > 600000) { // ៦០០វិនាទី (១០នាទី)
       processedEvents.delete(key);
     }
-  }
+  });
 }, 600000);
 
 // 🌟 1. GET Method: សម្រាប់ឱ្យ Facebook ផ្ទៀងផ្ទាត់ Webhook (Verify Token)
@@ -90,7 +90,6 @@ export async function POST(request: Request) {
               
               console.log(`📩 បានទទួលសារ Messenger ពី ${senderPsid}: "${messageText}"`);
               
-              // 🛑 យកសញ្ញា // มาដាក់កន្លែងនេះ ដើម្បីបិទកុំឱ្យវា Auto-Reply សារឆាតផ្ទាល់
               // await handleMessengerAutoReply(senderPsid, messageText);
             }
           }
