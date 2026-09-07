@@ -2834,11 +2834,19 @@ export default function Home() {
                             {/* 🌟 Selected Post Preview UI ក្នុង Ad Creative */}
                             <div className={`w-full border rounded-lg p-3 flex items-center justify-between mb-4 shadow-sm relative overflow-hidden group ${theme === 'dark' ? 'bg-[#242526] border-slate-600' : 'bg-white border-slate-300'}`}>
                               <div className="flex items-center gap-3 flex-1 min-w-0 pr-2">
-                                {fetchingPosts ? <span className="text-slate-500 font-medium text-sm truncate block flex-1 min-w-0">⏳ កំពុងទាញយក...</span> : !selectedPostData ? <span className="text-slate-500 font-medium text-sm truncate block flex-1 min-w-0">❌ គ្មាន Post ដែលបានជ្រើសរើស</span> : (
+                                {fetchingPosts ? (
+                                  <span className="text-slate-500 font-medium text-sm truncate block flex-1 min-w-0">⏳ កំពុងទាញយក...</span>
+                                ) : (
                                   <>
-                                    {selectedPostData?.full_picture ? <img src={selectedPostData.full_picture} className={`w-12 h-12 object-cover rounded-md shrink-0 border ${theme === 'dark' ? 'border-slate-600' : 'border-slate-200'}`} /> : <div className={`w-12 h-12 rounded-md shrink-0 flex items-center justify-center text-[10px] border ${theme === 'dark' ? 'bg-slate-700 border-slate-600 text-slate-400' : 'bg-slate-100 border-slate-200 text-slate-400'}`}>No Img</div>}
+                                    {selectedPostData?.full_picture ? (
+                                      <img src={selectedPostData.full_picture} className="w-12 h-12 object-cover rounded-md shrink-0 border" />
+                                    ) : (
+                                      <div className="w-12 h-12 rounded-md shrink-0 flex items-center justify-center text-[10px] border bg-slate-100 text-slate-400">No Img</div>
+                                    )}
                                     <div className="flex flex-col min-w-0 flex-1">
-                                      <span className={`font-medium text-[13px] line-clamp-2 leading-snug ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`}>{selectedPostData?.message || "[គ្មានចំណងជើង]"}</span>
+                                      <span className={`font-medium text-[13px] line-clamp-2 leading-snug ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`}>
+                                        {selectedPostData?.message || (selectedPost ? `Post ID: ${selectedPost}` : "[សូមចុច Select post ជាមុនសិន]")}
+                                      </span>
                                     </div>
                                   </>
                                 )}
@@ -2849,7 +2857,7 @@ export default function Home() {
                             {/* 🌟 ផ្នែកប៊ូតុងទាំង ៣ តម្រៀបគ្នារួមទាំងប៊ូតុង ជួសជុលផុស (Fix) */}
                             <div className="flex flex-wrap items-center gap-3 mb-3">
                               
-                              {/* ប៊ូតុងទី១: Select Post */}
+                              {/* 🌟 ប៊ូតុង Select Post ដែលត្រូវកែសម្រួល */}
                               <button 
                                 type="button" 
                                 onClick={() => { setPostSelectionContext('create'); setIsPostMenuOpen(true); }} 
