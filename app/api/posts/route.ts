@@ -16,7 +16,7 @@ export async function POST(request: Request) {
       }
 
       // 🌟 ទាញយកទិន្នន័យរួមបញ្ចូលទាំង likes.summary(true), comments.summary(true) និង shares យ៉ាងសុវត្ថិភាព
-      const url = `https://graph.facebook.com/v18.0/${pageId}/posts?fields=id,message,created_time,full_picture,status_type,attachments,likes.summary(true),comments.summary(true),shares&limit=50&access_token=${token}`;
+      const url = `https://graph.facebook.com/v18.0/${pageId}/posts?fields=id,message,story,created_time,full_picture,status_type,attachments,likes.summary(true),comments.summary(true),shares&limit=50&access_token=${token}`;
       
       const res = await fetch(url, { cache: 'no-store' });
       const data = await res.json();
