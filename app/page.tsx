@@ -3250,9 +3250,10 @@ export default function Home() {
                         {(() => {
                           // 🌟 មុខងារចម្រាញ់ទិន្នន័យ (Filter & Search Real-time Logic)
                           const filteredPosts = posts.filter(post => {
-                            // ၁. Logic សម្រាប់ Search (តាមអត្ថបទ Message ឬ Post ID)
-                            const query = postSearchQuery.toLowerCase();
-                            const messageMatch = (post.message || "").toLowerCase().includes(query);
+                            // ១. Logic សម្រាប់ Search (តាមអត្ថបទ Message ឬ Post ID)
+                            const query = (postSearchQuery || "").toLowerCase();
+                            const postText = (post.message || post.story || "").toLowerCase();
+                            const messageMatch = postText.includes(query);
                             const idMatch = (post.id || "").toLowerCase().includes(query);
                             const isSearchMatched = messageMatch || idMatch;
 
