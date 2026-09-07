@@ -66,6 +66,7 @@ export async function POST(request: Request) {
       fbFormData.append("message", message);
     }
 
+    // បន្ថែមប៊ូតុង Send Message ស្វ័យប្រវត្តិ
     fbFormData.append("call_to_action", JSON.stringify({ type: "MESSAGE_PAGE" }));
 
     const response = await fetch(url, { method: 'POST', body: fbFormData });
