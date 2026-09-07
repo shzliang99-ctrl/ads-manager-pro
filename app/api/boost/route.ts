@@ -19,22 +19,24 @@ export async function POST(request: Request) {
       performanceGoal, callToAction, 
       ageMin, ageMax, gender, location, targeting, 
       placementType, deviceType, osType, wifiOnly, platforms, detailedPlacements, 
-      budgetType, budget, duration 
+      budgetType, budget, duration,
+      access_token, adAccountId // 🌟 ទទួលយក Token និង Ad Account ID ដែលបោះមកពី Frontend ផ្ទាល់របស់ Client
     } = body;
 
-    const accessToken = process.env.FACEBOOK_ACCESS_TOKEN; 
-    const rawAdAccountId = process.env.FACEBOOK_AD_ACCOUNT_ID; 
+    // 🌟 ប្រើប្រាស់ Token និង Ad Account ID របស់ Client ជាចម្បង ព្រមទាំងមាន .env ទុកជាជម្រើសបម្រុង
+    const accessToken = access_token || process.env.FACEBOOK_ACCESS_TOKEN;
+    const rawAdAccountId = adAccountId || process.env.FACEBOOK_AD_ACCOUNT_ID; 
 
     if (!accessToken || !rawAdAccountId) {
-      throw new Error("ប្រព័ន្ធមិនទាន់បានភ្ជាប់ Token ឬ Ad Account ID របស់ Facebook ទេ។");
+      throw new Error("ប្រព័ន្ធមិនមាននាក្តោប Token ឬ Ad Account ID របស់ Facebook ទេ។ សូម Login ជាមុនសិន។");
     }
 
-    const adAccountId = rawAdAccountId.startsWith('act_') ? rawAdAccountId : `act_${rawAdAccountId}`;
+    const targetAdAccountId = rawAdAccountId.startsWith('act_') ? rawAdAccountId : `act_${rawAdAccountId}`;
 
     // ==========================================
     // ជំហានទី ១៖ បង្កើត Campaign
     // ==========================================
-    const campRes = await fetch(`https://graph.facebook.com/v18.0/${adAccountId}/campaigns`, {
+    const campRes = await fetch(`https://graph.facebook.com/v18.0/${targetAdAccountId}/campaigns`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -166,7 +168,7 @@ export async function POST(request: Request) {
        adSetPayload.daily_budget = Number(budget) * 100;
     }
 
-    const adSetRes = await fetch(`https://graph.facebook.com/v18.0/${adAccountId}/adsets`, {
+    const adSetRes = await fetch(`https://graph.facebook.com/v18.0/${targetAdAccountId}/adsets`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(adSetPayload)
@@ -195,7 +197,7 @@ export async function POST(request: Request) {
       try {
         const pageRes = await fetch(`https://graph.facebook.com/v18.0/${pageId}?fields=access_token&access_token=${accessToken}`);
         const pageData = await pageRes.json();
-        const pageToken = pageData.access_token;
+        const pageToken = pageData.access_token || accessToken;
         
         if (pageToken) {
           const updateParams = new URLSearchParams();
@@ -248,7 +250,7 @@ export async function POST(request: Request) {
     // ==========================================
     // ជំហានទី ៤៖ បង្កើត Ad Creative និង Ad
     // ==========================================
-    const creativeRes = await fetch(`https://graph.facebook.com/v18.0/${adAccountId}/adcreatives`, {
+    const creativeRes = await fetch(`https://graph.facebook.com/v18.0/${targetAdAccountId}/adcreatives`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -260,7 +262,7 @@ export async function POST(request: Request) {
     const creativeData = await creativeRes.json();
     if (creativeData.error) throw new Error(`Creative ធ្លាក់: ${translateFBError(creativeData.error.message)}`);
 
-    const adRes = await fetch(`https://graph.facebook.com/v18.0/${adAccountId}/ads`, {
+    const adRes = await fetch(`https://graph.facebook.com/v18.0/${targetAdAccountId}/ads`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
