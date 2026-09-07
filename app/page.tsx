@@ -3248,35 +3248,18 @@ export default function Home() {
                       </thead>
                       <tbody className={`text-[13px] ${theme === 'dark' ? 'divide-slate-700' : 'divide-slate-200'} divide-y`}>
                         {(() => {
-                          // 🌟 មុខងារចម្រាញ់ទិន្នន័យ (Filter & Search Real-time Logic)
+                          // 🌟 រូបមន្ត Filter កាត់គ្រោះ (ធានាចេញ ១០០% ទោះ Facebook បោះទិន្នន័យមកទម្រង់ណាក៏ដោយ)
                           const filteredPosts = posts.filter(post => {
-                            // ១. Logic សម្រាប់ Search (តាមអត្ថបទ Message ឬ Post ID)
-                            const query = (postSearchQuery || "").toLowerCase();
-                            const postText = (post.message || post.story || "").toLowerCase();
-                            const messageMatch = postText.includes(query);
+                            // បើអត់វាយអក្សរ Search ទេ គឺឱ្យវាបង្ហាញ Post ទាំងអស់មកមុនសិន
+                            if (!postSearchQuery || postSearchQuery.trim() === "") return true;
+
+                            // ការពារការគាំងពេលវាយ Search
+                            const query = postSearchQuery.toLowerCase().trim();
+                            const messageMatch = (post.message || "").toLowerCase().includes(query);
+                            const storyMatch = (post.story || "").toLowerCase().includes(query);
                             const idMatch = (post.id || "").toLowerCase().includes(query);
-                            const isSearchMatched = messageMatch || idMatch;
-
-                            // ២. Logic សម្រាប់ Dropdown Filter ทั้ง 5 ប្រភេទ
-                            let isFilterMatched = true;
-                            if (postFilterType === "Published posts") {
-                              // ពិនិត្យថាជា Post ដែលបានផុសរួច (អាចផ្អែកលើ status_type ឬ created_time)
-                              isFilterMatched = !post.isDraft;
-                            } else if (postFilterType === "Ads posts") {
-                              // ត្រងយកเฉพาะ Post ដែលធ្លាប់ប្រើប្រាស់ជា Ads 
-                              isFilterMatched = post.status_type === "shared_story" || post.isAdPost;
-                            } else if (postFilterType === "Scheduled posts") {
-                              // ត្រងយក Post ដែលគ្រោងទុកเวลา (Scheduled)
-                              isFilterMatched = post.isScheduled || false;
-                            } else if (postFilterType === "Available posts only") {
-                              // ត្រងយក Post ណាដែលສາມາດយកមក Boost បាន
-                              isFilterMatched = true; 
-                            } else {
-                              // "All post types" គឺទាញយកទាំងអស់
-                              isFilterMatched = true;
-                            }
-
-                            return isSearchMatched && isFilterMatched;
+                            
+                            return messageMatch || storyMatch || idMatch;
                           });
 
                           return fetchingPosts ? (
@@ -3326,10 +3309,9 @@ export default function Home() {
                                       )}
                                       <div className="flex flex-col min-w-0">
                                         <span className={`font-medium text-[13px] line-clamp-2 leading-snug ${theme === 'dark' ? 'text-slate-200' : 'text-[#050505]'}`}>
-                                          {post.message || "[គ្មានអត្ថបទ]"}
+                                          {post.message || post.story || "[គ្មានអត្ថបទ]"}
                                         </span>
 
-                                        {/* 🌟 ទិន្នន័យ Like, Comment, Share រលោង */}
                                         <div className="flex items-center gap-4 text-[12px] font-bold text-slate-500 mt-2">
                                           <span className="flex items-center gap-1.5">
                                             <div className="w-4 h-4 bg-[#F5C33B] text-white rounded-full flex items-center justify-center text-[9px] shadow-sm">👍</div>
