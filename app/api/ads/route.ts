@@ -13,12 +13,7 @@ export async function GET(request: Request) {
     const accessToken = getAccessToken(request);
     const campaignId = searchParams.get('campaignId');
     const adAccountId = searchParams.get('adAccountId');
-    let datePreset = searchParams.get('datePreset') || 'maximum';
-
-    // 🌟 ការពារករណីពាក្យ Lifetime ត្រូវបានបញ្ជូនមក
-    if (datePreset.toLowerCase() === 'lifetime') {
-      datePreset = 'maximum';
-    }
+    const datePreset = searchParams.get('datePreset') || 'maximum';
 
     if (!accessToken) {
       throw new Error("Missing Facebook Access Token");
@@ -75,7 +70,7 @@ export async function GET(request: Request) {
   }
 }
 
-// 🌟 Function PUT សម្រាប់ទទួលការប្ដូរ Status (Off/On) របស់ Ad នីមួយៗ
+// 🌟 បន្ថែម Function PUT សម្រាប់ទទួលការប្ដូរ Status (Off/On) របស់ Ad នីមួយៗ
 export async function PUT(request: Request) {
   try {
     const body = await request.json();

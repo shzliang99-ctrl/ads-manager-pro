@@ -7,18 +7,14 @@ export async function POST(request: Request) {
     // 🌟 ករណីទី១៖ បើ Frontend ផ្ញើមកជា JSON (សម្រាប់ទាញយក Posts មកបង្ហាញក្នុង Table)
     if (contentType.includes("application/json")) {
       const body = await request.json();
-      const { pageId, pageToken, access_token } = body;
-      
-      const token = pageToken || access_token || process.env.FACEBOOK_ACCESS_TOKEN;
+      const { pageId, pageToken } = body;
 
-      if (!pageId || !token) {
+      if (!pageId || !pageToken) {
         return NextResponse.json({ success: false, error: "Missing pageId or pageToken" }, { status: 400 });
       }
 
-      // 🌟 ទាញយកទិន្នន័យដោយសុវត្ថិភាព មិនប្រើ summary(true) ដើម្បីការពារកុំឱ្យគាំង Server
-      const url = `https://graph.facebook.com/v18.0/${pageId}/posts?fields=id,message,created_time,full_picture,status_type,attachments,shares&limit=100&access_token=${token}`;
-      
-      const res = await fetch(url, { cache: 'no-store' });
+      // 🌟 បន្ថែម ,attachments ដើម្បីទាញយកគ្រប់រូបភាពទាំងអស់ក្នុង Post មកបង្ហាញជា Grid
+      const res = await fetch(`https://graph.facebook.com/v18.0/${pageId}/posts?fields=id,message,created_time,full_picture,status_type,attachments&limit=20&access_token=${pageToken}`);
       const data = await res.json();
 
       if (data.error) {
@@ -26,18 +22,10 @@ export async function POST(request: Request) {
          return NextResponse.json({ success: false, error: data.error.message }, { status: 400 });
       }
 
-      // ចម្រាញ់ទិន្នន័យឱ្យស្រួលប្រើប្រាស់លើ Frontend
-      const formattedPosts = (data.data || []).map((p: any) => ({
-        ...p,
-        likesCount: 0,     // ជៀសវាងការគាំងរឿង summary
-        commentsCount: 0,  // ជៀសវាងការគាំងរឿង summary
-        sharesCount: p.shares?.count || 0
-      }));
-
-      return NextResponse.json({ success: true, posts: formattedPosts });
+      return NextResponse.json({ success: true, posts: data.data || [] });
     }
 
-    // 🌟 ករណីទី២៖ បើ Frontend ផ្ញើមកជា FormData (សម្រាប់បង្កើត Post ថ្មី)
+    // 🌟 ករណីទី២៖ បើ Frontend ផ្ញើមកជា FormData (សម្រាប់បង្កើត Post ថ្មី ឬ Upload រូបភាព/វីដេអូ)
     const formData = await request.formData();
     const pageId = formData.get("pageId") as string;
     const pageToken = formData.get("pageToken") as string;
@@ -66,9 +54,14 @@ export async function POST(request: Request) {
       fbFormData.append("message", message);
     }
 
+    // 🔥 មុខងារថ្មី៖ បង្ខំដាក់ប៊ូតុង "Send Message" ទៅគ្រប់ Post ដែលបានបង្កើតថ្មី ដើម្បីកុំឱ្យជាប់ Error ពេល Boost
     fbFormData.append("call_to_action", JSON.stringify({ type: "MESSAGE_PAGE" }));
 
-    const response = await fetch(url, { method: 'POST', body: fbFormData });
+    const response = await fetch(url, {
+      method: 'POST',
+      body: fbFormData,
+    });
+
     const data = await response.json();
 
     if (data.error) {

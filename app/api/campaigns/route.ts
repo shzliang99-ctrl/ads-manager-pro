@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-// Helper function សម្រាប់ទាញយក Token ទាំងពី Query Parameters ឬ Request Body
+// Helper function សម្រាប់ទាញយក Token ទាំងពី Query Parameters ឬ Headers / Body
 function getAccessToken(request: Request, body?: any) {
   const { searchParams } = new URL(request.url);
   const clientToken = searchParams.get('access_token') || body?.access_token;
@@ -33,7 +33,7 @@ export async function GET(request: Request) {
       throw new Error(data.error.message);
     }
 
-    return NextResponse.json({ success: true, campaigns: data.data || [] });
+    return NextResponse.json({ success: true, campaigns: data.data });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 400 });
   }
@@ -68,7 +68,7 @@ export async function POST(request: Request) {
       updateCamp = true;
     }
 
-    if (budget !== undefined && budget !== "" && isCBO) {
+    if (budget && isCBO) {
       const budgetInCents = Math.round(Number(budget) * 100);
       if (campInfo.lifetime_budget) {
         campPayload.lifetime_budget = budgetInCents;
@@ -92,7 +92,7 @@ export async function POST(request: Request) {
     }
 
     // ២. កែប្រែថវិកា ABO និង ម៉ោងបញ្ចប់ នៅ Ad Set Level
-    if ((budget !== undefined && budget !== "" && !isCBO) || stopTime) {
+    if ((budget && !isCBO) || stopTime) {
       const adsetRes = await fetch(`https://graph.facebook.com/v18.0/${campaignId}/adsets?fields=id,daily_budget,lifetime_budget&access_token=${accessToken}`);
       const adsetData = await adsetRes.json();
 
@@ -105,7 +105,7 @@ export async function POST(request: Request) {
         const adsetPayload: any = { access_token: accessToken };
         let updateAdset = false;
 
-        if (budget !== undefined && budget !== "" && !isCBO) {
+        if (budget && !isCBO) {
           const budgetInCents = Math.round(Number(budget) * 100);
           if (targetAdSet.lifetime_budget) {
             adsetPayload.lifetime_budget = budgetInCents;
@@ -116,6 +116,7 @@ export async function POST(request: Request) {
         }
 
         if (stopTime) {
+          // ប្រើទម្រង់ ISO 8601 ជា String ដែល FB ត្រូវការបំផុត
           const dateObj = new Date(stopTime);
           if (!isNaN(dateObj.getTime())) {
             adsetPayload.end_time = dateObj.toISOString();
@@ -132,6 +133,7 @@ export async function POST(request: Request) {
 
           const adsetUpdateData = await adsetUpdateRes.json();
           if (adsetUpdateData.error) {
+            // 🌟 ទាញយក Error លម្អិត ដែល FB ប្រាប់ថាមកពីលុយ ឬម៉ោង
             const errMsg = adsetUpdateData.error.error_user_msg || adsetUpdateData.error.message;
             throw new Error(`[AdSet Update Failed]: ${errMsg}`);
           }

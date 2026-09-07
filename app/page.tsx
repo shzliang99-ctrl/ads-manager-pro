@@ -15,101 +15,9 @@ const datePresetOptions = [
 ];
 
 export default function Home() {
-
-  // 1. ដាក់កូដ State នេះនៅកន្លែងប្រកាស States ក្នុង Component Home
+  // 🌟 [កែប្រែត្រង់នេះ៖ ដាក់ state activeTab ឱ្យស្ថិតក្នុង Component Home() ត្រឹមត្រូវ]
   const [activeTab, setActiveTab] = useState("CREATE");
   const [isMounted, setIsMounted] = useState(false);
-
-  // 🌟 States សម្រាប់ Pages និង Selected Page (ត្រូវប្រកាសមុនគេ)
-  const [pages, setPages] = useState<any[]>([]);
-  const [selectedPage, setSelectedPage] = useState("");
-
-  // 🌟 States និងមុខងារសម្រាប់សារស្វាគមន៍ (Welcome Message) - ប្រកាសតែម្តងគត់
-  const [isAutoReplyOpen, setIsAutoReplyOpen] = useState(false);
-  const [welcomeMessage, setWelcomeMessage] = useState("");
-  const [isSavingWelcome, setIsSavingWelcome] = useState(false);
-  const [welcomeStatus, setWelcomeStatus] = useState('');
-
-  // ✅ useEffect សម្រាប់ទាញយកទិន្នន័យ Welcome Message តាម Page នីមួយៗ
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const currentSelectedPage = localStorage.getItem("selectedPage") || selectedPage;
-      if (currentSelectedPage) {
-        const saved = localStorage.getItem(`welcome_config_${currentSelectedPage}`);
-        if (saved) {
-          try {
-            const parsed = JSON.parse(saved);
-            setWelcomeMessage(parsed.message || "");
-          } catch (e) {}
-        } else {
-          setWelcomeMessage("");
-        }
-      }
-    }
-  }, [selectedPage]);
-
-  const handleSaveWelcomeMessage = async () => {
-    setIsSavingWelcome(true);
-    setWelcomeStatus('');
-    try {
-      const pageInfo = pages.find(p => p.id === selectedPage);
-      const freqValue = (document.getElementById('welcomeFrequency') as HTMLSelectElement)?.value || '24h';
-
-      // 1. រក្សាទុកចូល Browser localStorage ជាបណ្ដោះអាសន្ន
-      const welcomeConfigData = {
-        pageId: selectedPage,
-        message: welcomeMessage,
-        frequency: freqValue,
-        updatedAt: new Date().toISOString()
-      };
-      localStorage.setItem(`welcome_config_${selectedPage}`, JSON.stringify(welcomeConfigData));
-
-      // 2. បញ្ជូនសំណើទៅ API ដើម្បីភ្ជាប់ជាមួយ Facebook Page (လុបបំបាត់ EROFS error លើ Vercel)
-      const response = await fetch('/api/settings/welcome', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          message: welcomeMessage,
-          pageId: selectedPage,
-          pageToken: pageInfo?.access_token || '',
-          frequency: freqValue
-        }),
-      });
-      
-      const result = await response.json();
-      if (result.success) {
-        setWelcomeStatus('✅ រក្សាទុក និងភ្ជាប់ជាមួយ Facebook Page ដោយជោគជ័យ!');
-      } else {
-        setWelcomeStatus('❌ បរាជ័យ៖ ' + result.error);
-      }
-    } catch (error) {
-      setWelcomeStatus('❌ កំហុសបច្ចេកទេសប្រព័ន្ធ។');
-    } finally {
-      setIsSavingWelcome(false);
-    }
-  };
-
-  // 👈 យកកូដ useEffect សម្រាប់ Load saved_autoreply_configs មកដាក់នៅត្រង់ចន្លោះនេះបានយ៉ាងស្រួល
-  useEffect(() => {
-    try {
-      const savedConfigs = localStorage.getItem("saved_autoreply_configs");
-      if (savedConfigs) {
-        const parsedConfigs = JSON.parse(savedConfigs);
-        let configsObj: Record<string, any> = {};
-        let pageIds: string[] = [];
-        
-        parsedConfigs.forEach((item: any) => {
-          configsObj[item.pageId] = item.config;
-          pageIds.push(item.pageId);
-        });
-
-        setAutoReplyConfigs(configsObj);
-        setSavedPagesList(pageIds);
-      }
-    } catch (e) {
-      console.error("Error loading saved configs", e);
-    }
-  }, []);
 
   useEffect(() => {
     setIsMounted(true);
@@ -276,21 +184,8 @@ export default function Home() {
 // ប្រើប្រាស់ t ដើម្បីទាញយកភាសាដែលកំពុងជ្រើសរើស
   const t = langText[lang];
 
-  // ៣. ប្រើ useEffect ដើម្បីទាញយកសារដែលធ្លាប់ Save មកដាក់តាមក្រោយពេល selectedPage ដូរម្តងៗ
-  useEffect(() => {
-    if (selectedPage && typeof window !== "undefined") {
-      const saved = localStorage.getItem(`welcome_config_${selectedPage}`);
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          setWelcomeMessage(parsed.message || "");
-        } catch (e) {}
-      } else {
-        setWelcomeMessage("");
-      }
-    }
-  }, [selectedPage]);
-
+  const [pages, setPages] = useState<any[]>([]);
+  const [selectedPage, setSelectedPage] = useState("");
   const [isPageMenuOpen, setIsPageMenuOpen] = useState(false);
   
   const [posts, setPosts] = useState<any[]>([]);
@@ -348,9 +243,11 @@ export default function Home() {
     }
   };
 
-  // 🌟 1. ດຶງຂໍ້ມູນ Pages ໂດຍອັດຕະໂນມັດ ພ້ອມទាំងទាញយក Page ដែលធ្លាប់ Save ទុកក្នុង localStorage មកវិញភ្លាមៗ
+  // 🌟 1. ດึงข้อมูล Pages ໂດຍອັດຕະໂນມັດໂດຍໃຊ້ Client Token
   useEffect(() => {
     const token = localStorage.getItem('fb_user_token');
+    
+    // ຖ້າບໍ່ມີ Token ໃຫ້ໃຊ້ Admin Token (ຖ່າມີໃນ .env ຜ່ານ API) ຫຼັກການແມ່ນໃຫ້ສົ່ງ token ໄປນຳສະເໝີ
     const tokenParam = token ? `?access_token=${token}` : '';
 
     fetch(`/api/pages${tokenParam}`)
@@ -358,17 +255,11 @@ export default function Home() {
       .then(data => {
         if (data.success && data.pages && data.pages.length > 0) {
           setPages(data.pages);
-          
-          // 🔍 ឆែកមើលក្នុង localStorage ថាតើធ្លាប់ Save Page ណាទុកមុនពេល Refresh ទេ?
           const savedPage = localStorage.getItem("selectedPage");
-          
-          // បើមាន Save ទុក ហើយ Page នោះមានក្នុង List របស់ Meta គឺទាញយកមកដាក់វិញភ្លាម
           if (savedPage && data.pages.find((p: any) => p.id === savedPage)) {
             setSelectedPage(savedPage);
           } else {
-            // បើអត់ទាន់មាន ទើបយក Page ទីមួយ
             setSelectedPage(data.pages[0].id);
-            localStorage.setItem("selectedPage", data.pages[0].id);
           }
         }
       })
@@ -737,61 +628,14 @@ export default function Home() {
     setAiMediaPreview("");
   };
 
-  // 🌟 មុខងារ Submit Enter Post ID ថ្មី (ទាញយកទិន្នន័យមកបង្ហាញ Preview ភ្លាមៗ)
-  const handleEnterPostIdSubmit = async () => {
-    if (!manualPostId.trim()) return;
-    
-    const postId = manualPostId.trim();
-    const pageInfo = pages.find(p => p.id === selectedPage);
-    const token = pageInfo?.access_token || localStorage.getItem('fb_user_token');
-
-    if (!token) {
-      alert("⚠️ រកមិនឃើញ Token ទេ។ សូមភ្ជាប់ Facebook ម្តងទៀត!");
-      return;
-    }
-
-    try {
-      // ផ្លាស់ប្តូរប៊ូតុងទៅជាស្ថានភាព Loading អាចឱ្យអតិថិជនដឹងថាប្រព័ន្ធកំពុងធ្វើការ
-      alert("កំពុងទាញយកទិន្នន័យ Post ពី Facebook...");
-
-      // Facebook Graph API ភាគច្រើនទាមទារទម្រង់ PageID_PostID សម្រាប់ការអាន
-      let validFetchId = postId;
-      if (!postId.includes('_')) {
-        validFetchId = `${selectedPage}_${postId}`;
-      }
-
-      // ហៅទាញយកទិន្នន័យ Post ផ្ទាល់ពី Facebook
-      const res = await fetch(`https://graph.facebook.com/v18.0/${validFetchId}?fields=id,message,created_time,full_picture,status_type,attachments,likes.summary(true),comments.summary(true),shares&access_token=${token}`);
-      const data = await res.json();
-
-      if (data.error) {
-        alert(`❌ មិនអាចទាញយក Post នេះបានទេ៖\n${data.error.message}\n(សូមប្រាកដថា Post ID នេះពិតជារបស់ Page នេះមែន)`);
-        return;
-      }
-
-      // រៀបចំចម្រាញ់ទិន្នន័យ Like, Comment, Share ឱ្យត្រូវក្បួន
-      const newPostData = {
-        ...data,
-        likesCount: data.likes?.summary?.total_count || 0,
-        commentsCount: data.comments?.summary?.total_count || 0,
-        sharesCount: data.shares?.count || 0
-      };
-
-      // 🌟 ញាត់ Post ដែលទើបទាញយកបាន ចូលទៅក្នុងតារាង Posts ដើម្បីឱ្យលោត Preview ភ្លាមៗ
-      setPosts(prevPosts => {
-        const filtered = prevPosts.filter(p => p.id !== data.id && p.id !== postId); // ដកចេញបើមានជាន់គ្នា
-        return [newPostData, ...filtered];
-      });
-
-      saveParam("selectedPost", data.id, setSelectedPost);
-      setIsEnterPostIdModalOpen(false);
-      setManualPostId("");
-      
-    } catch (error) {
-      console.error("Fetch Post Error:", error);
-      alert("❌ មានបញ្ហាតភ្ជាប់ទៅកាន់ Facebook Graph API!");
-    }
-  };
+  // 🌟 មុខងារ Submit Enter Post ID
+  const handleEnterPostIdSubmit = () => {
+    if(!manualPostId.trim()) return;
+    saveParam("selectedPost", manualPostId.trim(), setSelectedPost);
+    setIsEnterPostIdModalOpen(false);
+    setManualPostId("");
+    alert(`បានជ្រើសរើស Post ID: ${manualPostId} រួចរាល់។ (ចំណាំ: ការបង្ហាញរូប Preview ត្រូវការទាញយកទិន្នន័យពី Graph API បន្ថែម)`);
+  }
 
   const toggleAccordion = (section: string) => {
     setExpandedPlacements(prev => ({ ...prev, [section]: !(prev as any)[section] }));
@@ -866,8 +710,6 @@ export default function Home() {
       updateCurrentPageConfig('commentTexts', newTexts);
     }
   };
-
-  
 
   // បញ្ជី Emoji ទាំង ៧ របស់ Facebook
   const fbReactions = [
@@ -956,28 +798,26 @@ export default function Home() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ pageId: pageInfo.id, pageToken: pageInfo.access_token })
-    }).then(res => res.json()).then(data => {
+    }).then(res => res.json()).then(async data => {
       setFetchingPosts(false);
-      
       if (data.success && data.posts.length > 0) {
-        // 🌟 លែងត្រូវការ Promise.all() និងមិនបាច់ហៅ fetchPostEngagement នាំឱ្យគាំងទៀតទេ 
-        // ព្រោះ API ថ្មីបាញ់ទិន្នន័យមកមានស្រាប់គ្រប់គ្រាន់ទាំងអស់ហើយ ១០០%
-        setPosts(data.posts);
+        // 🌟 ហៅទាញយក Engagement សម្រាប់ Post នីមួយៗ
+        const postsWithEngagement = await Promise.all(
+          data.posts.map(async (p: any) => {
+            const eng = await fetchPostEngagement(p.id, pageInfo.access_token);
+            return { ...p, likesCount: eng.likes, commentsCount: eng.comments, sharesCount: eng.shares };
+          })
+        );
+        setPosts(postsWithEngagement);
 
         const savedPost = localStorage.getItem("selectedPost");
-        if (savedPost && data.posts.find((p: any) => p.id === savedPost)) {
-          setSelectedPost(savedPost);
-        } else {
-          setSelectedPost(data.posts[0].id);
-        }
+        if (savedPost && postsWithEngagement.find((p: any) => p.id === savedPost)) setSelectedPost(savedPost);
+        else setSelectedPost(postsWithEngagement[0].id);
       } else {
         setPosts([]);
         setSelectedPost("");
       }
-    }).catch((err) => {
-      console.error("Fetch Posts Error:", err);
-      setFetchingPosts(false);
-    });
+    }).catch(() => setFetchingPosts(false));
   }, [selectedPage, pages]);
 
   const isBudgetError = budgetType === "LIFETIME" && Number(budget) < Number(duration);
@@ -1012,7 +852,7 @@ export default function Home() {
       return alert(`🛑 កំហុសថវិកា៖ ហ្វេសប៊ុកទាមទារយ៉ាងហោចណាស់ 1$ ក្នុងមួយថ្ងៃ។`);
     }
 
-    setLoading(true);
+    setLoading(true); // 🌟 បើកផ្ទាំង Loading
 
     let finalPostId = selectedPost;
     const selectedPostObj = posts.find(p => p.id === selectedPost);
@@ -1054,16 +894,6 @@ export default function Home() {
        }
     }
     
-    // 🌟 1. ទាញយក Token និង Ad Account ID ពី localStorage ផ្ទាល់
-    const clientToken = localStorage.getItem('fb_user_token');
-    const adAccountId = selectedAdAccount || localStorage.getItem('selectedAdAccount');
-
-    if (!clientToken) {
-      setLoading(false);
-      return alert("❌ រកមិនឃើញ Token ទេ សូម Login ជាមួយ Facebook ជាមុនសិន!");
-    }
-
-    // 🌟 2. បញ្ចូល access_token និង adAccountId ទៅក្នុង boostData
     const boostData = {
       campaignName, adsetName, adName,
       pageId: selectedPage, postUrl: finalPostId,
@@ -1071,9 +901,7 @@ export default function Home() {
       callToAction, 
       ageMin, ageMax, gender, location, targeting, 
       placementType, deviceType, osType, wifiOnly, platforms, detailedPlacements,
-      budgetType, budget, duration,
-      access_token: clientToken,      // 👈 បញ្ជូន Token របស់អតិថិជនទៅជាមួយ
-      adAccountId: adAccountId        // 👈 បញ្ជូន Ad Account ID ទៅជាមួយ
+      budgetType, budget, duration
     };
 
     try {
@@ -1085,9 +913,9 @@ export default function Home() {
       const data = await response.json();
       
       if(data.success) {
-        setLoading(false);
+        setLoading(false);         // បិទផ្ទាំង Loading
         setTimeout(() => {
-          setIsSuccessModal(true);
+          setIsSuccessModal(true); // បើកផ្ទាំង Success និងបង្ហាញប៊ូតុង OK យ៉ាងរលូន
         }, 150);
       } else {
         setLoading(false);
@@ -1168,16 +996,13 @@ export default function Home() {
     if (selectedCampaigns.length === 0) return;
     setLoadingAds(true);
     try {
-      // 🌟 ទាញយក Token ពី localStorage
-      const token = localStorage.getItem('fb_user_token');
-      const tokenParam = token ? `&access_token=${token}` : '';
-
       const targetCampaignId = selectedCampaigns[0];
       
+      // 🌟 បំប្លែង Lifetime ទៅជា maximum ដើម្បីឱ្យ Facebook ស្គាល់
       let apiDatePreset = selectedDatePreset.toLowerCase();
       if (apiDatePreset === 'lifetime') apiDatePreset = 'maximum';
       
-      const res = await fetch(`/api/ads?campaignId=${targetCampaignId}&datePreset=${apiDatePreset}${tokenParam}`);
+      const res = await fetch(`/api/ads?campaignId=${targetCampaignId}&datePreset=${apiDatePreset}`);
       const data = await res.json();
       
       if (data.success) {
@@ -1195,14 +1020,9 @@ export default function Home() {
     if (selectedCampaigns.length === 0) return;
     setLoadingAdsets(true);
     try {
-      // 🌟 ទាញយក Token ពី localStorage
-      const token = localStorage.getItem('fb_user_token');
-      const tokenParam = token ? `&access_token=${token}` : '';
-
       const targetCampaignId = selectedCampaigns[0];
-      const res = await fetch(`/api/adsets?campaignId=${targetCampaignId}&datePreset=${selectedDatePreset}${tokenParam}`);
+      const res = await fetch(`/api/adsets?campaignId=${targetCampaignId}&datePreset=${selectedDatePreset}`);
       const data = await res.json();
-      
       if (data.success) {
         setAdsetsList(data.adsets || []);
       } else {
@@ -1375,35 +1195,6 @@ export default function Home() {
   // ដោយសារយើងអាច Enter ID ផ្ទាល់ ពេលខ្លះ selectedPostData អាចអត់មានក្នុង posts list ទេ
   const selectedPostData = posts.find(p => p.id === selectedPost);
 
-  // 🌟 មុខងារត្រួតពិនិត្យភាពត្រឹមត្រូវ Form (Validation Function)
-  const validateForm = () => {
-    if (!campaignName.trim()) {
-      alert("⚠️ សូមបញ្ចូលឈ្មោះ Campaign (Campaign Name) ជាមុនសិន!");
-      return false;
-    }
-    if (!adsetName.trim()) {
-      alert("⚠️ សូមបញ្ចូលឈ្មោះ Ad Set (Ad Set Name) ជាមុនសិន!");
-      return false;
-    }
-    if (!selectedPage) {
-      alert("⚠️ សូមជ្រើសរើស Facebook Page ឱ្យបានត្រឹមត្រូវ!");
-      return false;
-    }
-    if (!selectedPost) {
-      alert("⚠️ សូមជ្រើសរើស Post ណាមួយសម្រាប់ការផ្សាយពាណិជ្ជកម្ម!");
-      return false;
-    }
-    if (!budget || Number(budget) <= 0) {
-      alert("⚠️ សូមកំណត់ថវិកា (Budget) ឱ្យបានត្រឹមត្រូវ (ត្រូវតែធំជាង 0)!");
-      return false;
-    }
-    if (isBudgetError) {
-      alert("🛑 កំហុសថវិកា៖ ថវិកាសរុបរបស់អ្នកតិចជាងចំនួនថ្ងៃដែលត្រូវរត់។");
-      return false;
-    }
-    return true;
-  };
-
   // 🌟 [យកវាមកដាក់ទីនេះវិញ ទើបត្រូវច្បាប់របស់ React]
   if (!isMounted) {
     return null;
@@ -1428,8 +1219,7 @@ export default function Home() {
             <button 
               onClick={() => {
                 const appId = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID;
-                // ប្រើ window.location.origin ដើម្បីឱ្យវាស្គាល់ទាំង Localhost និង Vercel
-                const redirectUri = encodeURIComponent(`${window.location.origin}/api/auth/facebook/callback`);
+                const redirectUri = encodeURIComponent('http://localhost:3000/api/auth/facebook/callback');
                 const scope = 'public_profile,ads_management,ads_read,pages_read_engagement,pages_show_list,pages_manage_ads';
                 window.location.href = `https://www.facebook.com/v18.0/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code`;
               }}
@@ -1564,80 +1354,45 @@ export default function Home() {
 
       {/* 🌟 Layout Main + Left Sidebar */}
       <div className="flex flex-1 w-full items-stretch">
-
+        
         {/* 🌟 Layout Main + Left Sidebar (Multi-Language & Dark Mode Supported) */}
         <aside className={`hidden md:flex flex-col w-[260px] shrink-0 border-r min-h-[calc(100vh-64px)] shadow-sm z-10 transition-colors ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'}`}>
-        <div className="sticky top-[64px] p-4 flex flex-col gap-2 pt-6">
-            <div className="text-[11px] font-bold text-slate-400 mb-2 px-3 uppercase tracking-widest">{lang === 'kh' ? 'Main Menu' : 'Main Menu'}</div>
-            
-            <button 
-              onClick={() => handleTabChange("CREATE")}
-              className={`w-full text-left px-4 py-3.5 rounded-xl font-bold transition-all flex items-center gap-3 cursor-pointer ${activeTab === "CREATE" ? "bg-blue-600 text-white shadow-md" : (theme === 'dark' ? 'text-slate-300 hover:bg-[#3A3B3C] hover:text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900')}`}
-            >
-              <span className="text-lg leading-none">✍️</span> <span className="text-[13.5px]">{t.menuCreate}</span>
-            </button>
+         <div className="sticky top-[64px] p-4 flex flex-col gap-2 pt-6">
+             <div className="text-[11px] font-bold text-slate-400 mb-2 px-3 uppercase tracking-widest">{lang === 'kh' ? 'Main Menu' : 'Main Menu'}</div>
+             
+             <button 
+               onClick={() => handleTabChange("CREATE")}
+               className={`w-full text-left px-4 py-3.5 rounded-xl font-bold transition-all flex items-center gap-3 cursor-pointer ${activeTab === "CREATE" ? "bg-blue-600 text-white shadow-md" : (theme === 'dark' ? 'text-slate-300 hover:bg-[#3A3B3C] hover:text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900')}`}
+             >
+               <span className="text-lg leading-none">✍️</span> <span className="text-[13.5px]">{t.menuCreate}</span>
+             </button>
 
-            <button 
-              onClick={() => handleTabChange("MANAGE")}
-              className={`w-full text-left px-4 py-3.5 rounded-xl font-bold transition-all flex items-center gap-3 cursor-pointer ${activeTab === "MANAGE" ? "bg-blue-600 text-white shadow-md" : (theme === 'dark' ? 'text-slate-300 hover:bg-[#3A3B3C] hover:text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900')}`}
-            >
-              <span className="text-lg leading-none">📊</span> <span className="text-[13.5px]">{t.menuManage}</span>
-            </button>
+             <button 
+               onClick={() => handleTabChange("MANAGE")}
+               className={`w-full text-left px-4 py-3.5 rounded-xl font-bold transition-all flex items-center gap-3 cursor-pointer ${activeTab === "MANAGE" ? "bg-blue-600 text-white shadow-md" : (theme === 'dark' ? 'text-slate-300 hover:bg-[#3A3B3C] hover:text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900')}`}
+             >
+               <span className="text-lg leading-none">📊</span> <span className="text-[13.5px]">{t.menuManage}</span>
+             </button>
 
-            {/* 👇 ផ្នែក Tab ឆ្លើយតបស្វ័យប្រវត្តិ និង Dropdown កូនចៅ */}
-            <div className="flex flex-col">
-              <div 
-                onClick={() => setIsAutoReplyOpen(!isAutoReplyOpen)}
-                className={`w-full text-left px-4 py-3.5 rounded-xl font-bold transition-all flex items-center justify-between cursor-pointer ${
-                  (activeTab === "AUTO_REPLY" || activeTab === "WELCOME_SETTINGS")
-                    ? (theme === 'dark' ? 'bg-[#3A3B3C] text-white' : 'bg-slate-100 text-slate-900 shadow-sm')
-                    : (theme === 'dark' ? 'text-slate-300 hover:bg-[#3A3B3C] hover:text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900')
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <span className="text-lg leading-none">🤖</span> <span className="text-[13.5px]">{t.menuAutoReply}</span>
-                </div>
-                <span className={`text-[10px] transform transition-transform duration-200 ${isAutoReplyOpen ? 'rotate-180' : ''}`}>▼</span>
-              </div>
-
-              {/* 🌟 ម៉ឺនុយកូនចៅ (Sub-menu មាន Icon ស្អាត និងដកឃ្លាត្រូវក្បួន) */}
-              {isAutoReplyOpen && (
-                <div className={`ml-3 mt-2 pl-2 border-l-2 flex flex-col gap-1.5 ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-                  <button 
-                    onClick={() => handleTabChange("AUTO_REPLY")}
-                    className={`w-full text-left px-3 py-2.5 rounded-xl text-[13px] font-bold transition-all flex items-center gap-2.5 cursor-pointer ${
-                      activeTab === "AUTO_REPLY" 
-                        ? "bg-blue-600 text-white shadow-md" 
-                        : (theme === 'dark' ? 'text-slate-400 hover:text-white hover:bg-[#3A3B3C]/50' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100')
-                    }`}
-                  >
-                    <span className="text-base leading-none">⚙️</span> ការកំណត់ Chatbot
-                  </button>
-                  <button 
-                    onClick={() => handleTabChange("WELCOME_SETTINGS")}
-                    className={`w-full text-left px-3 py-2.5 rounded-xl text-[13px] font-bold transition-all flex items-center gap-2.5 cursor-pointer ${
-                      activeTab === "WELCOME_SETTINGS" 
-                        ? "bg-blue-600 text-white shadow-md" 
-                        : (theme === 'dark' ? 'text-slate-400 hover:text-white hover:bg-[#3A3B3C]/50' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100')
-                    }`}
-                  >
-                    <span className="text-base leading-none">👋</span> សារស្វាគមន៍ថ្មី
-                  </button>
-                </div>
-              )}
-            </div>
-            
-            {/* 🌟 ផ្នែក Tools: ប៊ូតុង AI Copywriter */}
-            <div className={`border-t my-2 mt-4 ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}></div>
-            <div className="text-[11px] font-bold text-slate-400 mb-2 px-3 uppercase tracking-widest">{t.tools}</div>
-            <button 
-              onClick={() => handleTabChange("AI")}
-              className={`w-full text-left px-4 py-3.5 rounded-xl font-bold transition-all flex items-center gap-3 cursor-pointer ${activeTab === "AI" ? "bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-md" : (theme === 'dark' ? 'text-slate-300 hover:bg-[#3A3B3C] hover:text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900')}`}
-            >
-              <span className="text-lg leading-none">✨</span> <span className="text-[13.5px]">{t.menuAI}</span>
-            </button>
-        </div>
-        </aside>
+             {/* 👇 Tab ឆ្លើយតបស្វ័យប្រវត្តិ (Auto-Reply) */}
+             <button 
+               onClick={() => handleTabChange("AUTO_REPLY")}
+               className={`w-full text-left px-4 py-3.5 rounded-xl font-bold transition-all flex items-center gap-3 cursor-pointer ${activeTab === "AUTO_REPLY" ? "bg-blue-600 text-white shadow-md" : (theme === 'dark' ? 'text-slate-300 hover:bg-[#3A3B3C] hover:text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900')}`}
+             >
+               <span className="text-lg leading-none">🤖</span> <span className="text-[13.5px]">{t.menuAutoReply}</span>
+             </button>
+             
+             {/* 🌟 ផ្នែក Tools: ប៊ូតុង AI Copywriter */}
+             <div className={`border-t my-2 mt-4 ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}></div>
+             <div className="text-[11px] font-bold text-slate-400 mb-2 px-3 uppercase tracking-widest">{t.tools}</div>
+             <button 
+               onClick={() => handleTabChange("AI")}
+               className={`w-full text-left px-4 py-3.5 rounded-xl font-bold transition-all flex items-center gap-3 cursor-pointer ${activeTab === "AI" ? "bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-md" : (theme === 'dark' ? 'text-slate-300 hover:bg-[#3A3B3C] hover:text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900')}`}
+             >
+               <span className="text-lg leading-none">✨</span> <span className="text-[13.5px]">{t.menuAI}</span>
+             </button>
+         </div>
+       </aside>
 
         {/* Main Content Area */}
         <main className="flex-1 w-full min-w-0 p-4 lg:p-8 relative">
@@ -1770,125 +1525,7 @@ export default function Home() {
               </div>
             )}
 
-            {/* ========================================================= */}
-            {/* 🌟 ផ្ទាំងសារស្វាគមន៍អតិថិជនថ្មី (Welcome Message Settings) */}
-            {/* ========================================================= */}
-            {activeTab === "WELCOME_SETTINGS" && (
-              <div className={`p-6 min-h-screen rounded-xl shadow-sm border animate-in fade-in duration-300 transition-colors ${theme === 'dark' ? 'bg-[#18191A] border-slate-800' : 'bg-[#F0F2F5] border-slate-200'}`}>
-                <div className={`p-6 rounded-xl border shadow-sm max-w-4xl mx-auto ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-800'}`}>
-                  
-                  {/* Header */}
-                  <h3 className={`text-[18px] font-bold mb-2 flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
-                    <span className="text-xl">👋</span> កំណត់សារស្វាគមន៍អតិថិជនថ្មី (Messenger Welcome Message)
-                  </h3>
-                  <p className={`text-[13px] mb-6 border-b pb-4 ${theme === 'dark' ? 'text-slate-400 border-slate-700' : 'text-gray-500 border-slate-100'}`}>
-                    សារនេះនឹងត្រូវផ្ញើស្វ័យប្រវត្តិទៅកាន់អតិថិជនដែលផ្ញើសារចូល Page របស់បង។
-                  </p>
-
-                  {/* 🌟 ១. ប្រអប់ជ្រើសរើស Page (អាច Select ផ្លាស់ប្តូរ Page បានដូច Chatbot) */}
-                  <div className="mb-5">
-                    <label className={`block font-bold text-[14px] mb-2 ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`}>១. ជ្រើសរើស Facebook Page៖</label>
-                    <div className="relative">
-                      <div
-                        onClick={() => setIsPageMenuOpen(!isPageMenuOpen)}
-                        className={`w-full border rounded-xl p-3 pl-12 pr-10 flex items-center justify-between cursor-pointer shadow-sm transition ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-blue-200 text-slate-800'}`}
-                      >
-                        <div className="absolute left-3 top-2.5 pointer-events-none">
-                          {selectedPageData?.picture?.data?.url ? (
-                            <img src={selectedPageData.picture.data.url} className="w-7 h-7 rounded-full object-cover border border-slate-200 shadow-xs" />
-                          ) : (
-                            <div className="w-7 h-7 bg-slate-400 rounded-full flex items-center justify-center text-[10px] text-white">Page</div>
-                          )}
-                        </div>
-                        <span className="text-[14px] font-bold truncate">{selectedPageData ? selectedPageData.name : "Select a Page..."}</span>
-                        <span className="text-xs text-[#1877F2] font-bold">▼</span>
-                      </div>
-
-                      {/* Dropdown Menu បង្ហាញបញ្ជី Page ទាំងអស់ */}
-                      {isPageMenuOpen && (
-                        <>
-                          <div className="fixed inset-0 z-40" onClick={() => setIsPageMenuOpen(false)}></div>
-                          <div className={`absolute top-[110%] left-0 w-full border rounded-xl shadow-2xl z-50 max-h-60 overflow-y-auto p-1.5 flex flex-col gap-1 ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-white' : 'bg-white border-slate-300'}`}>
-                            {pages.map(p => (
-                              <div
-                                key={p.id}
-                                onClick={() => {
-                                  setSelectedPage(p.id);
-                                  localStorage.setItem("selectedPage", p.id);
-                                  setIsPageMenuOpen(false);
-                                }}
-                                className={`p-2.5 rounded-lg flex items-center gap-3 cursor-pointer transition ${selectedPage === p.id ? (theme === 'dark' ? 'bg-blue-900/50 text-white font-bold' : 'bg-blue-50 text-blue-700 font-bold') : (theme === 'dark' ? 'hover:bg-[#3A3B3C]' : 'hover:bg-slate-100 text-slate-700')}`}
-                              >
-                                {p.picture?.data?.url ? (
-                                  <img src={p.picture.data.url} className="w-8 h-8 rounded-full object-cover border border-slate-200 shrink-0" />
-                                ) : (
-                                  <div className="w-8 h-8 bg-slate-300 rounded-full shrink-0 flex items-center justify-center text-[10px]">Page</div>
-                                )}
-                                <span className="text-[14px] truncate">{p.name}</span>
-                                {selectedPage === p.id && <span className="ml-auto text-xs text-[#1877F2]">✓</span>}
-                              </div>
-                            ))}
-                            {pages.length === 0 && <div className="p-3 text-center text-slate-400 text-xs">មិនទាន់មាន Page ទេ...</div>}
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* ២. អត្ថបទសារស្វាគមន៍ */}
-                  <div className="mb-4">
-                    <label className={`block text-[14px] font-bold mb-2 ${theme === 'dark' ? 'text-slate-300' : 'text-gray-700'}`}>អត្ថបទសារស្វាគមន៍៖</label>
-                    <textarea
-                      rows={4}
-                      value={welcomeMessage}
-                      onChange={(e) => setWelcomeMessage(e.target.value)}
-                      className={`w-full p-4 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none text-[14px] leading-relaxed ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-slate-50 border-gray-300 text-slate-800'}`}
-                      placeholder="ឧ. បាទ/ចាស៎! សួស្តីបង! ហាង Wear Luxury Cambodia មានស្បែកជើងស្អាតៗ..."
-                    />
-                  </div>
-
-                  {/* ៣. កំណត់ពេលវេលា (Frequency / Cooldown) */}
-                  <div className="mb-6">
-                    <label className={`block text-[14px] font-bold mb-2 ${theme === 'dark' ? 'text-slate-300' : 'text-gray-700'}`}>⏱️ កម្រិតញឹកញាប់នៃការផ្ញើសារ (Frequency Capping):</label>
-                    <select 
-                      id="welcomeFrequency"
-                      defaultValue="24h"
-                      className={`w-full p-3 border rounded-xl outline-none font-semibold text-[14px] ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-slate-50 border-gray-300 text-slate-800'}`}
-                    >
-                      <option value="once">បង្ហាញតែ ១ ដងគត់ក្នុងប្រវត្តិសាស្ត្រឆាត (Once ever)</option>
-                      <option value="24h">បង្ហាញ ១ ដងក្នុងរយៈពេល ២៤ ម៉ោង (Once every 24 hours) - ណែនាំ ⭐</option>
-                      <option value="12h">បង្ហាញ ១ ដងក្នុងរយៈពេល ១២ ម៉ោង (Once every 12 hours)</option>
-                    </select>
-                    <p className="text-[12px] text-slate-400 mt-1.5">ការពារកុំឱ្យអតិថិជនរំខាន ឬโดន Facebook ប្លុកផ្ញើសារញឹកញាប់ពេក។</p>
-                  </div>
-
-                  <div className="flex justify-end mt-4">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!selectedPage) {
-                          alert("⚠️ សូមជ្រើសរើស Facebook Page ជាមុនសិន!");
-                          return;
-                        }
-                        handleSaveWelcomeMessage();
-                      }}
-                      disabled={isSavingWelcome}
-                      className="bg-[#1877F2] hover:bg-[#166FE5] text-white font-bold py-2.5 px-8 rounded-xl transition duration-200 disabled:bg-gray-400 cursor-pointer shadow-sm text-[14px] flex items-center gap-2"
-                    >
-                      {isSavingWelcome ? 'កំពុងរក្សាទុក...' : '💾 រក្សាទុកការកំណត់សារស្វាគមន៍'}
-                    </button>
-                  </div>
-
-                  {welcomeStatus && (
-                    <p className={`mt-4 text-right text-[13px] font-bold ${welcomeStatus.includes('✅') ? 'text-emerald-500' : 'text-red-500'}`}>{welcomeStatus}</p>
-                  )}
-                </div>
-              </div>
-            )}
-            
-            {/* ========================================================= */}
-            {/* 🌟 ផ្ទាំងទី១៖ ការកំណត់ប្រអប់សារ (Chatbot / Auto Reply) */}
-            {/* ========================================================= */}
+            {/* 🌟 ផ្ទាំងគ្រប់គ្រង Auto Reply Bot Pro (Modern UI with All Features & Custom Page Dropdown) */}
             {activeTab === 'AUTO_REPLY' && (
               <div className={`p-6 min-h-screen rounded-xl shadow-sm border animate-in fade-in duration-300 transition-colors ${theme === 'dark' ? 'bg-[#18191A] border-slate-800' : 'bg-[#F0F2F5] border-slate-200'}`}>
                 <div className={`rounded-xl shadow-sm border p-6 max-w-4xl mx-auto transition-colors ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-800'}`}>
@@ -1902,22 +1539,24 @@ export default function Home() {
                       <p className={`text-[14px] ${theme === 'dark' ? 'text-slate-400' : 'text-[#65676B]'}`}>កំណត់លក្ខខណ្ឌ React, Comment, Inbox, Delay និងលាក់ខំមិនជាមួយ Logo ផេកយ៉ាងទំនើប។</p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-[14px] font-semibold">ស្ថានភាព Bot:</span>
-                      <div 
-                        onClick={() => updateCurrentPageConfig('enabled', !currentConfig.enabled)} 
-                        className={`w-12 h-6 rounded-full relative cursor-pointer shadow-inner transition-colors duration-300 ${currentConfig.enabled ? 'bg-[#31A24C]' : 'bg-slate-400'}`}
-                      >
-                        <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 shadow-sm transition-transform duration-300 ${currentConfig.enabled ? 'right-0.5' : 'left-0.5'}`}></div>
-                      </div>
+                       <span className="text-[14px] font-semibold">ស្ថានភាព Bot:</span>
+                       <div 
+                         onClick={() => updateCurrentPageConfig('enabled', !currentConfig.enabled)} 
+                         className={`w-12 h-6 rounded-full relative cursor-pointer shadow-inner transition-colors duration-300 ${currentConfig.enabled ? 'bg-[#31A24C]' : 'bg-slate-400'}`}
+                       >
+                         <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 shadow-sm transition-transform duration-300 ${currentConfig.enabled ? 'right-0.5' : 'left-0.5'}`}></div>
+                       </div>
                     </div>
                   </div>
 
                   <div className={`flex flex-col gap-6 transition-opacity duration-300 ${!currentConfig.enabled ? 'opacity-50 pointer-events-none' : ''}`}>
                     
-                    {/* ១. មុខងារជ្រើសរើស Page */}
+                    {/* ១. មុខងារជ្រើសរើស Page (Custom Dropdown ជាមួយ Logo គ្រប់ Page) */}
                     <div className={`p-4 rounded-xl border flex flex-col md:flex-row gap-4 items-center ${theme === 'dark' ? 'bg-blue-900/20 border-blue-800' : 'bg-blue-50/50 border-blue-100'}`}>
                       <div className="flex-1 w-full">
                         <label className="block font-bold text-[14px] mb-2">១. ជ្រើសរើស Facebook Page៖</label>
+                        
+                        {/* Custom Select Box */}
                         <div className="relative">
                           <div
                             onClick={() => setIsPageMenuOpen(!isPageMenuOpen)}
@@ -1934,6 +1573,7 @@ export default function Home() {
                             <span className="text-xs text-[#1877F2] font-bold">▼</span>
                           </div>
 
+                          {/* Dropdown Menu ពេលចុចបើក */}
                           {isPageMenuOpen && (
                             <>
                               <div className="fixed inset-0 z-40" onClick={() => setIsPageMenuOpen(false)}></div>
@@ -1962,8 +1602,10 @@ export default function Home() {
                             </>
                           )}
                         </div>
+
                       </div>
 
+                      {/* ⏱️ ពេលវេលារង់ចាំ (Delay Timer) */}
                       <div className="w-full md:w-[220px]">
                         <label className="block font-bold text-[14px] mb-2">⏱️ រង់ចាំមុនតប៖</label>
                         <div className="relative">
@@ -2004,7 +1646,7 @@ export default function Home() {
                         </div>
                       </div>
 
-                      {/* លក្ខខណ្ឌពាក្យគន្លឹះ */}
+                      {/* លក្ខខណ្ឌពាក្យគន្លឹះ (Keyword Rules) */}
                       <div className={`p-4 rounded-xl border shadow-sm ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-700' : 'bg-white border-slate-200'}`}>
                         <label className="block font-bold text-[14px] mb-3">លក្ខខណ្ឌនៃការឆ្លើយតប</label>
                         <div className="flex gap-4 mb-3">
@@ -2029,7 +1671,7 @@ export default function Home() {
                       </div>
                     </div>
 
-                    {/* ៣. Auto Comment */}
+                    {/* ៣. Auto Comment (Spintax & Variables & Hide After Reply) */}
                     <div className={`p-5 rounded-xl border shadow-sm ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-700' : 'bg-white border-slate-200'}`}>
                       <div className="flex justify-between items-end mb-3">
                         <div>
@@ -2064,7 +1706,7 @@ export default function Home() {
                         ))}
                       </div>
 
-                      {/* លាក់ខំមិនក្រោយពេលតបរួច */}
+                      {/* 🌟 មុខងារលាក់ខំមិនក្រោយពេលតបរួច */}
                       <div className={`mt-5 pt-4 border-t flex justify-between items-center p-3 rounded-lg border ${theme === 'dark' ? 'bg-[#242526] border-slate-600' : 'bg-[#F8FAFC] border-slate-200'}`}>
                         <div>
                           <label className="font-bold text-[13px] flex items-center gap-1.5">
@@ -2079,9 +1721,10 @@ export default function Home() {
                           <div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 shadow-sm transition-transform duration-300 ${currentConfig.hideAfterReply ? 'right-0.5' : 'left-0.5'}`}></div>
                         </div>
                       </div>
+
                     </div>
 
-                    {/* ៤. Auto Inbox */}
+                    {/* ៤. Auto Inbox ជាមួយ Variables */}
                     <div className={`p-5 rounded-xl border shadow-sm ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-700' : 'bg-white border-slate-200'}`}>
                       <label className="block font-bold text-[14px] mb-1">៤. អត្ថបទផ្ញើចូល Inbox (Auto Inbox)</label>
                       <div className={`relative border rounded-xl overflow-hidden focus-within:border-[#1877F2] transition mt-2 ${theme === 'dark' ? 'bg-[#242526] border-slate-600' : 'bg-[#F9FAFB] border-slate-300'}`}>
@@ -2098,7 +1741,7 @@ export default function Home() {
                       </div>
                     </div>
 
-                    {/* លាក់ខំមិនអវិជ្ជមានស្វ័យប្រវត្តិ */}
+                    {/* លាក់ខំមិនអវិជ្ជមានស្វ័យប្រវត្តិ (Auto-Hide Negative) */}
                     <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-red-950/20 border-red-900/50' : 'bg-red-50/50 border-red-100'}`}>
                       <div className="flex justify-between items-center mb-2">
                         <label className="font-bold text-[14px] text-red-500">🛡️ លាក់ខំមិនអវិជ្ជមានស្វ័យប្រវត្តិ (Auto-Hide Negative)</label>
@@ -2119,39 +1762,15 @@ export default function Home() {
                       )}
                     </div>
 
-                    {/* ប៊ូតុង Save របស់ Auto-Reply */}
+                    {/* ប៊ូតុង Save */}
                     <div className="flex justify-end mt-2">
                       <button 
                         type="button"
                         onClick={() => {
-                          const pageDataToSave = {
-                            pageId: selectedPage,
-                            pageName: selectedPageData?.name || "Unknown Page",
-                            config: currentConfig
-                          };
-
-                          let existingSavedConfigs = [];
-                          try {
-                            const savedLocal = localStorage.getItem("saved_autoreply_configs");
-                            if (savedLocal) existingSavedConfigs = JSON.parse(savedLocal);
-                          } catch (e) {
-                            console.error(e);
-                          }
-
-                          const index = existingSavedConfigs.findIndex((item: any) => item.pageId === selectedPage);
-                          if (index >= 0) {
-                            existingSavedConfigs[index] = pageDataToSave;
-                          } else {
-                            existingSavedConfigs.push(pageDataToSave);
-                          }
-
-                          localStorage.setItem("saved_autoreply_configs", JSON.stringify(existingSavedConfigs));
-
                           if (!savedPagesList.includes(selectedPage)) {
                             setSavedPagesList([...savedPagesList, selectedPage]);
                           }
-
-                          alert(`✅ បានរក្សាទុកការកំណត់ Pro សម្រាប់ Page "${selectedPageData?.name}" ចូលក្នុងប្រព័ន្ធដោយជោគជ័យ!`);
+                          alert(`✅ បានរក្សាទុកការកំណត់ Pro សម្រាប់ Page "${selectedPageData?.name}" ដោយជោគជ័យ!`);
                         }}
                         className="px-8 py-3 bg-[#1877F2] hover:bg-[#166FE5] text-white font-bold rounded-xl shadow-md transition-transform hover:scale-[1.02] active:scale-95 flex items-center gap-2 cursor-pointer"
                       >
@@ -2161,7 +1780,9 @@ export default function Home() {
 
                   </div>
 
-                  {/* ផ្នែកបង្ហាញបញ្ជី Page ដែលបាន Save ជាប់ខាងក្រោម */}
+                  {/* ========================================================= */}
+                  {/* 🌟 ផ្នែកបង្ហាញបញ្ជី Page ដែលបាន Save ជាប់ខាងក្រោម (Saved Pages List) */}
+                  {/* ========================================================= */}
                   <div className={`mt-10 pt-6 border-t ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
                     <h3 className={`text-[16px] font-bold mb-4 flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>
                       <span>📌</span> ផេកដែលបានរក្សាទុកការកំណត់រួច ({savedPagesList.length})
@@ -2212,122 +1833,6 @@ export default function Home() {
                     )}
                   </div>
 
-                </div>
-              </div>
-            )}
-
-            {/* ========================================================= */}
-            {/* 🌟 ផ្ទាំងសារស្វាគមន៍អតិថិជនថ្មី (Welcome Message Settings) */}
-            {/* ========================================================= */}
-            {activeTab === "WELCOME_SETTINGS" && (
-              <div className={`p-6 min-h-screen rounded-xl shadow-sm border animate-in fade-in duration-300 transition-colors ${theme === 'dark' ? 'bg-[#18191A] border-slate-800' : 'bg-[#F0F2F5] border-slate-200'}`}>
-                <div className={`p-6 rounded-xl border shadow-sm max-w-4xl mx-auto ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-800'}`}>
-                  
-                  {/* Header */}
-                  <h3 className={`text-[18px] font-bold mb-2 flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
-                    <span className="text-xl">👋</span> កំណត់សារស្វាគមន៍អតិថិជនថ្មី (Messenger Welcome Message)
-                  </h3>
-                  <p className={`text-[13px] mb-6 border-b pb-4 ${theme === 'dark' ? 'text-slate-400 border-slate-700' : 'text-gray-500 border-slate-100'}`}>
-                    សារនេះនឹងត្រូវផ្ញើស្វ័យប្រវត្តិទៅកាន់អតិថិជនដែលផ្ញើសារចូល Page របស់បង។
-                  </p>
-
-                  {/* 🌟 ១. ប្រអប់ជ្រើសរើស Page (អាច Select ផ្លាស់ប្តូរ Page បានដូច Chatbot) */}
-                  <div className="mb-5">
-                    <label className={`block font-bold text-[14px] mb-2 ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`}>១. ជ្រើសរើស Facebook Page៖</label>
-                    <div className="relative">
-                      <div
-                        onClick={() => setIsPageMenuOpen(!isPageMenuOpen)}
-                        className={`w-full border rounded-xl p-3 pl-12 pr-10 flex items-center justify-between cursor-pointer shadow-sm transition ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-blue-200 text-slate-800'}`}
-                      >
-                        <div className="absolute left-3 top-2.5 pointer-events-none">
-                          {selectedPageData?.picture?.data?.url ? (
-                            <img src={selectedPageData.picture.data.url} className="w-7 h-7 rounded-full object-cover border border-slate-200 shadow-xs" />
-                          ) : (
-                            <div className="w-7 h-7 bg-slate-400 rounded-full flex items-center justify-center text-[10px] text-white">Page</div>
-                          )}
-                        </div>
-                        <span className="text-[14px] font-bold truncate">{selectedPageData ? selectedPageData.name : "Select a Page..."}</span>
-                        <span className="text-xs text-[#1877F2] font-bold">▼</span>
-                      </div>
-
-                      {/* Dropdown Menu បង្ហាញបញ្ជី Page ទាំងអស់ */}
-                      {isPageMenuOpen && (
-                        <>
-                          <div className="fixed inset-0 z-40" onClick={() => setIsPageMenuOpen(false)}></div>
-                          <div className={`absolute top-[110%] left-0 w-full border rounded-xl shadow-2xl z-50 max-h-60 overflow-y-auto p-1.5 flex flex-col gap-1 ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-white' : 'bg-white border-slate-300'}`}>
-                            {pages.map(p => (
-                              <div
-                                key={p.id}
-                                onClick={() => {
-                                  setSelectedPage(p.id);
-                                  localStorage.setItem("selectedPage", p.id);
-                                  setIsPageMenuOpen(false);
-                                }}
-                                className={`p-2.5 rounded-lg flex items-center gap-3 cursor-pointer transition ${selectedPage === p.id ? (theme === 'dark' ? 'bg-blue-900/50 text-white font-bold' : 'bg-blue-50 text-blue-700 font-bold') : (theme === 'dark' ? 'hover:bg-[#3A3B3C]' : 'hover:bg-slate-100 text-slate-700')}`}
-                              >
-                                {p.picture?.data?.url ? (
-                                  <img src={p.picture.data.url} className="w-8 h-8 rounded-full object-cover border border-slate-200 shrink-0" />
-                                ) : (
-                                  <div className="w-8 h-8 bg-slate-300 rounded-full shrink-0 flex items-center justify-center text-[10px]">Page</div>
-                                )}
-                                <span className="text-[14px] truncate">{p.name}</span>
-                                {selectedPage === p.id && <span className="ml-auto text-xs text-[#1877F2]">✓</span>}
-                              </div>
-                            ))}
-                            {pages.length === 0 && <div className="p-3 text-center text-slate-400 text-xs">មិនទាន់មាន Page ទេ...</div>}
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* ២. អត្ថបទសារស្វាគមន៍ */}
-                  <div className="mb-4">
-                    <label className={`block text-[14px] font-bold mb-2 ${theme === 'dark' ? 'text-slate-300' : 'text-gray-700'}`}>អត្ថបទសារស្វាគមន៍៖</label>
-                    <textarea
-                      rows={4}
-                      value={welcomeMessage}
-                      onChange={(e) => setWelcomeMessage(e.target.value)}
-                      className={`w-full p-4 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none text-[14px] leading-relaxed ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-slate-50 border-gray-300 text-slate-800'}`}
-                      placeholder="ឧ. បាទ/ចាស៎! សួស្តីបង! ហាង Wear Luxury Cambodia មានស្បែកជើងស្អាតៗ..."
-                    />
-                  </div>
-
-                  {/* ៣. កំណត់ពេលវេលា (Frequency / Cooldown) */}
-                  <div className="mb-6">
-                    <label className={`block text-[14px] font-bold mb-2 ${theme === 'dark' ? 'text-slate-300' : 'text-gray-700'}`}>⏱️ កម្រិតញឹកញាប់នៃការផ្ញើសារ (Frequency Capping):</label>
-                    <select 
-                      id="welcomeFrequency"
-                      defaultValue="24h"
-                      className={`w-full p-3 border rounded-xl outline-none font-semibold text-[14px] ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-slate-50 border-gray-300 text-slate-800'}`}
-                    >
-                      <option value="once">បង្ហាញតែ ១ ដងគត់ក្នុងប្រវត្តិសាស្ត្រឆាត (Once ever)</option>
-                      <option value="24h">បង្ហាញ ១ ដងក្នុងរយៈពេល ២៤ ម៉ោង (Once every 24 hours) - ណែនាំ ⭐</option>
-                      <option value="12h">បង្ហាញ ១ ដងក្នុងរយៈពេល ១២ ម៉ោង (Once every 12 hours)</option>
-                    </select>
-                    <p className="text-[12px] text-slate-400 mt-1.5">ការពារកុំឱ្យអតិថិជនរំខាន ឬโดន Facebook ប្លុកផ្ញើសារញឹកញាប់ពេក។</p>
-                  </div>
-
-                  <div className="flex justify-end mt-4">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!selectedPage) {
-                          alert("⚠️ សូមជ្រើសរើស Facebook Page ជាមុនសិន!");
-                          return;
-                        }
-                        handleSaveWelcomeMessage();
-                      }}
-                      disabled={isSavingWelcome}
-                      className="bg-[#1877F2] hover:bg-[#166FE5] text-white font-bold py-2.5 px-8 rounded-xl transition duration-200 disabled:bg-gray-400 cursor-pointer shadow-sm text-[14px] flex items-center gap-2"
-                    >
-                      {isSavingWelcome ? 'កំពុងរក្សាទុក...' : '💾 រក្សាទុកការកំណត់សារស្វាគមន៍'}
-                    </button>
-                  </div>
-
-                  {welcomeStatus && (
-                    <p className={`mt-4 text-right text-[13px] font-bold ${welcomeStatus.includes('✅') ? 'text-emerald-500' : 'text-red-500'}`}>{welcomeStatus}</p>
-                  )}
                 </div>
               </div>
             )}
@@ -3151,165 +2656,78 @@ export default function Home() {
             )}
 
             {/* ============================================== */}
-            {/* 🌟 ផ្ទាំង Select Post Modal (រចនាបែប Facebook Ads Manager 100%) */}
-            {/* ============================================== */}
-            {isPostMenuOpen && (
-              <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/75 backdrop-blur-md p-4 animate-in fade-in duration-200">
-                <div className={`rounded-xl shadow-2xl w-full max-w-5xl overflow-hidden flex flex-col h-[85vh] transform transition-all ${theme === 'dark' ? 'bg-[#242526] border border-slate-700 text-slate-100' : 'bg-white border border-slate-300 text-slate-900'}`}>
-                  
-                  <div className={`px-6 py-4 border-b flex justify-between items-center ${theme === 'dark' ? 'border-slate-700 bg-[#3A3B3C]' : 'border-slate-200 bg-[#F5F6F8]'}`}>
-                    <div>
-                      <h2 className="font-bold text-[18px]">Select posts</h2>
-                      <p className="text-[13px] text-slate-500">Select up to 5 posts to display in your ad.</p>
-                    </div>
-                    <button type="button" onClick={() => setIsPostMenuOpen(false)} className="text-[24px] leading-none text-slate-400 hover:text-red-500 cursor-pointer">&times;</button>
-                  </div>
+      {/* 🌟 2. ផ្ទាំង Select Post Modal (Z-Index: 99999 - គឺនៅមុខគេដាច់គេជានិច្ច) */}
+      {/* ============================================== */}
+      {isPostMenuOpen && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/70 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className={`rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[85vh] transform transition-all ${theme === 'dark' ? 'bg-[#242526] border border-slate-700' : 'bg-white border border-slate-100'}`}>
+            
+            <div className={`px-6 py-4 border-b flex justify-between items-center ${theme === 'dark' ? 'border-slate-700 bg-[#3A3B3C]' : 'border-slate-200 bg-slate-50'}`}>
+              <h2 className={`font-bold text-lg flex items-center gap-2.5 ${theme === 'dark' ? 'text-white' : 'text-[#050505]'}`}>
+                <span className="bg-blue-100 text-blue-600 p-1.5 rounded-lg text-sm">📄</span> ជ្រើសរើស Post សម្រាប់ការផ្សាយ
+              </h2>
+              <button type="button" onClick={() => setIsPostMenuOpen(false)} className="text-[24px] leading-none text-slate-400 hover:text-red-500 cursor-pointer">&times;</button>
+            </div>
 
-                  <div className={`px-6 py-2.5 border-b flex items-center gap-6 text-[13px] font-bold ${theme === 'dark' ? 'border-slate-700 bg-[#18191A]' : 'border-slate-200 bg-white'}`}>
-                    <span className="text-[#1877F2] border-b-[3px] border-[#1877F2] pb-2 cursor-pointer flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#1877F2]"></span> Facebook</span>
-                    <span className="text-slate-500 hover:text-slate-700 cursor-pointer flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#E1306C]"></span> Instagram</span>
-                    <span className="text-slate-500 hover:text-slate-700 cursor-pointer flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#F5C33B]"></span> Partner Content</span>
-                  </div>
-
-                  <div className={`px-4 py-2 border-b flex items-center gap-2 ${theme === 'dark' ? 'border-slate-700 bg-[#242526]' : 'border-slate-200 bg-white'}`}>
-                    <div className="text-[12px] text-slate-500 font-medium whitespace-nowrap">Filter by:</div>
-                    <select className={`border rounded p-1.5 text-[12px] font-semibold outline-none ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-700'}`}>
-                      <option>Published posts</option>
-                    </select>
-                    <div className="relative w-full max-w-sm ml-2">
-                      <span className="absolute left-2.5 top-1.5 text-slate-400 text-xs">🔍</span>
-                      <input type="text" placeholder="Post, image or video IDs, or other keywords" className={`w-full border rounded p-1.5 pl-7 text-[12px] outline-none ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-slate-50 border-slate-300 text-slate-700'}`} />
-                    </div>
-                  </div>
-
-                  <div className="flex-1 overflow-y-auto overflow-x-auto p-0 custom-scrollbar">
-                    <table className="w-full text-left border-collapse min-w-[950px]">
-                      <thead className={`sticky top-0 z-10 text-[11px] uppercase font-bold border-b ${theme === 'dark' ? 'bg-[#18191A] border-slate-700 text-slate-400' : 'bg-[#F0F2F5] border-slate-200 text-slate-500'}`}>
-                        <tr>
-                          <th className="p-3 w-10 text-center border-r border-slate-200 dark:border-slate-700">
-                            <input type="checkbox" className="w-3.5 h-3.5 accent-[#1877F2]" />
-                          </th>
-                          <th className="p-3 min-w-[350px] border-r border-slate-200 dark:border-slate-700">Facebook post</th>
-                          <th className="p-3 min-w-[150px] border-r border-slate-200 dark:border-slate-700">Post ID</th>
-                          <th className="p-3 min-w-[100px] border-r border-slate-200 dark:border-slate-700">Source</th>
-                          <th className="p-3 min-w-[100px] border-r border-slate-200 dark:border-slate-700">Media</th>
-                          <th className="p-3 min-w-[120px]">Date created</th>
-                        </tr>
-                      </thead>
-                      <tbody className={`text-[13px] ${theme === 'dark' ? 'divide-slate-700' : 'divide-slate-200'} divide-y`}>
-                        {fetchingPosts ? (
-                          <tr>
-                            <td colSpan={6} className="text-center py-20 text-slate-500 font-medium text-[14px]">
-                              <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-                              កំពុងទាញយកទិន្នន័យពី Facebook...
-                            </td>
-                          </tr>
-                        ) : posts.length === 0 ? (
-                          <tr>
-                            <td colSpan={6} className="text-center py-20 text-slate-400 font-medium">គ្មាន Post ណាមួយត្រូវបានរកឃើញទេ។</td>
-                          </tr>
-                        ) : (
-                          posts.map((post) => {
-                            const isSelected = tempSelectedPost === post.id;
-                            
-                            let mediaType = "Photo";
-                            if (post.full_picture?.includes(".mp4") || post.status_type === "added_video") mediaType = "Video";
-                            else if (post.attachments?.data?.[0]?.subattachments) mediaType = "Album";
-
-                            return (
-                              <tr 
-                                key={post.id}
-                                onClick={() => setTempSelectedPost(post.id)}
-                                className={`cursor-pointer transition-colors ${
-                                  isSelected 
-                                    ? (theme === 'dark' ? 'bg-blue-900/30' : 'bg-[#EBF5FF]') 
-                                    : (theme === 'dark' ? 'hover:bg-[#3A3B3C]' : 'hover:bg-slate-50')
-                                }`}
-                              >
-                                <td className="p-3 text-center align-middle border-r border-slate-200 dark:border-slate-700">
-                                  <input 
-                                    type="radio" 
-                                    name="modalPostRadio" 
-                                    checked={isSelected}
-                                    onChange={() => setTempSelectedPost(post.id)}
-                                    className="w-4 h-4 text-[#1877F2] cursor-pointer accent-[#1877F2]"
-                                  />
-                                </td>
-                                <td className="p-3 align-middle border-r border-slate-200 dark:border-slate-700">
-                                  <div className="flex items-start gap-3">
-                                    {post.full_picture ? (
-                                      <img src={post.full_picture} className="w-[50px] h-[50px] object-cover rounded shadow-sm shrink-0" alt="Thumbnail" />
-                                    ) : (
-                                      <div className="w-[50px] h-[50px] bg-slate-200 rounded shrink-0 flex items-center justify-center text-[10px] text-slate-500">No Img</div>
-                                    )}
-                                    <div className="flex flex-col min-w-0">
-                                      <span className={`font-medium text-[13px] line-clamp-2 leading-snug ${theme === 'dark' ? 'text-slate-200' : 'text-[#050505]'}`}>
-                                        {post.message || "[គ្មានអត្ថបទ]"}
-                                      </span>
-                                      {/* 🌟 ទិន្នន័យ Like, Comment, Share រស់រវើក */}
-                                      <div className="flex items-center gap-4 text-[12px] font-bold text-slate-500 mt-2">
-                                        <span className="flex items-center gap-1.5">
-                                          <div className="w-3.5 h-3.5 bg-[#F5C33B] text-white rounded-full flex items-center justify-center text-[8px]">👍</div> 
-                                          {post.likesCount}
-                                        </span>
-                                        <span className="flex items-center gap-1.5">
-                                          <div className="w-3.5 h-3.5 bg-slate-300 text-white rounded-full flex items-center justify-center text-[8px] transform scale-x-[-1]">💬</div> 
-                                          {post.commentsCount}
-                                        </span>
-                                        <span className="flex items-center gap-1.5">
-                                          <div className="w-3.5 h-3.5 bg-[#1877F2] text-white rounded-full flex items-center justify-center text-[9px]">➦</div> 
-                                          {post.sharesCount}
-                                        </span>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </td>
-                                <td className={`p-3 align-middle text-[12.5px] border-r border-slate-200 dark:border-slate-700 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>{post.id}</td>
-                                <td className={`p-3 align-middle text-[12.5px] font-semibold border-r border-slate-200 dark:border-slate-700 ${theme === 'dark' ? 'text-slate-300' : 'text-slate-800'}`}>
-                                  <span className="flex items-center gap-1.5"><span className="w-3 h-3 bg-slate-800 text-white rounded-full flex items-center justify-center text-[8px]">f</span> Feed</span>
-                                </td>
-                                <td className={`p-3 align-middle text-[12.5px] font-semibold border-r border-slate-200 dark:border-slate-700 ${theme === 'dark' ? 'text-slate-300' : 'text-slate-800'}`}>{mediaType}</td>
-                                <td className={`p-3 align-middle text-[12.5px] ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
-                                  {post.created_time ? new Date(post.created_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '-'}
-                                </td>
-                              </tr>
-                            );
-                          })
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  <div className={`p-4 flex justify-between items-center ${theme === 'dark' ? 'border-t border-slate-700 bg-[#3A3B3C]' : 'border-t border-slate-200 bg-[#F5F6F8]'}`}>
-                    <div className="flex items-center gap-3">
-                      <span className="text-[13px] font-bold text-slate-500">
-                        {tempSelectedPost ? '1 of 5 selected' : '0 of 5 selected'}
+            <div className="p-6 overflow-y-auto flex-1 flex flex-col gap-3">
+              {posts.length === 0 ? (
+                <div className="text-center py-12 text-slate-400 font-medium">កំពុងទាញយក Posts... ឬមិនទាន់មាន Post នៅលើ Page នេះ។</div>
+              ) : (
+                posts.map((post) => (
+                  <div 
+                    key={post.id}
+                    onClick={() => setTempSelectedPost(post.id)}
+                    className={`p-4 rounded-xl border flex items-center gap-4 cursor-pointer transition-all ${
+                      tempSelectedPost === post.id 
+                        ? 'border-blue-600 bg-blue-50/10 ring-2 ring-blue-500/30' 
+                        : theme === 'dark' ? 'border-slate-700 bg-[#18191A] hover:bg-[#3A3B3C]' : 'border-slate-200 bg-white hover:bg-slate-50'
+                    }`}
+                  >
+                    <input 
+                      type="radio" 
+                      name="postSelectionRadio" 
+                      checked={tempSelectedPost === post.id}
+                      onChange={() => setTempSelectedPost(post.id)}
+                      className="w-4 h-4 text-blue-600 cursor-pointer"
+                    />
+                    {post.full_picture ? (
+                      <img src={post.full_picture} className="w-16 h-16 object-cover rounded-lg border shadow-sm" />
+                    ) : (
+                      <div className="w-16 h-16 rounded-lg bg-slate-200 flex items-center justify-center text-xs text-slate-500">គ្មានរូបភាព</div>
+                    )}
+                    <div className="flex flex-col flex-1 min-w-0">
+                      <span className={`text-[13px] font-semibold line-clamp-2 ${theme === 'dark' ? 'text-slate-200' : 'text-slate-800'}`}>
+                        {post.message || "[Post គ្មានអត្ថបទ/មានតែរូបភាព]"}
                       </span>
-                      {tempSelectedPost && <span className="text-[13px] font-bold text-slate-400">Posts</span>}
-                    </div>
-                    <div className="flex gap-2">
-                      <button type="button" onClick={() => setIsPostMenuOpen(false)} className={`px-4 py-1.5 rounded-md font-bold text-[14px] transition cursor-pointer ${theme === 'dark' ? 'hover:bg-[#4E4F50] text-slate-300' : 'hover:bg-slate-200 text-slate-700'}`}>Cancel</button>
-                      <button 
-                        type="button" 
-                        disabled={!tempSelectedPost}
-                        onClick={() => {
-                          if (postSelectionContext === 'duplicate') {
-                            setDuplicatePostId(tempSelectedPost);
-                          } else {
-                            saveParam("selectedPost", tempSelectedPost, setSelectedPost);
-                          }
-                          setIsPostMenuOpen(false);
-                        }} 
-                        className="px-6 py-1.5 rounded-md font-bold text-[14px] text-white bg-[#1877F2] hover:bg-[#166FE5] disabled:bg-[#E4E6EB] disabled:text-[#BCC0C4] transition cursor-pointer shadow-sm"
-                      >
-                        Continue
-                      </button>
+                      <span className="text-[11px] text-slate-400 mt-1">ID: {post.id}</span>
                     </div>
                   </div>
+                ))
+              )}
+            </div>
 
-                </div>
-              </div>
-            )}
+            <div className={`p-4 border-t flex justify-end gap-3 ${theme === 'dark' ? 'border-slate-700 bg-[#3A3B3C]' : 'border-slate-200 bg-slate-50'}`}>
+              <button type="button" onClick={() => setIsPostMenuOpen(false)} className={`px-5 py-2.5 rounded-xl font-bold text-[14px] border transition cursor-pointer ${theme === 'dark' ? 'bg-[#242526] border-slate-600 text-slate-300 hover:bg-[#18191A]' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100'}`}>បោះបង់</button>
+              <button 
+                type="button" 
+                disabled={!tempSelectedPost}
+                onClick={() => {
+                  if (postSelectionContext === 'duplicate') {
+                    setDuplicatePostId(tempSelectedPost);
+                  } else {
+                    saveParam("selectedPost", tempSelectedPost, setSelectedPost);
+                  }
+                  setIsPostMenuOpen(false);
+                }} 
+                className="px-8 py-2.5 rounded-xl font-bold text-[14px] text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 transition shadow-sm cursor-pointer"
+              >
+                Continue
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
 
             {/* 🌟 Enter Post ID Modal (Feature ថ្មីទី ២) */}
             {isEnterPostIdModalOpen && (
@@ -3447,7 +2865,7 @@ export default function Home() {
                       {selectedCampaigns.length > 0 && (
                         <span className="ml-1 px-2 py-0.5 bg-[#1877F2] text-white rounded-full text-[11px] font-bold flex items-center gap-1 shadow-xs">
                           {selectedCampaigns.length} selected
-                          <span onClick={(e) => { e.stopPropagation(); handleEditCampaign(); }} className="hover:text-blue-200 cursor-pointer underline">Edit</span>
+                          <span onClick={(e) => { e.stopPropagation(); handleEditCampaign(c.id); }} className="hover:text-blue-500 cursor-pointer">Edit</span>
                         </span>
                       )}
                     </div>
@@ -3475,7 +2893,7 @@ export default function Home() {
                 </div>
 
                 {/* 🌟 តារាងទិន្នន័យ (ឆ្លាស់គ្នាទៅតាម Tab) */}
-                <div className={`flex-1 overflow-auto relative transition-colors h-[500px] lg:h-[calc(100vh-230px)] ${theme === 'dark' ? 'bg-[#242526]' : 'bg-white'}`}>
+                <div className={`flex-1 overflow-x-auto relative transition-colors ${theme === 'dark' ? 'bg-[#242526]' : 'bg-white'}`}>
                   {loadingCampaigns && (
                     <div className={`absolute inset-0 flex flex-col items-center justify-center z-30 ${theme === 'dark' ? 'bg-[#242526]/80' : 'bg-white/80'}`}>
                       <div className="w-8 h-8 border-4 border-[#1877F2]/20 border-t-[#1877F2] rounded-full animate-spin mb-4"></div>
@@ -3638,106 +3056,109 @@ export default function Home() {
                   {/* 2. TABLE: AD SETS */}
                   {/* ========================================================= */}
                   {activeManageTab === 'ADSETS' && (
-                    <div className="w-full">
-                      <table className="w-full text-left border-collapse min-w-[1800px]">
-                        <thead className={`sticky top-0 z-20 shadow-[0_1px_0_0_rgba(0,0,0,0.1)] ${theme === 'dark' ? 'bg-[#18191A] text-slate-400' : 'bg-[#F5F6F8] text-[#65676B]'}`}>
-                          <tr className="text-[12px] uppercase">
-                            <th className={`p-3 border-r w-10 text-center ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}><input type="checkbox" className="w-3.5 h-3.5 accent-[#1877F2]" /></th>
-                            <th className={`p-3 border-r w-16 text-center font-bold ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Off / On</th>
-                            <th className={`p-3 border-r min-w-[250px] font-bold ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Ad set name</th>
-                            <th className={`p-3 border-r min-w-[120px] font-bold ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Delivery</th>
-                            <th className={`p-3 border-r min-w-[140px] font-bold text-right ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Results</th>
-                            <th className={`p-3 border-r min-w-[120px] font-bold text-right ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Cost per result</th>
-                            <th className={`p-3 border-r min-w-[120px] font-bold text-right ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Budget</th>
-                            <th className={`p-3 border-r min-w-[120px] font-bold text-right ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Amount spent</th>
-                            <th className={`p-3 border-r min-w-[100px] font-bold text-right ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Impressions</th>
-                            <th className={`p-3 border-r min-w-[100px] font-bold text-right ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Reach</th>
-                            <th className={`p-3 border-r min-w-[130px] font-bold text-right ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Total messaging...</th>
-                            <th className={`p-3 border-r min-w-[130px] font-bold text-right ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>New messaging...</th>
-                            <th className={`p-3 border-r min-w-[120px] font-bold text-right ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Ends</th>
-                            <th className={`p-3 border-r min-w-[130px] font-bold text-right ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Bid strategy</th>
-                            <th className="p-3 min-w-[150px] font-bold">Last significant edit</th>
-                          </tr>
-                        </thead>
-                        <tbody className={`text-[13px] ${theme === 'dark' ? 'text-slate-300' : 'text-[#050505]'}`}>
-                          {loadingAdsets ? (
-                            <tr><td colSpan={15} className="p-10 text-center text-slate-500">កំពុងទាញយកបញ្ជី Ad Sets...</td></tr>
-                          ) : adsetsList.length === 0 ? (
-                            <tr><td colSpan={15} className="p-10 text-center text-slate-500">រកមិនឃើញ Ad Sets ក្រោម Campaign នេះទេ</td></tr>
-                          ) : (
-                            adsetsList.map((adset) => {
-                              const ins = getInsights(adset);
-                              const parentCamp = campaignsList.find(c => c.id === selectedCampaigns[0]);
-                              const objective = parentCamp?.objective || 'OUTCOME_ENGAGEMENT';
-                              const results = getResults(ins, objective);
-                              const spend = ins ? ins.spend : null;
-                              const cpa = (results !== "-" && spend && Number(results) > 0) ? (Number(spend) / Number(results)) : null;
+                  <div className="overflow-x-auto w-full">
+                    <table className="w-full text-left border-collapse min-w-[1800px]">
+                      <thead className={`sticky top-0 z-20 shadow-[0_1px_0_0_rgba(0,0,0,0.1)] ${theme === 'dark' ? 'bg-[#18191A] text-slate-400' : 'bg-[#F5F6F8] text-[#65676B]'}`}>
+                        <tr className="text-[12px] uppercase">
+                          <th className={`p-3 border-r w-10 text-center ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}><input type="checkbox" className="w-3.5 h-3.5 accent-[#1877F2]" /></th>
+                          <th className={`p-3 border-r w-16 text-center font-bold ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Off / On</th>
+                          <th className={`p-3 border-r min-w-[250px] font-bold ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Ad set name</th>
+                          <th className={`p-3 border-r min-w-[120px] font-bold ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Delivery</th>
+                          <th className={`p-3 border-r min-w-[140px] font-bold text-right ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Results</th>
+                          <th className={`p-3 border-r min-w-[120px] font-bold text-right ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Cost per result</th>
+                          <th className={`p-3 border-r min-w-[120px] font-bold text-right ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Budget</th>
+                          <th className={`p-3 border-r min-w-[120px] font-bold text-right ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Amount spent</th>
+                          <th className={`p-3 border-r min-w-[100px] font-bold text-right ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Impressions</th>
+                          <th className={`p-3 border-r min-w-[100px] font-bold text-right ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Reach</th>
+                          <th className={`p-3 border-r min-w-[130px] font-bold text-right ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Total messaging...</th>
+                          <th className={`p-3 border-r min-w-[130px] font-bold text-right ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>New messaging...</th>
+                          <th className={`p-3 border-r min-w-[120px] font-bold ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Ends</th>
+                          <th className={`p-3 border-r min-w-[130px] font-bold ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Bid strategy</th>
+                          <th className="p-3 min-w-[150px] font-bold">Last significant edit</th>
+                        </tr>
+                      </thead>
+                      <tbody className={`text-[13px] ${theme === 'dark' ? 'text-slate-300' : 'text-[#050505]'}`}>
+                        {loadingAdsets ? (
+                          <tr><td colSpan={15} className="p-10 text-center text-slate-500">កំពុងទាញយកបញ្ជី Ad Sets...</td></tr>
+                        ) : adsetsList.length === 0 ? (
+                          <tr><td colSpan={15} className="p-10 text-center text-slate-500">រកមិនឃើញ Ad Sets ក្រោម Campaign នេះទេ</td></tr>
+                        ) : (
+                          adsetsList.map((adset) => {
+                            const ins = getInsights(adset);
+                            const parentCamp = campaignsList.find(c => c.id === selectedCampaigns[0]);
+                            const objective = parentCamp?.objective || 'OUTCOME_ENGAGEMENT';
+                            const results = getResults(ins, objective);
+                            const spend = ins ? ins.spend : null;
+                            const cpa = (results !== "-" && spend && Number(results) > 0) ? (Number(spend) / Number(results)) : null;
 
-                              let budgetText = "Using campaign budget";
-                              if (adset.daily_budget) budgetText = `$${(Number(adset.daily_budget) / 100).toFixed(2)} Daily`;
-                              else if (adset.lifetime_budget) budgetText = `$${(Number(adset.lifetime_budget) / 100).toFixed(2)} Lifetime`;
+                            // ការកំណត់ Budget
+                            let budgetText = "Using campaign budget";
+                            if (adset.daily_budget) budgetText = `$${(Number(adset.daily_budget) / 100).toFixed(2)} Daily`;
+                            else if (adset.lifetime_budget) budgetText = `$${(Number(adset.lifetime_budget) / 100).toFixed(2)} Lifetime`;
 
-                              let totalMsg = "-";
-                              let newMsg = "-";
-                              if (ins && ins.actions) {
-                                const tMsgObj = ins.actions.find((a: any) => a.action_type === 'onsite_conversion.messaging_conversation_started_7d');
-                                const nMsgObj = ins.actions.find((a: any) => a.action_type === 'onsite_conversion.messaging_first_reply');
-                                if (tMsgObj) totalMsg = tMsgObj.value;
-                                if (nMsgObj) newMsg = nMsgObj.value;
-                              }
+                            // ការទាញយក Messaging Connections (បើមាន)
+                            let totalMsg = "-";
+                            let newMsg = "-";
+                            if (ins && ins.actions) {
+                              const tMsgObj = ins.actions.find((a: any) => a.action_type === 'onsite_conversion.messaging_conversation_started_7d');
+                              const nMsgObj = ins.actions.find((a: any) => a.action_type === 'onsite_conversion.messaging_first_reply');
+                              if (tMsgObj) totalMsg = tMsgObj.value;
+                              if (nMsgObj) newMsg = nMsgObj.value;
+                            }
 
-                              const bidStrategy = adset.bid_strategy ? adset.bid_strategy.replace(/_/g, ' ').toLowerCase() : 'Highest volume';
-                              const lastEditDate = adset.updated_time ? new Date(adset.updated_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '-';
-                              const endDate = adset.end_time ? new Date(adset.end_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Ongoing';
+                            // ការកែច្នៃ Bid Strategy និង ថ្ងៃ Edit
+                            const bidStrategy = adset.bid_strategy ? adset.bid_strategy.replace(/_/g, ' ').toLowerCase() : 'Highest volume';
+                            const lastEditDate = adset.updated_time ? new Date(adset.updated_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '-';
+                            const endDate = adset.end_time ? new Date(adset.end_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Ongoing';
 
-                              return (
-                                <tr key={adset.id} className={`border-b transition min-h-[48px] ${theme === 'dark' ? 'border-slate-700 hover:bg-[#3A3B3C]' : 'border-slate-200 hover:bg-slate-50'}`}>
-                                  <td className={`p-3 border-r text-center align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}><input type="checkbox" className="w-3.5 h-3.5 accent-[#1877F2] cursor-pointer" /></td>
-                                  <td className={`p-3 border-r text-center align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-                                    <div className={`w-8 h-4 rounded-full mx-auto relative cursor-pointer ${adset.status === 'ACTIVE' ? 'bg-[#1877F2]' : 'bg-[#BCC0C4]'}`}>
-                                      <div className={`w-3.5 h-3.5 bg-white rounded-full absolute top-[1px] ${adset.status === 'ACTIVE' ? 'right-[2px]' : 'left-[2px]'}`}></div>
-                                    </div>
-                                  </td>
-                                  <td className={`p-3 border-r font-semibold text-[#1877F2] hover:underline cursor-pointer align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-                                    {adset.name}
-                                  </td>
-                                  <td className={`p-3 border-r align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-                                    <span className="flex items-center gap-1.5"><span className={`w-2 h-2 rounded-full ${adset.effective_status === 'ACTIVE' ? 'bg-[#31A24C]' : 'bg-slate-400'}`}></span> {adset.effective_status || adset.status}</span>
-                                  </td>
-                                  
-                                  <td className={`p-3 border-r text-right align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-                                    <div className="font-semibold">{results === "-" ? "-" : formatNumber(results)}</div>
-                                    <div className="text-[10px] text-slate-500 uppercase mt-0.5">{objective === 'OUTCOME_ENGAGEMENT' || objective === 'MESSAGES' ? 'Messaging Conversations' : 'Results'}</div>
-                                  </td>
+                            return (
+                              <tr key={adset.id} className={`border-b transition min-h-[48px] ${theme === 'dark' ? 'border-slate-700 hover:bg-[#3A3B3C]' : 'border-slate-200 hover:bg-slate-50'}`}>
+                                <td className={`p-3 border-r text-center align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}><input type="checkbox" className="w-3.5 h-3.5 accent-[#1877F2] cursor-pointer" /></td>
+                                <td className={`p-3 border-r text-center align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                                  <div className={`w-8 h-4 rounded-full mx-auto relative cursor-pointer ${adset.status === 'ACTIVE' ? 'bg-[#1877F2]' : 'bg-[#BCC0C4]'}`}>
+                                    <div className={`w-3.5 h-3.5 bg-white rounded-full absolute top-[1px] ${adset.status === 'ACTIVE' ? 'right-[2px]' : 'left-[2px]'}`}></div>
+                                  </div>
+                                </td>
+                                <td className={`p-3 border-r font-semibold text-[#1877F2] hover:underline cursor-pointer align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                                  {adset.name}
+                                </td>
+                                <td className={`p-3 border-r align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                                  <span className="flex items-center gap-1.5"><span className={`w-2 h-2 rounded-full ${adset.effective_status === 'ACTIVE' ? 'bg-[#31A24C]' : 'bg-slate-400'}`}></span> {adset.effective_status || adset.status}</span>
+                                </td>
+                                
+                                <td className={`p-3 border-r text-right align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                                  <div className="font-semibold">{results === "-" ? "-" : formatNumber(results)}</div>
+                                  <div className="text-[10px] text-slate-500 uppercase mt-0.5">{objective === 'OUTCOME_ENGAGEMENT' || objective === 'MESSAGES' ? 'Messaging Conversations' : 'Results'}</div>
+                                </td>
 
-                                  <td className={`p-3 border-r text-right align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-                                    <div className="font-semibold">{cpa ? "$" + cpa.toFixed(2) : "-"}</div>
-                                    <div className="text-[10px] text-slate-500 uppercase mt-0.5">Per Result</div>
-                                  </td>
+                                <td className={`p-3 border-r text-right align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                                  <div className="font-semibold">{cpa ? "$" + cpa.toFixed(2) : "-"}</div>
+                                  <div className="text-[10px] text-slate-500 uppercase mt-0.5">Per Result</div>
+                                </td>
 
-                                  <td className={`p-3 border-r text-right align-middle text-slate-500 ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-                                    <div className="text-[12px]">{budgetText}</div>
-                                  </td>
-                                  
-                                  <td className={`p-3 border-r text-right font-bold align-middle ${theme === 'dark' ? 'border-slate-700 text-white' : 'border-slate-200 text-slate-900'}`}>
-                                    {spend ? "$" + Number(spend).toFixed(2) : "$0.00"}
-                                  </td>
-                                  
-                                  <td className={`p-3 border-r text-right align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>{formatNumber(ins?.impressions)}</td>
-                                  <td className={`p-3 border-r text-right align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>{formatNumber(ins?.reach)}</td>
-                                  <td className={`p-3 border-r text-right align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>{totalMsg}</td>
-                                  <td className={`p-3 border-r text-right align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>{newMsg}</td>
-                                  <td className={`p-3 border-r text-[12px] align-middle ${theme === 'dark' ? 'border-slate-700 text-slate-400' : 'border-slate-200 text-slate-600'}`}>{endDate}</td>
-                                  <td className={`p-3 border-r text-[12px] capitalize align-middle ${theme === 'dark' ? 'border-slate-700 text-slate-400' : 'border-slate-200 text-slate-600'}`}>{bidStrategy}</td>
-                                  <td className={`p-3 text-[12px] align-middle ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>{lastEditDate}</td>
-                                </tr>
-                              );
-                            })
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
+                                <td className={`p-3 border-r text-right align-middle text-slate-500 ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                                  <div className="text-[12px]">{budgetText}</div>
+                                </td>
+                                
+                                <td className={`p-3 border-r text-right font-bold align-middle ${theme === 'dark' ? 'border-slate-700 text-white' : 'border-slate-200 text-slate-900'}`}>
+                                  {spend ? "$" + Number(spend).toFixed(2) : "$0.00"}
+                                </td>
+                                
+                                <td className={`p-3 border-r text-right align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>{formatNumber(ins?.impressions)}</td>
+                                <td className={`p-3 border-r text-right align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>{formatNumber(ins?.reach)}</td>
+                                <td className={`p-3 border-r text-right align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>{totalMsg}</td>
+                                <td className={`p-3 border-r text-right align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>{newMsg}</td>
+                                <td className={`p-3 border-r text-[12px] align-middle ${theme === 'dark' ? 'border-slate-700 text-slate-400' : 'border-slate-200 text-slate-600'}`}>{endDate}</td>
+                                <td className={`p-3 border-r text-[12px] capitalize align-middle ${theme === 'dark' ? 'border-slate-700 text-slate-400' : 'border-slate-200 text-slate-600'}`}>{bidStrategy}</td>
+                                <td className={`p-3 text-[12px] align-middle ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>{lastEditDate}</td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
 
                   {activeManageTab === 'ADS' && (
                   <table className="w-full text-left border-collapse min-w-[1500px]">
@@ -4541,4 +3962,3 @@ export default function Home() {
     </div>
   );
 }
-
