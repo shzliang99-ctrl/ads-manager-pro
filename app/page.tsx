@@ -16,8 +16,6 @@ const datePresetOptions = [
 
 export default function Home() {
 
-  const [showPlacementsSection
-
   const [postSearchQuery, setPostSearchQuery] = useState("");
   const [postFilterType, setPostFilterType] = useState("Published posts");
   const [isPostFilterMenuOpen, setIsPostFilterMenuOpen] = useState(false);
