@@ -263,6 +263,7 @@ export default function Home() {
   const [selectedDatePreset, setSelectedDatePreset] = useState("last_30d");
 
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
+  const [showPlacementsSection, setShowPlacementsSection] = useState(false);
   const [campaignName, setCampaignName] = useState("New Engagement Campaign");
   const [adsetName, setAdsetName] = useState("New Engagement Ad Set");
   const [adName, setAdName] = useState("New Engagement Ad");
@@ -1866,10 +1867,10 @@ export default function Home() {
                      />
                   </div>
 
-                  {/* Placements Section (Collapsible Dropdown Mode) */}
+                  {/* Placements Section (Collapsible Dropdown Mode - Full Code 100%) */}
                   <div className={`border rounded-xl overflow-visible mt-2 flex-1 ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
                     
-                    {/* 🌟 Header ជាមួយប៊ូតុងចុចបិទ/បើកទម្លាក់ចុះក្រោម */}
+                    {/* Header ជាមួយប៊ូតុងចុចបិទ/បើកទម្លាក់ចុះក្រោម */}
                     <div 
                       onClick={() => setShowPlacementsSection(!showPlacementsSection)}
                       className={`p-3.5 border-b flex justify-between items-center cursor-pointer select-none transition-colors ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-700 text-white hover:bg-[#4E4F50]' : 'bg-slate-100 border-slate-200 text-slate-800 hover:bg-slate-200'}`}
@@ -1877,16 +1878,12 @@ export default function Home() {
                       <label className={`block text-sm font-bold cursor-pointer ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>
                         📍 Placements
                       </label>
-                      
-                      <button
-                        type="button"
-                        className="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1 cursor-pointer"
-                      >
+                      <button type="button" className="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1 cursor-pointer">
                         {showPlacementsSection ? "▲ លាក់ការកំណត់" : "⚙️ បើកទម្លាក់មើលបន្ថែម"}
                       </button>
                     </div>
 
-                    {/* 🌟 ផ្នែកខាងក្នុងដែលត្រូវលាក់/បង្ហាញ ពេលចុចប៊ូតុង */}
+                    {/* ផ្នែកខាងក្នុងដែលត្រូវលាក់/បង្ហាញ ពេលចុចប៊ូតុង */}
                     {showPlacementsSection && (
                       <div className={`p-4 flex flex-col gap-4 animate-in slide-in-from-top-2 duration-200 ${theme === 'dark' ? 'bg-[#242526]' : 'bg-white'}`}>
                         <select value={placementType} onChange={(e) => saveParam("placementType", e.target.value, setPlacementType)} className={`w-full border rounded-lg p-2.5 text-sm outline-none font-medium cursor-pointer ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'}`}>
@@ -1917,7 +1914,7 @@ export default function Home() {
                                          <option value="IOS">iOS devices only</option>
                                          <option value="FEATURE">Feature phones only</option>
                                      </select>
-                                     {/* Wi-Fi Toggle */}
+                                     
                                      <label className={`flex items-center gap-2 mt-1 cursor-pointer font-medium select-none ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
                                         <input 
                                           type="checkbox" 
@@ -1976,6 +1973,25 @@ export default function Home() {
                                           <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.fb_feed} onChange={()=>handleDetailedPlacementChange('fb_feed')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Facebook Feed</label>
                                           <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.fb_profile} onChange={()=>handleDetailedPlacementChange('fb_profile')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Facebook profile feed</label>
                                           <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.ig_feed} onChange={()=>handleDetailedPlacementChange('ig_feed')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Instagram feed</label>
+                                        </div>
+                                      )}
+                                   </div>
+
+                                   {/* Stories, Status, Reels Group */}
+                                   <div>
+                                      <div className={`p-3.5 flex justify-between items-center transition-colors ${theme === 'dark' ? 'hover:bg-[#3A3B3C]' : 'hover:bg-slate-50'}`}>
+                                        <div className="flex items-center gap-3">
+                                          <input type="checkbox" checked={isGroupChecked('stories')} onChange={(e) => handleGroupToggle('stories', e.target.checked)} className="w-4 h-4 text-blue-600 rounded border-slate-500 cursor-pointer" />
+                                          <span className={`font-semibold cursor-pointer select-none ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`} onClick={() => toggleAccordion('stories')}>📱 Stories, Status, Reels</span>
+                                        </div>
+                                        <div className="cursor-pointer px-2" onClick={() => toggleAccordion('stories')}>
+                                          <span className="text-slate-500 font-black text-[10px]">{expandedPlacements.stories ? '▲' : '▼'}</span>
+                                        </div>
+                                      </div>
+                                      {expandedPlacements.stories && (
+                                        <div className={`px-10 pb-4 pt-2 flex flex-col gap-3.5 text-[13px] font-medium ${theme === 'dark' ? 'bg-[#18191A] text-slate-400' : 'bg-slate-50/50 text-slate-600'}`}>
+                                          <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.ig_stories} onChange={()=>handleDetailedPlacementChange('ig_stories')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Instagram Stories</label>
+                                          <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.fb_stories} onChange={()=>handleDetailedPlacementChange('fb_stories')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Facebook Stories</label>
                                         </div>
                                       )}
                                    </div>
