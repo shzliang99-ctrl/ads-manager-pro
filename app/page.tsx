@@ -1163,9 +1163,15 @@ export default function Home() {
       {/* Global Header */}
       <header className={`${theme === 'dark' ? 'bg-[#18191A] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-900'} shadow-sm py-3 px-3 lg:px-8 flex flex-wrap items-center justify-between sticky top-0 z-30 border-b transition-colors duration-300 gap-3`}>
         
-        {/* ផ្នែកទី១៖ Logo & Title */}
+        {/* ផ្នែកទី១៖ Logo & Title (ដាក់រូបឡូហ្គោពណ៌ទឹកក្រូចថ្មីនៅទីនេះ) */}
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center text-white font-black text-lg shadow-md">f</div>
+          <div className="w-10 h-10 bg-[#1c1c1e] rounded-[22.5%] overflow-hidden shadow-md border border-white/10 flex items-center justify-center shrink-0">
+            <img 
+              src="/path-to-your-logo.png" 
+              alt="1 Click Boost Logo" 
+              className="w-[85%] h-[85%] object-contain pointer-events-none" 
+            />
+          </div>
           <h1 className="text-lg font-black text-blue-600 hidden sm:block">Ads Manager Pro</h1>
         </div>
 
@@ -1222,7 +1228,7 @@ export default function Home() {
             {theme === 'light' ? '🌙' : '☀️'}
           </button>
 
-          {/* Ad Account Dropdown (បានដាក់បន្ថែម text-xs max-w-[140px] lg:max-w-[200px]) */}
+          {/* Ad Account Dropdown */}
           <div className="relative">
             <div 
               onClick={() => setIsAccountMenuOpen(!isAccountMenuOpen)}
@@ -1271,15 +1277,15 @@ export default function Home() {
             )}
           </div>
 
-          {/* Date Preset Dropdown (បានដាក់បន្ថែម text-xs max-w-[120px]) */}
+          {/* Date Preset Dropdown */}
           <div className="relative">
             <div 
               onClick={() => setIsDateMenuOpen(!isDateMenuOpen)}
               className={`${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-white hover:bg-[#3A3B3C]' : 'bg-white border-slate-300 text-slate-800 hover:bg-slate-50'} border rounded-lg px-2.5 py-1 flex items-center gap-1.5 cursor-pointer shadow-sm transition max-w-[120px] sm:max-w-[155px] h-[38px] justify-between`}
             >
               <div className="flex flex-col text-left truncate min-w-0">
-                <span className="text-[9px] font-bold text-slate-400 uppercase">Reporting</span>
-                <span className={`text-[11px] font-bold truncate leading-tight ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>{getSelectedDateLabel()}</span>
+                 <span className="text-[9px] font-bold text-slate-400 uppercase">Reporting</span>
+                 <span className={`text-[11px] font-bold truncate leading-tight ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>{getSelectedDateLabel()}</span>
               </div>
               <span className="text-[10px] text-slate-400 shrink-0">▼</span>
             </div>
