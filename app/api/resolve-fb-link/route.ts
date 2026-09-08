@@ -5,7 +5,7 @@ export async function POST(req: Request) {
     const { url } = await req.json();
     if (!url) return NextResponse.json({ success: false, error: "No URL provided" });
 
-    // ១. ឱ្យ Server រត់ទៅបើក Link ហ្នឹង ដើម្បីឱ្យ Facebook បញ្ជូនទៅ Link ពេញ
+    // ១. ប្រព័ន្ធដើរតួជាកុំព្យូទ័រ ចូលទៅបើក Link កាត់ខ្លី ដើម្បីឱ្យវាលោតទៅ Link ពេញ
     const response = await fetch(url, {
       redirect: 'follow',
       headers: {
@@ -19,39 +19,47 @@ export async function POST(req: Request) {
 
     let numericId = "";
 
-    // ២. ព្យាយាមទាញលេខចេញពី Link ពេញ (fbid, pcb, posts)
-    const urlPattern = /(?:fbid=|set=pcb\.|posts\/|videos\/|groups\/.*?\/permalink\/)([0-9]{10,})/;
-    const urlMatch = finalUrl.match(urlPattern);
-    
-    if (urlMatch) {
-        numericId = urlMatch[1];
+    // ២. រូបមន្តឆែករកលេខ ID តាមប្រភេទ (Reel, Photo, Video, Post) ពីតំណភ្ជាប់ពេញ
+    const urlPatterns = [
+      /\/reel\/([0-9]{10,})/,             // សម្រាប់ Reels: ដូចរូបទី១៦ របស់បង
+      /set=pcb\.([0-9]{10,})/,             // សម្រាប់ អាល់ប៊ុមរូបភាព (Album)
+      /(?:fbid=|story_fbid=)([0-9]{10,})/, // សម្រាប់ រូបភាពទូទៅ
+      /\/posts\/([0-9]{10,})/,             // សម្រាប់ អត្ថបទ (Posts)
+      /\/videos\/([0-9]{10,})/,            // សម្រាប់ វីដេអូ (Videos)
+      /v=([0-9]{10,})/                     // សម្រាប់ Facebook Watch
+    ];
+
+    for (let regex of urlPatterns) {
+      const match = finalUrl.match(regex);
+      if (match) {
+        numericId = match[1];
+        break;
+      }
     }
 
-    // ៣. បើទាញពី Link អត់បានលេខទេ មានន័យថាវាចេញ pfbid អញ្ចឹងត្រូវកាយរកលេខសុទ្ធក្នុង HTML របស់ Facebook ផ្ទាល់តែម្តង!
+    // ៣. បើនៅតែរកមិនឃើញក្នុង URL វាចូលទៅកាយរកក្នុងកូដ HTML របស់ហ្វេសប៊ុកតែម្តង
     if (!numericId) {
-        const htmlPatterns = [
-            /"top_level_post_id":"([0-9]{10,})"/,
-            /"post_id":"([0-9]{10,})"/,
-            /fb:\/\/post\/([0-9]{10,})/,
-            /fb:\/\/photo\/([0-9]{10,})/,
-            /"mf_story_key":"([0-9]{10,})"/,
-            /ft_ent_identifier=([0-9]{10,})/
-        ];
+      const htmlPatterns = [
+        /"video_id":"([0-9]{10,})"/,
+        /"photo_id":"([0-9]{10,})"/,
+        /"top_level_post_id":"([0-9]{10,})"/,
+        /"post_id":"([0-9]{10,})"/
+      ];
 
-        for (let regex of htmlPatterns) {
-            let match = html.match(regex);
-            if (match) {
-                numericId = match[1];
-                break;
-            }
+      for (let regex of htmlPatterns) {
+        let match = html.match(regex);
+        if (match) {
+          numericId = match[1];
+          break;
         }
+      }
     }
 
-    // បញ្ជូនលេខ ID សុទ្ធទៅកាន់អ្នកប្រើប្រាស់វិញ
+    // ៤. បញ្ជូនលេខ ID សុទ្ធមកកាន់ប្រអប់វិញ
     if (numericId) {
-        return NextResponse.json({ success: true, id: numericId });
+      return NextResponse.json({ success: true, id: numericId });
     } else {
-        return NextResponse.json({ success: false, error: "Cannot find numeric ID" });
+      return NextResponse.json({ success: false, error: "រកលេខ ID សុទ្ធមិនឃើញទេ" });
     }
 
   } catch (error: any) {
