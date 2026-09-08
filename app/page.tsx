@@ -1505,49 +1505,63 @@ export default function Home() {
                       />
                       <button
                         type="button"
-                        onClick={() => {
+                        onClick={async () => {
                           const urlInput = (document.getElementById('postUrlInput') as HTMLInputElement).value;
                           if (!urlInput.trim()) return alert("⚠️ សូមដាក់ Link ផុសជាមុនសិន!");
 
-                          let extractedId = "";
+                          try {
+                            alert("⏳ កំពុងទាញយកលេខ ID ពិតប្រាកដពី Facebook...");
 
-                          // 1. ស្វែងរកលេខ ID វែងៗ (ចាប់ពី ១៣ខ្ទង់ឡើងទៅ) ដែលជាទូទៅជា ID ពិតរបស់ Facebook
-                          const longNumMatch = urlInput.match(/([0-9]{13,})/);
-                          if (longNumMatch) {
-                            extractedId = longNumMatch[1];
-                          } else {
-                            // 2. ស្វែងរកតាមរយៈ format ផ្សេងទៀត
-                            const fbidMatch = urlInput.match(/(?:story_fbid=|fbid=)([0-9]+)/);
-                            if (fbidMatch) {
-                              extractedId = fbidMatch[1];
+                            // យក Token និង Page ID ដែលបងបាន Login រួចមកប្រើប្រាស់
+                            const userToken = localStorage.getItem('fb_user_token');
+                            const pageInfo = pages.find(p => p.id === selectedPage);
+                            const token = pageInfo?.access_token || userToken;
+
+                            if (!token) {
+                              alert("⚠️ រកមិនឃើញ Token ទេ! សូម Connect Facebook ជាមុនសិន។");
+                              return;
+                            }
+
+                            // ហៅទៅកាន់ API ខាងក្រោយដើម្បីឱ្យវាបំប្លែង Link ទៅជាលេខ ID វែងៗពិតប្រាកដ
+                            const res = await fetch('/api/get-post-id', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ postUrl: urlInput, access_token: token, pageId: selectedPage })
+                            });
+                            const data = await res.json();
+
+                            let finalId = "";
+                            if (data.success && data.postId) {
+                              finalId = data.postId; // จะได้លេខ ID សុទ្ធ 100% ដូចក្នុងរូបរបស់បង
                             } else {
-                              // បើជា Link កាត់ខ្លីពីទូរសព្ទ (share/p) មិនអាចទាញយក ID ផ្ទាល់បានទេ ត្រូវប្រាប់ណែនាំ
-                              if (urlInput.includes('/share/p/') || urlInput.includes('share/v/')) {
-                                alert("⚠️ Link កាត់ខ្លីពីទូរសព្ទ (share/p) មិនអាចទាញយកលេខ ID ពិតប្រាកដបានទេ។\n\n💡 សូមចូលយក Link ពេញពីកុំព្យូទ័រដោយចុចលើ 'ម៉ោង (Timestamp)' របស់ផុសនោះ!");
+                              // បើ API ទាញមិនចេញ ប្រើវិធីទាញស្រង់លេខវែងៗពី Link ផ្ទាល់ (សម្រាប់ Link ពីកុំព្យូទ័រ)
+                              const longNumMatch = urlInput.match(/([0-9]{12,})/g);
+                              if (longNumMatch && longNumMatch.length > 0) {
+                                finalId = longNumMatch[longNumMatch.length - 1]; // យកលេខវែងចុងក្រោយគេ
+                              } else {
+                                alert("❌ មិនអាចទាញយកលេខ ID បានទេ។ \n\n💡 គន្លឹះ៖ សូមចូលយក Link ពេញពីកុំព្យូទ័រ (ដោយចុចលើម៉ោង/Timestamp របស់ផុស) យកមកដាក់គឺប្រាកដជាចេញលេខ ID ស្អាតជូនបង!");
                                 return;
                               }
-                              
-                              const segments = urlInput.split('/');
-                              extractedId = segments.filter(Boolean).pop() || "";
                             }
+
+                            const resultBox = document.getElementById('extractedResultBox');
+                            const idText = document.getElementById('extractedIdText');
+                            if (resultBox && idText) {
+                              idText.innerText = finalId;
+                              resultBox.classList.remove('hidden');
+                            }
+
+                            // រក្សាទុកចូលក្នុង localStorage ជា History
+                            try {
+                              const newItem = { url: urlInput, id: finalId, time: new Date().toLocaleTimeString() };
+                              const updatedHistory = [newItem, ...postIdHistory.filter((item: any) => item.id !== finalId)].slice(0, 10);
+                              localStorage.setItem('post_id_history', JSON.stringify(updatedHistory));
+                              setPostIdHistory(updatedHistory);
+                            } catch(e) {}
+
+                          } catch(e) {
+                            alert("❌ មានបញ្ហាតភ្ជាប់ទៅកាន់ប្រព័ន្ធ API!");
                           }
-
-                          const finalId = extractedId || urlInput;
-
-                          const resultBox = document.getElementById('extractedResultBox');
-                          const idText = document.getElementById('extractedIdText');
-                          if (resultBox && idText) {
-                            idText.innerText = finalId;
-                            resultBox.classList.remove('hidden');
-                          }
-
-                          // Save to localStorage & update state
-                          try {
-                            const newItem = { url: urlInput, id: finalId, time: new Date().toLocaleTimeString() };
-                            const updatedHistory = [newItem, ...postIdHistory.filter((item: any) => item.id !== finalId)].slice(0, 10);
-                            localStorage.setItem('post_id_history', JSON.stringify(updatedHistory));
-                            setPostIdHistory(updatedHistory);
-                          } catch(e) {}
                         }}
                         className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 rounded-xl text-[14px] shadow-md transition cursor-pointer shrink-0"
                       >
