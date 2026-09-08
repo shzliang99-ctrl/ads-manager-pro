@@ -2147,6 +2147,28 @@ export default function Home() {
                         <p className={`text-[12px] mb-3 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>Select and optimize your ad text, media and enhancements.</p>
                         
                         <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-[#18191A] border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
+                           <label className="flex items-center gap-2 mb-4 cursor-pointer select-none">
+                             <input type="checkbox" className="w-4 h-4 rounded text-blue-600 border-slate-400" />
+                             <span className={`text-sm font-medium ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>Expand each post to customize its text</span>
+                           </label>
+
+                           <div className={`p-3 rounded-lg border flex items-center justify-between gap-3 ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600' : 'bg-white border-slate-300'}`}>
+                             <div className="flex items-center gap-3 min-w-0">
+                               <div className="w-10 h-10 rounded bg-slate-200 shrink-0 flex items-center justify-center text-xs font-bold text-slate-500 overflow-hidden">
+                                 {selectedPost ? 'POST' : 'IMG'}
+                               </div>
+                               <p className={`text-xs truncate ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
+                                 {selectedPost ? `Post Selected: ${selectedPost}` : 'No post selected...'}
+                               </p>
+                             </div>
+                             <span className="text-xs text-blue-600 font-bold shrink-0 cursor-pointer hover:underline" onClick={() => setIsPostMenuOpen(true)}>Change</span>
+                           </div>
+
+                           <div className="flex items-center justify-between mt-4">
+                             <button type="button" className="text-[13px] font-bold text-slate-700 bg-slate-200 hover:bg-slate-300 px-4 py-2 rounded-lg transition cursor-pointer" onClick={() => setIsPostMenuOpen(true)}>Select post</button>
+                             <button type="button" className="text-[13px] font-bold text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-lg transition cursor-pointer" onClick={() => setIsCreatePostOpen(true)}>+ Create post</button>
+                           </div>
+                        </div>
                       </div>
 
                     </div>
