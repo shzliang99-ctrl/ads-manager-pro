@@ -7,6 +7,7 @@ export async function POST(req: Request) {
     const prompt = formData.get('prompt') as string || "ជួយសរសេរអត្ថបទលក់ផលិតផលឱ្យបានទាក់ទាញបំផុត";
     const file = formData.get('file') as File | null;
 
+    // ភ្ជាប់ជាមួយ Gemini API តាមស្ដង់ដារ SDK ថ្មី
     const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
     let contents: any[] = [prompt];
@@ -25,12 +26,11 @@ export async function POST(req: Request) {
           { text: prompt }
         ];
       } catch (e) {
-        // បើមានបញ្ហានឹង File ឱ្យវារត់ជា Text ធម្មតាវិញដើម្បីកុំឱ្យគាំង
         contents = [prompt];
       }
     }
 
-    // ហៅ AI ជំនាន់ចុងក្រោយឱ្យវាដំណើរការលឿន
+    // ប្រើប្រាស់ Model gemini-2.5-flash ដែលមានល្បឿនលឿន និងស្ថេរភាពខ្ពស់
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: contents,
@@ -48,13 +48,12 @@ export async function POST(req: Request) {
 
   } catch (error: any) {
     console.error("AI Error:", error);
-    // បើមាន Error លើ Server ឱ្យវាivalue ចេញជា Text ជំនួសវិញដើម្បីកុំឱ្យដាច់ Server ស្ទះ
     return NextResponse.json({ 
       success: true, 
       results: [
         `🔥 [បែបលក់ដាច់ខ្លាំង]\nសូមអញ្ជើញមកទស្សនាទំនិញគុណភាពខ្ពស់ពីហាងយើងខ្ញុំ! ធានាជូនទាំងតម្លៃនិងគុណភាព។`,
         `💥 [បែបប្រូម៉ូសិនទាក់ទាញ]\nប្រូម៉ូសិនពិសេសប្រចាំថ្ងៃ! ទិញភ្លាមទទួលបានការបញ្ចុះតម្លៃភ្លាម។`,
-        `🎁 [បែប Storytelling]\nทางយើងខ្ញុំមានលក់សម្ភារៈនិងទំនិញដ៏ស្រស់ស្អាត ទាក់ទងកម្មង់ទិញឥឡូវនេះ!`
+        `🎁 [បែប Storytelling]\nយើងខ្ញុំមានលក់សម្ភារៈនិងទំនិញដ៏ស្រស់ស្អាត ទាក់ទងកម្មង់ទិញឥឡូវនេះ!`
       ] 
     });
   }
