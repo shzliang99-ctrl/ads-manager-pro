@@ -260,6 +260,7 @@ export default function Home() {
   const [isDateMenuOpen, setIsDateMenuOpen] = useState(false);
   const [selectedDatePreset, setSelectedDatePreset] = useState("last_30d");
 
+  const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
   const [campaignName, setCampaignName] = useState("New Engagement Campaign");
   const [adsetName, setAdsetName] = useState("New Engagement Ad Set");
   const [adName, setAdName] = useState("New Engagement Ad");
@@ -1648,44 +1649,63 @@ export default function Home() {
                 
                 {/* Campaign Details */}
                 <div className={`p-6 rounded-xl shadow-sm border flex flex-col gap-5 h-fit w-full min-w-0 transition-colors ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-800'}`}>
-                  <h3 className={`font-bold border-b pb-2 flex items-center gap-2 ${theme === 'dark' ? 'border-slate-700 text-white' : 'border-slate-200 text-slate-800'}`}>
-                    <span className={`p-1 rounded ${theme === 'dark' ? 'bg-[#3A3B3C]' : 'bg-slate-100'}`}>📁</span> ១. Campaign Details
-                  </h3>
+                  
+                  <div className="flex justify-between items-center border-b pb-2">
+                    <h3 className={`font-bold flex items-center gap-2 ${theme === 'dark' ? 'border-slate-700 text-white' : 'border-slate-200 text-slate-800'}`}>
+                      <span className={`p-1 rounded ${theme === 'dark' ? 'bg-[#3A3B3C]' : 'bg-slate-100'}`}>📁</span> ១. Campaign Details
+                    </h3>
+                    
+                    {/* 🌟 ប៊ូតុង Toggle សម្រាប់បង្ហាញ/លាក់មុខងារ Advance */}
+                    <button
+                      type="button"
+                      onClick={() => setShowAdvancedSettings(!showAdvancedSettings)}
+                      className="text-[12px] font-bold text-blue-600 hover:text-blue-700 hover:underline flex items-center gap-1 cursor-pointer transition-colors"
+                    >
+                      {showAdvancedSettings ? "▲ លាក់កម្រិតខ្ពស់" : "⚙️ កែប្រែកម្រិតខ្ពស់"}
+                    </button>
+                  </div>
 
+                  {/* ឈ្មោះ Campaign */}
                   <div>
                     <label className={`block text-sm font-semibold mb-1.5 ${theme === 'dark' ? 'text-slate-300' : 'text-slate-600'}`}>Campaign name (ឈ្មោះយុទ្ធនាការ)</label>
-                    <input type="text" value={campaignName} onChange={(e) => saveParam("campaignName", e.target.value, setCampaignName)} className={`w-full border rounded-lg p-3 outline-none focus:border-blue-500 ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'}`} />
+                    <input type="text" value={campaignName} onChange={(e) => saveParam("campaignName", e.target.value, setCampaignName)} className={`w-full border rounded-lg p-3 outline-none focus:border-blue-500 font-semibold ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'}`} />
                   </div>
                   
-                  <div className="flex gap-4">
-                    <div className="flex-1 min-w-0">
-                      <label className={`block text-sm font-semibold mb-1.5 ${theme === 'dark' ? 'text-slate-300' : 'text-slate-600'}`}>Objective</label>
-                      <select value={objective} onChange={(e) => saveParam("obj", e.target.value, setObjective)} className={`w-full border rounded-lg p-3 outline-none focus:border-blue-500 ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-900'}`}>
-                        <option value="ENGAGEMENT">💬 Engagement</option>
-                      </select>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <label className={`block text-sm font-semibold mb-1.5 ${theme === 'dark' ? 'text-slate-300' : 'text-slate-600'}`}>Conversion Location</label>
-                      <select value={conversionLocation} onChange={(e) => saveParam("conversionLoc", e.target.value, setConversionLocation)} className={`w-full border rounded-lg p-3 outline-none focus:border-blue-500 ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-900'}`}>
-                        <option value="MESSAGES">📨 Message destinations</option>
-                        <option value="ON_AD">👍 On your ad</option>
-                      </select>
-                    </div>
-                  </div>
+                  {/* 🌟 ផ្នែក Advanced Settings (លាក់/បង្ហាញតាម State) */}
+                  {showAdvancedSettings && (
+                    <div className="flex flex-col gap-4 p-4 rounded-xl border bg-slate-50/50 dark:bg-[#18191A]/50 border-slate-200 dark:border-slate-700 animate-in fade-in duration-200">
+                      <div className="flex gap-4">
+                        <div className="flex-1 min-w-0">
+                          <label className={`block text-sm font-semibold mb-1.5 ${theme === 'dark' ? 'text-slate-300' : 'text-slate-600'}`}>Objective</label>
+                          <select value={objective} onChange={(e) => saveParam("obj", e.target.value, setObjective)} className={`w-full border rounded-lg p-3 outline-none focus:border-blue-500 ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-900'}`}>
+                            <option value="ENGAGEMENT">💬 Engagement</option>
+                          </select>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <label className={`block text-sm font-semibold mb-1.5 ${theme === 'dark' ? 'text-slate-300' : 'text-slate-600'}`}>Conversion Location</label>
+                          <select value={conversionLocation} onChange={(e) => saveParam("conversionLoc", e.target.value, setConversionLocation)} className={`w-full border rounded-lg p-3 outline-none focus:border-blue-500 ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-900'}`}>
+                            <option value="MESSAGES">📨 Message destinations</option>
+                            <option value="ON_AD">👍 On your ad</option>
+                          </select>
+                        </div>
+                      </div>
 
-                  <div className={`p-4 rounded-xl border mt-1 ${theme === 'dark' ? 'bg-blue-950/20 border-blue-900' : 'bg-[#f2f6fc] border-blue-100'}`}>
-                    <label className={`block text-sm font-bold mb-1 ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>Performance goal</label>
-                    <p className={`text-[12px] mb-3 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>How you measure success for your ads.</p>
-                    <select value={performanceGoal} onChange={(e) => saveParam("performanceGoal", e.target.value, setPerformanceGoal)} className={`w-full border rounded-lg p-2.5 text-sm outline-none focus:border-blue-500 shadow-sm font-semibold cursor-pointer ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-700'}`}>
-                        <option value="CONVERSATIONS">💬 Maximize number of conversations</option>
-                        <option value="LEAD_GENERATION">📝 Maximize number of leads through messaging</option>
-                        <option value="LINK_CLICKS">🔗 Maximize number of link clicks</option>
-                        <option value="POST_ENGAGEMENT">👍 Maximize engagement with a post</option>
-                    </select>
-                  </div>
+                      <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-blue-950/20 border-blue-900' : 'bg-[#f2f6fc] border-blue-100'}`}>
+                        <label className={`block text-sm font-bold mb-1 ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>Performance goal</label>
+                        <p className={`text-[12px] mb-3 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>How you measure success for your ads.</p>
+                        <select value={performanceGoal} onChange={(e) => saveParam("performanceGoal", e.target.value, setPerformanceGoal)} className={`w-full border rounded-lg p-2.5 text-sm outline-none focus:border-blue-500 shadow-sm font-semibold cursor-pointer ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-700'}`}>
+                            <option value="CONVERSATIONS">💬 Maximize number of conversations</option>
+                            <option value="LEAD_GENERATION">📝 Maximize number of leads through messaging</option>
+                            <option value="LINK_CLICKS">🔗 Maximize number of link clicks</option>
+                            <option value="POST_ENGAGEMENT">👍 Maximize engagement with a post</option>
+                        </select>
+                      </div>
+                    </div>
+                  )}
                   
+                  {/* Budget Strategy (បង្ហាញជានិច្ច ព្រោះជាតម្រូវការចាំបាច់) */}
                   <div className={`p-4 rounded-xl border mt-1 ${theme === 'dark' ? 'bg-[#18191A] border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
-                    <label className={`block text-sm font-bold mb-2 ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>Budget strategy</label>
+                    <label className={`block text-sm font-bold mb-2 ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>Budget strategy (ទឹកលុយចំណាយ)</label>
                     <div className="flex flex-col sm:flex-row gap-3">
                       <div className="flex-1 min-w-0">
                         <select value={budgetType} onChange={(e) => saveParam("budgetType", e.target.value, setBudgetType)} className={`w-full border rounded-lg p-2.5 text-sm outline-none font-medium cursor-pointer ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-900'}`}>
@@ -1695,7 +1715,7 @@ export default function Home() {
                       </div>
                       <div className="flex-1 relative min-w-0">
                         <span className="absolute left-3 top-2.5 font-bold text-slate-500">$</span>
-                        <input type="number" min="1" step="0.5" value={budget} onChange={(e) => saveParam("budget", e.target.value, setBudget)} className={`w-full border rounded-lg p-2.5 pl-8 text-sm outline-none font-bold ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-800'}`} />
+                        <input type="number" min="1" step="0.5" value={budget} onChange={(e) => saveParam("budget", e.target.value, setBudget)} className={`w-full border rounded-lg p-2.5 pl-8 text-sm outline-none font-bold focus:border-blue-500 ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-800'}`} />
                       </div>
                     </div>
 
@@ -1703,10 +1723,10 @@ export default function Home() {
                       <div className="mt-3 flex flex-col gap-2">
                         <div className="flex items-center gap-3">
                           <label className={`text-sm font-medium ${theme === 'dark' ? 'text-slate-300' : 'text-slate-600'}`}>ដំណើរការរយៈពេល (ថ្ងៃ)៖</label>
-                          <input type="number" min="1" value={duration} onChange={(e) => saveParam("duration", e.target.value, setDuration)} className={`w-24 border rounded-lg p-2 text-sm outline-none text-center font-bold ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-900'}`} />
+                          <input type="number" min="1" value={duration} onChange={(e) => saveParam("duration", e.target.value, setDuration)} className={`w-24 border rounded-lg p-2 text-sm outline-none text-center font-bold focus:border-blue-500 ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-900'}`} />
                         </div>
                         
-                        <div className={`text-[13px] p-3 rounded-lg border flex flex-col gap-1 shadow-sm ${theme === 'dark' ? 'bg-blue-900/20 border-blue-800 text-slate-300' : 'bg-blue-50 border-blue-100 text-slate-700'}`}>
+                        <div className={`text-[13px] p-3 rounded-lg border flex flex-col gap-1 shadow-sm ${theme === 'dark' ? 'bg-blue-950/20 border-blue-800 text-slate-300' : 'bg-blue-50 border-blue-100 text-slate-700'}`}>
                           <div className={`font-bold flex items-center gap-1 ${theme === 'dark' ? 'text-blue-400' : 'text-blue-700'}`}>
                             <span>📅 ព័ត៌មានសង្ខេបការចំណាយ៖</span>
                           </div>
