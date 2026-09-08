@@ -3626,56 +3626,51 @@ export default function Home() {
       )}
 
       {/* ============================================== */}
-      {/* 🌟 ផ្ទាំង Pop-up សម្រាប់ Quick Edit (ស្ដង់ដារ Facebook) */}
+      {/* 🌟 ផ្ទាំង Pop-up សម្រាប់ Quick Edit (ស្តង់ដារ Facebook & Responsive) */}
       {/* ============================================== */}
       {isEditModalOpen && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className={`rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col transform transition-all ${theme === 'dark' ? 'bg-[#242526] border border-slate-700' : 'bg-white border border-slate-100'}`}>
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-4">
+          <div className={`rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto flex flex-col transform transition-all ${theme === 'dark' ? 'bg-[#242526] border border-slate-700' : 'bg-white border border-slate-100'}`}>
             
-            <div className={`px-6 py-4 border-b flex justify-between items-center ${theme === 'dark' ? 'border-slate-700 bg-[#3A3B3C]' : 'border-slate-200 bg-slate-50'}`}>
-              <h2 className={`font-bold text-lg flex items-center gap-2.5 ${theme === 'dark' ? 'text-white' : 'text-[#050505]'}`}>
+            <div className={`px-5 py-3.5 border-b flex justify-between items-center sticky top-0 z-10 ${theme === 'dark' ? 'border-slate-700 bg-[#3A3B3C]' : 'border-slate-200 bg-slate-50'}`}>
+              <h2 className={`font-bold text-base sm:text-lg flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-[#050505]'}`}>
                 <span className="bg-blue-100 text-blue-600 p-1.5 rounded-lg text-sm">✏️</span> កែប្រែយុទ្ធនាការរហ័ស
               </h2>
-              <button type="button" onClick={() => setIsEditModalOpen(false)} className="text-[24px] leading-none text-slate-400 hover:text-red-500">&times;</button>
+              <button type="button" onClick={() => setIsEditModalOpen(false)} className="text-[22px] leading-none text-slate-400 hover:text-red-500 cursor-pointer p-1">&times;</button>
             </div>
 
-            <div className="p-6 flex flex-col gap-6">
-              
-              {/* ១. ចំណងជើងយុទ្ធនាការ */}
+            <div className="p-4 sm:p-6 flex flex-col gap-4 sm:gap-5">
               <div>
-                <label className={`block text-[14px] font-bold mb-2 ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`}>១. ចំណងជើងយុទ្ធនាការ (Campaign Name)</label>
-                <input type="text" value={editCampaignName} onChange={(e) => setEditCampaignName(e.target.value)} className={`w-full border rounded-xl p-3 outline-none focus:border-blue-500 font-semibold ${theme === 'dark' ? 'bg-[#18191A] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-900'}`} />
+                <label className={`block text-[13px] sm:text-[14px] font-bold mb-1.5 ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`}>១. ចំណងជើងយុទ្ធនាការ (Campaign Name)</label>
+                <input type="text" value={editCampaignName} onChange={(e) => setEditCampaignName(e.target.value)} className={`w-full border rounded-xl p-3 outline-none focus:border-blue-500 font-semibold text-sm ${theme === 'dark' ? 'bg-[#18191A] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-900'}`} />
               </div>
 
-              {/* ២. ថវិកា */}
               <div>
-                <label className={`block text-[14px] font-bold mb-2 ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`}>២. ថវិកា (Budget)</label>
+                <label className={`block text-[13px] sm:text-[14px] font-bold mb-1.5 ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`}>២. ថវិកា (Budget)</label>
                 <div className="relative">
                   <span className="absolute left-3.5 top-3 font-bold text-slate-500">$</span>
-                  <input type="number" min="1" step="0.5" value={editBudget} onChange={(e) => setEditBudget(e.target.value)} className={`w-full border rounded-xl p-3 pl-8 outline-none focus:border-blue-500 font-bold text-[15px] ${theme === 'dark' ? 'bg-[#18191A] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-900'}`} />
+                  <input type="number" min="1" step="0.5" value={editBudget} onChange={(e) => setEditBudget(e.target.value)} className={`w-full border rounded-xl p-3 pl-8 outline-none focus:border-blue-500 font-bold text-sm sm:text-[15px] ${theme === 'dark' ? 'bg-[#18191A] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-900'}`} />
                 </div>
               </div>
 
-              {/* ៣. កាលវិភាគ (Schedule) */}
-              <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-[#18191A] border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
-                 <label className={`block text-[14px] font-bold mb-3 ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`}>៣. កាលវិភាគ (Schedule)</label>
-                 <div className="flex flex-col sm:flex-row gap-4">
+              <div className={`p-3.5 sm:p-4 rounded-xl border ${theme === 'dark' ? 'bg-[#18191A] border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
+                 <label className={`block text-[13px] sm:text-[14px] font-bold mb-2.5 ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`}>៣. កាលវិភាគ (Schedule)</label>
+                 <div className="flex flex-col gap-3">
                     <div className="flex-1">
-                       <span className="block text-[12px] mb-1.5 text-slate-500 font-bold uppercase">ថ្ងៃចាប់ផ្តើម (Start)</span>
-                       <input type="datetime-local" value={editStartDate} onChange={(e) => setEditStartDate(e.target.value)} className={`w-full border rounded-lg p-2.5 outline-none focus:border-blue-500 text-[13.5px] cursor-pointer ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-800'}`} />
+                       <span className="block text-[11px] mb-1 text-slate-500 font-bold uppercase">ថ្ងៃចាប់ផ្តើម (Start)</span>
+                       <input type="datetime-local" value={editStartDate} onChange={(e) => setEditStartDate(e.target.value)} className={`w-full border rounded-lg p-2.5 outline-none focus:border-blue-500 text-xs sm:text-[13.5px] cursor-pointer ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-800'}`} />
                     </div>
                     <div className="flex-1">
-                       <span className="block text-[12px] mb-1.5 text-[#1877F2] font-bold uppercase">ថ្ងៃបញ្ចប់ (End)</span>
-                       <input type="datetime-local" value={editEndDate} onChange={(e) => setEditEndDate(e.target.value)} className={`w-full border rounded-lg p-2.5 outline-none focus:border-[#1877F2] focus:ring-1 focus:ring-[#1877F2] text-[13.5px] font-bold cursor-pointer shadow-sm ${theme === 'dark' ? 'bg-[#3A3B3C] border-[#1877F2]/50 text-white' : 'bg-white border-[#1877F2]/30 text-slate-900'}`} />
+                       <span className="block text-[11px] mb-1 text-[#1877F2] font-bold uppercase">ថ្ងៃបញ្ចប់ (End)</span>
+                       <input type="datetime-local" value={editEndDate} onChange={(e) => setEditEndDate(e.target.value)} className={`w-full border rounded-lg p-2.5 outline-none focus:border-[#1877F2] focus:ring-1 focus:ring-[#1877F2] text-xs sm:text-[13.5px] font-bold cursor-pointer shadow-sm ${theme === 'dark' ? 'bg-[#3A3B3C] border-[#1877F2]/50 text-white' : 'bg-white border-[#1877F2]/30 text-slate-900'}`} />
                     </div>
                  </div>
               </div>
-
             </div>
 
-            <div className={`p-4 border-t flex justify-end gap-3 ${theme === 'dark' ? 'border-slate-700 bg-[#3A3B3C]' : 'border-slate-200 bg-slate-50'}`}>
-              <button type="button" onClick={() => setIsEditModalOpen(false)} className={`px-5 py-2.5 rounded-xl font-bold text-[14px] border transition ${theme === 'dark' ? 'bg-[#242526] border-slate-600 text-slate-300 hover:bg-[#18191A]' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100'}`}>បោះបង់</button>
-              <button type="button" onClick={handleSaveQuickEdit} disabled={isSavingEdit || !editCampaignName} className="px-8 py-2.5 rounded-xl font-bold text-[14px] text-white bg-[#1877F2] hover:bg-[#166FE5] shadow-sm disabled:opacity-50">
+            <div className={`p-4 border-t flex flex-row justify-end gap-2.5 sticky bottom-0 z-10 ${theme === 'dark' ? 'border-slate-700 bg-[#3A3B3C]' : 'border-slate-200 bg-slate-50'}`}>
+              <button type="button" onClick={() => setIsEditModalOpen(false)} className={`px-4 sm:px-5 py-2.5 rounded-xl font-bold text-xs sm:text-[14px] border transition cursor-pointer ${theme === 'dark' ? 'bg-[#242526] border-slate-600 text-slate-300 hover:bg-[#18191A]' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100'}`}>បោះបង់</button>
+              <button type="button" onClick={handleSaveQuickEdit} disabled={isSavingEdit || !editCampaignName} className="px-6 sm:px-8 py-2.5 rounded-xl font-bold text-xs sm:text-[14px] text-white bg-[#1877F2] hover:bg-[#166FE5] shadow-sm disabled:opacity-50 cursor-pointer">
                 {isSavingEdit ? 'កំពុងរក្សាទុក...' : '✓ រក្សាទុក'}
               </button>
             </div>
@@ -3683,6 +3678,7 @@ export default function Home() {
           </div>
         </div>
       )}
+
       {/* ============================================== */}
       {/* 🌟 1. ផ្ទាំង Duplicate Ad Modal (Z-Index: 50) */}
       {/* ============================================== */}
@@ -3698,13 +3694,11 @@ export default function Home() {
             </div>
 
             <div className="p-6 flex flex-col gap-6">
-              {/* ដូរឈ្មោះ Ad */}
               <div>
                 <label className={`block text-[14px] font-bold mb-2 ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`}>Ad name (ឈ្មោះការផ្សាយ)</label>
                 <input type="text" value={duplicateAdName} onChange={(e) => setDuplicateAdName(e.target.value)} className={`w-full border rounded-xl p-3 outline-none focus:border-blue-500 font-semibold ${theme === 'dark' ? 'bg-[#18191A] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-900'}`} />
               </div>
 
-              {/* ដូរ Post (Ad Creative) */}
               <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-[#18191A] border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
                  <label className={`block text-[14px] font-bold mb-3 ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`}>Ad creative (ជ្រើសរើស Post ថ្មី)</label>
                  
@@ -3743,7 +3737,41 @@ export default function Home() {
           </div>
         </div>
       )}
+
+      {/* ================================================================= */}
+      {/* 🌟 Mobile Bottom Navigation Bar (ដាក់នៅបាតក្រោមគេបង្អស់ ១០០%) */}
+      {/* ================================================================= */}
+      <nav className={`md:hidden fixed bottom-0 left-0 right-0 z-[99999] border-t flex justify-around items-center h-[60px] px-2 shadow-[0_-4px-15px_rgba(0,0,0,0.1)] backdrop-blur-md transition-colors ${theme === 'dark' ? 'bg-[#18191A]/95 border-slate-700 text-white' : 'bg-white/95 border-slate-200 text-slate-800'}`}>
+         
+         <button 
+            type="button"
+            onClick={() => handleTabChange("CREATE")}
+            className={`flex flex-col items-center justify-center w-full h-full gap-0.5 transition-all cursor-pointer ${activeTab === "CREATE" ? 'text-blue-600 font-bold' : 'opacity-60 hover:opacity-100'}`}
+         >
+            <span className={`text-[20px] leading-none transition-transform ${activeTab === "CREATE" ? 'scale-110' : ''}`}>✍️</span>
+            <span className="text-[10px] tracking-tight">បង្កើត</span>
+         </button>
+
+         <button 
+            type="button"
+            onClick={() => handleTabChange("MANAGE")}
+            className={`flex flex-col items-center justify-center w-full h-full gap-0.5 transition-all cursor-pointer ${activeTab === "MANAGE" ? 'text-blue-600 font-bold' : 'opacity-60 hover:opacity-100'}`}
+         >
+            <span className={`text-[20px] leading-none transition-transform ${activeTab === "MANAGE" ? 'scale-110' : ''}`}>📊</span>
+            <span className="text-[10px] tracking-tight">គ្រប់គ្រង</span>
+         </button>
+
+         <button 
+            type="button"
+            onClick={() => handleTabChange("AI")}
+            className={`flex flex-col items-center justify-center w-full h-full gap-0.5 transition-all cursor-pointer ${activeTab === "AI" ? 'text-indigo-500 font-bold' : 'opacity-60 hover:opacity-100'}`}
+         >
+            <span className={`text-[20px] leading-none transition-transform ${activeTab === "AI" ? 'scale-110' : ''}`}>✨</span>
+            <span className="text-[10px] tracking-tight">AI Copy</span>
+         </button>
+
+      </nav>
+
     </div>
   );
 }
-
