@@ -3738,22 +3738,22 @@ export default function Home() {
         </div>
       )}
 
-      {/* 🌟 Mobile Bottom Navigation Bar (Pro Pill-Style & Custom Icons) */}
-      <nav className={`md:hidden fixed bottom-0 left-0 right-0 z-[99999] border-t flex justify-around items-center h-[65px] px-3 shadow-[0_-10px_25px_rgba(0,0,0,0.1)] backdrop-blur-xl transition-all duration-300 ${
+      {/* 🌟 Mobile Bottom Navigation Bar (Floating Puffy & Rounded Style) */}
+      <nav className={`md:hidden fixed bottom-3 left-4 right-4 z-[99999] flex justify-around items-center h-[64px] px-3 rounded-[32px] shadow-[0_10px_30px_rgba(0,0,0,0.15),0_1px_3px_rgba(0,0,0,0.1)] transition-all duration-300 ${
         theme === 'dark' 
-          ? 'bg-[#18191A]/95 border-slate-800 text-slate-300' 
-          : 'bg-white/95 border-slate-200 text-slate-600'
+          ? 'bg-[#242526]/95 border border-slate-700/60 text-slate-200 shadow-[0_10px_30px_rgba(0,0,0,0.4)]' 
+          : 'bg-white/95 border border-slate-100 text-slate-700'
       }`}>
          
-         {/* Tab 1: Create (ប្ដូរមកជារូបខ្មៅដៃ/សរសេរ - ដែនបង្កើតយុទ្ធនាការ) */}
+         {/* Tab 1: Create */}
          <button 
             type="button"
             onClick={() => handleTabChange("CREATE")}
-            className={`flex flex-col items-center justify-center w-full h-full gap-1 transition-all duration-200 cursor-pointer group`}
+            className={`flex flex-col items-center justify-center w-full h-full gap-0.5 transition-all duration-200 cursor-pointer group`}
          >
-            <div className={`px-4 py-1 rounded-full flex items-center justify-center transition-all duration-300 ${
+            <div className={`px-4 py-1 rounded-[20px] flex items-center justify-center transition-all duration-300 ${
                activeTab === "CREATE" 
-                  ? 'bg-blue-600 text-white shadow-md shadow-blue-500/30 scale-105' 
+                  ? 'bg-blue-600 text-white shadow-[0_4px_12px_rgba(37,99,235,0.4)] scale-105' 
                   : 'hover:bg-slate-500/10'
             }`}>
                <span className="text-[18px] leading-none">📝</span>
@@ -3761,15 +3761,15 @@ export default function Home() {
             <span className={`text-[10px] tracking-tight font-bold ${activeTab === "CREATE" ? (theme === 'dark' ? 'text-white' : 'text-blue-600') : 'opacity-70'}`}>បង្កើត</span>
          </button>
 
-         {/* Tab 2: Manage (ប្ដូរមកជារូបតារាងស្ថិតិ/យុទ្ធសាស្ត្រ - ដែនគ្រប់គ្រង) */}
+         {/* Tab 2: Manage */}
          <button 
             type="button"
             onClick={() => handleTabChange("MANAGE")}
-            className={`flex flex-col items-center justify-center w-full h-full gap-1 transition-all duration-200 cursor-pointer group`}
+            className={`flex flex-col items-center justify-center w-full h-full gap-0.5 transition-all duration-200 cursor-pointer group`}
          >
-            <div className={`px-4 py-1 rounded-full flex items-center justify-center transition-all duration-300 ${
+            <div className={`px-4 py-1 rounded-[20px] flex items-center justify-center transition-all duration-300 ${
                activeTab === "MANAGE" 
-                  ? 'bg-blue-600 text-white shadow-md shadow-blue-500/30 scale-105' 
+                  ? 'bg-blue-600 text-white shadow-[0_4px_12px_rgba(37,99,235,0.4)] scale-105' 
                   : 'hover:bg-slate-500/10'
             }`}>
                <span className="text-[18px] leading-none">📊</span>
@@ -3777,15 +3777,15 @@ export default function Home() {
             <span className={`text-[10px] tracking-tight font-bold ${activeTab === "MANAGE" ? (theme === 'dark' ? 'text-white' : 'text-blue-600') : 'opacity-70'}`}>គ្រប់គ្រង</span>
          </button>
 
-         {/* Tab 3: AI Copywriter (រក្សារូបផ្កាយរះ ឬអាចប្ដូរជា Bot ជំនួយការ) */}
+         {/* Tab 3: AI Copy */}
          <button 
             type="button"
             onClick={() => handleTabChange("AI")}
-            className={`flex flex-col items-center justify-center w-full h-full gap-1 transition-all duration-200 cursor-pointer group`}
+            className={`flex flex-col items-center justify-center w-full h-full gap-0.5 transition-all duration-200 cursor-pointer group`}
          >
-            <div className={`px-4 py-1 rounded-full flex items-center justify-center transition-all duration-300 ${
+            <div className={`px-4 py-1 rounded-[20px] flex items-center justify-center transition-all duration-300 ${
                activeTab === "AI" 
-                  ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md shadow-indigo-500/30 scale-105' 
+                  ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-[0_4px_12px_rgba(99,102,241,0.4)] scale-105' 
                   : 'hover:bg-slate-500/10'
             }`}>
                <span className="text-[18px] leading-none">✨</span>
