@@ -397,7 +397,7 @@ export default function Home() {
   };
 
   const [platforms, setPlatforms] = useState({
-    facebook: true, instagram: true, audienceNetwork: true, messenger: true, whatsapp: false, threads: false
+    facebook: true, instagram: false, audienceNetwork: false, messenger: true, whatsapp: false, threads: false
   });
 
   const [expandedPlacements, setExpandedPlacements] = useState({
@@ -405,8 +405,8 @@ export default function Home() {
   });
 
   const [detailedPlacements, setDetailedPlacements] = useState({
-    fb_feed: true, fb_profile: true, ig_feed: true, ig_profile: true, fb_marketplace: true, fb_right_col: false, ig_explore: true, fb_business: false, threads_feed: false, fb_notifications: true,
-    ig_stories: true, fb_stories: true, msg_stories: false, ig_reels: true, fb_reels: true, wa_status: false,
+    fb_feed: true, fb_profile: true, ig_feed: false, ig_profile: false, fb_marketplace: true, fb_right_col: false, ig_explore: false, fb_business: false, threads_feed: false, fb_notifications: true,
+    ig_stories: false, fb_stories: true, msg_stories: true, ig_reels: false, fb_reels: true, wa_status: false,
     instream_reels: true, fb_reels_ads: true,
     fb_search: true, ig_search: false,
     wa_messages: false,
