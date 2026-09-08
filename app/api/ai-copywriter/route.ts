@@ -27,14 +27,14 @@ export async function POST(req: Request) {
           },
         },
         {
-          text: `ផ្អែកលើរូបភាព/វីដេអូដែលបានផ្ដល់ជូននេះ សូមช่วยសរសេរអត្ថបទផ្សាយពាណិជ្ជកម្ម (Copywriting) ជាភាសាខ្មែរឱ្យបានទាក់ទាញបំផុត តាមសំណើ៖ ${prompt}`
+          text: `ផ្អែកលើរូបភាព/វីដេអូដែលបានផ្ដល់ជូនนี้ សូមជួយសរសេរអត្ថបទផ្សាយពាណិជ្ជកម្ម (Copywriting) ជាភាសាខ្មែរឱ្យបានទាក់ទាញបំផុត តាមសំណើ៖ ${prompt}`
         }
       ];
     }
 
-    // ហៅប្រើប្រាស់ Gemini Model ស៊េរីថ្មីទ່ី SDK នេះស្គាល់ច្បាស់
+    // ហៅប្រើប្រាស់ Gemini Model ស៊េរីថ្មីដែល SDK ទទួលស្គាល់ (ប្ដូរពី gemini-3.6-flash មកជា gemini-2.5-flash)
     const response = await ai.models.generateContent({
-      model: 'gemini-3.6-flash', 
+      model: 'gemini-2.5-flash', 
       contents: contents,
     });
 
