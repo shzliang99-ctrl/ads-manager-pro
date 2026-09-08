@@ -25,6 +25,7 @@ export async function GET(request: Request) {
 
     let url = '';
 
+    // 🌟 កំណត់ &limit=500 ដើម្បីទាញយក Ad Sets មកបង្ហាញបានច្រើនពេញលេញ
     if (campaignId) {
       url = `https://graph.facebook.com/v18.0/${campaignId}/adsets?fields=id,name,status,effective_status,daily_budget,lifetime_budget,end_time,bid_strategy,updated_time,insights.date_preset(${datePreset}){spend,impressions,reach,actions}&limit=500&access_token=${accessToken}`;
     } else if (adAccountId) {

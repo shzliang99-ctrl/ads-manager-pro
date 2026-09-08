@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-// Helper function សម្រាប់ទាញយក Token ទាំងពី Query Parameters ឬ Request Body
+// 🌟 Helper function សម្រាប់ទាញយក Token (គាំទ្រទាំង Query Parameters និង Request Body)
 function getAccessToken(request: Request, body?: any) {
   const { searchParams } = new URL(request.url);
   const clientToken = searchParams.get('access_token') || body?.access_token;
@@ -36,7 +36,7 @@ export async function GET(request: Request) {
         adSetIds = adSetsData.data.map((adset: any) => adset.id);
       }
 
-      // ២. វាយលុកទាញយក Ads (ដោយប្រើ Level=ad ឱ្យច្បាស់លាស់)
+      // ២. វាយលុកទាញយក Ads (ដោយប្រើ Level=ad ឱ្យច្បាស់លាស់ និង limit=500)
       for (const id of adSetIds) {
         const adsRes = await fetch(`https://graph.facebook.com/v18.0/${id}/ads?fields=id,name,status,effective_status,creative{id,name,object_story_id,thumbnail_url},insights.date_preset(${datePreset}).level(ad){spend,impressions,reach,actions}&limit=500&access_token=${accessToken}`);
         const adsData = await adsRes.json();

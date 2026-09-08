@@ -22,6 +22,7 @@ export async function GET(request: Request) {
       throw new Error("Missing Token or Ad Account ID");
     }
 
+    // 🌟 បានបន្ថែម &limit=500 រួចរាល់ ដើម្បីទាញយក Campaigns មកទាំងអស់
     const response = await fetch(
       `https://graph.facebook.com/v18.0/${targetAdAccountId}/campaigns?fields=id,name,status,effective_status,daily_budget,lifetime_budget,objective,start_time,stop_time,insights.date_preset(${datePreset}){spend,impressions,reach,actions}&limit=500&access_token=${accessToken}`,
       { cache: 'no-store' }
