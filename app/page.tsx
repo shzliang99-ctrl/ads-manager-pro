@@ -1513,57 +1513,38 @@ export default function Home() {
                           const idText = document.getElementById('extractedIdText');
                           
                           if (resultBox && idText) {
-                            idText.innerText = "⏳ កំពុងបំប្លែង Link...";
+                            idText.innerText = "⏳ កំពុងកាយរកលេខ ID សុទ្ធ...";
                             resultBox.classList.remove('hidden');
                           }
 
-                          let finalId = "";
-
-                          // 1. សាកល្បងស្រង់យកលេខចេញពី Link ផ្ទាល់សិន (សម្រាប់ Link កុំព្យូទ័រធម្មតា)
-                          const pcbMatch = urlInput.match(/set=pcb\.([0-9]+)/);
-                          const fbidMatch = urlInput.match(/(?:story_fbid=|fbid=)([0-9]+)/);
-                          const postMatch = urlInput.match(/\/posts\/([0-9]+)/);
-                          const pfbidMatch = urlInput.match(/(pfbid[a-zA-Z0-9]+)/);
-
-                          if (pcbMatch) finalId = pcbMatch[1];
-                          else if (fbidMatch) finalId = fbidMatch[1];
-                          else if (postMatch) finalId = postMatch[1];
-                          else if (pfbidMatch) finalId = pfbidMatch[1];
-
-                          // 2. បើសិនជា Link ខ្លីពីទូរស័ព្ទ (share/p) ឬរក ID មិនឃើញ ហៅ API ឱ្យជួយបំប្លែង!
-                          if (!finalId || urlInput.includes('/share/')) {
-                            try {
+                          try {
+                              // តែងតែបាញ់ទៅ API ដើម្បីលាតត្រដាង និងកាយយកលេខសុទ្ធពី Facebook 100%
                               const res = await fetch('/api/resolve-fb-link', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({ url: urlInput })
                               });
                               const data = await res.json();
-                              
+
+                              let finalId = "";
                               if (data.success && data.id) {
-                                finalId = data.id; // ទាញបានលេខ ID ពិតប្រាកដជោគជ័យ!
+                                  finalId = data.id; // ទាញបានលេខសុទ្ធ ដូចអ្វីដែលបងចង់បាន!
+                              } else {
+                                  finalId = "❌ រកលេខសុទ្ធមិនឃើញទេ សាកល្បង Copy Link ពីកុំព្យូទ័រវិញ។";
                               }
-                            } catch(e) {
-                              console.log("API Fetch Error");
-                            }
-                          }
 
-                          // 3. បើបំប្លែងហើយនៅតែមិនចេញទៀត
-                          if (!finalId) {
-                            finalId = "❌ រកលេខ ID មិនឃើញទេ។ សូមពិនិត្យ Link ឡើងវិញ។";
-                          }
+                              if (idText) idText.innerText = finalId;
 
-                          // Update ចូលក្នុង UI
-                          if (idText) idText.innerText = finalId;
+                              // Save ចូល History
+                              if (finalId && !finalId.startsWith("❌")) {
+                                const newItem = { url: urlInput, id: finalId, time: new Date().toLocaleTimeString() };
+                                const updatedHistory = [newItem, ...postIdHistory.filter((item: any) => item.id !== finalId)].slice(0, 10);
+                                localStorage.setItem('post_id_history', JSON.stringify(updatedHistory));
+                                setPostIdHistory(updatedHistory);
+                              }
 
-                          // រក្សាទុកចូលប្រវត្តិ History
-                          if (finalId && !finalId.startsWith("❌")) {
-                            try {
-                              const newItem = { url: urlInput, id: finalId, time: new Date().toLocaleTimeString() };
-                              const updatedHistory = [newItem, ...postIdHistory.filter((item: any) => item.id !== finalId)].slice(0, 10);
-                              localStorage.setItem('post_id_history', JSON.stringify(updatedHistory));
-                              setPostIdHistory(updatedHistory);
-                            } catch(e) {}
+                          } catch (error) {
+                              if (idText) idText.innerText = "❌ បរាជ័យក្នុងការតភ្ជាប់ទៅកាន់ API";
                           }
                         }}
                         className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 rounded-xl text-[14px] shadow-md transition cursor-pointer shrink-0"
