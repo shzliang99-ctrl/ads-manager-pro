@@ -16,7 +16,6 @@ const datePresetOptions = [
 
 export default function Home() {
 
-  const [showAdSetupSection, setShowAdSetupSection] = useState(false);
   const [adName, setAdName] = useState("");
 
   const [postSearchQuery, setPostSearchQuery] = useState("");
@@ -2076,103 +2075,6 @@ export default function Home() {
                       </div>
                     )}
                   </div>
-                </div>
-
-                {/* ================================================= */}
-                {/* ៣. Ad Setup Section (មានប៊ូតុង Dropdown បិទ/បើកត្រឹមត្រូវ) */}
-                {/* ================================================= */}
-                <div className={`p-6 rounded-xl shadow-sm border flex flex-col gap-5 w-full min-w-0 transition-colors mt-6 ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-800'}`}>
-                  
-                  {/* 🌟 Header ជាមួយប៊ូតុងចុចបិទ/បើកទម្លាក់ចុះក្រោម */}
-                  <div 
-                    onClick={() => setShowAdSetupSection(!showAdSetupSection)}
-                    className="flex justify-between items-center border-b pb-2 cursor-pointer select-none"
-                  >
-                    <h3 className={`font-bold flex items-center gap-2 ${theme === 'dark' ? 'border-slate-700 text-white' : 'border-slate-200 text-slate-800'}`}>
-                      <span className={`p-1 rounded ${theme === 'dark' ? 'bg-[#3A3B3C]' : 'bg-slate-100'}`}>📢</span> ៣. Ad Setup
-                    </h3>
-                    <button type="button" className="text-[12px] font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1.5 cursor-pointer bg-blue-50 dark:bg-blue-950/40 px-3 py-1.5 rounded-lg transition-all">
-                      <span>{showAdSetupSection ? "▲ លាក់ការកំណត់" : "⚙️ បើកទម្លាក់មើលបន្ថែម"}</span>
-                    </button>
-                  </div>
-
-                  {/* Ad Name (បង្ហាញជានិច្ចនៅខាងក្រៅ) */}
-                  <div>
-                    <label className={`block text-sm font-semibold mb-1.5 ${theme === 'dark' ? 'text-slate-300' : 'text-slate-600'}`}>Ad name (ឈ្មោះពាណិជ្ជកម្ម)</label>
-                    <input type="text" value={adName} onChange={(e) => saveParam("adName", e.target.value, setAdName)} className={`w-full border rounded-lg p-3 outline-none focus:border-blue-500 font-semibold ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'}`} placeholder="New Engagement Ad" />
-                  </div>
-
-                  {/* 🌟 ផ្នែកខាងក្នុងដែលត្រូវលាក់/បង្ហាញ ពេលចុចប៊ូតុង Dropdown */}
-                  {showAdSetupSection && (
-                    <div className="flex flex-col gap-5 animate-in slide-in-from-top-2 duration-200">
-                      
-                      {/* Identity */}
-                      <div>
-                        <label className={`block text-sm font-semibold mb-1.5 ${theme === 'dark' ? 'text-slate-300' : 'text-slate-600'}`}>Identity</label>
-                        <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-[#18191A] border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
-                           <p className={`text-sm font-semibold mb-2 ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>Facebook Page</p>
-                           <select value={selectedPage} onChange={(e) => setSelectedPage(e.target.value)} className={`w-full border rounded-lg p-2.5 outline-none text-sm font-medium ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-900'}`}>
-                              {pages.length > 0 ? pages.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>) : <option>No Page Selected</option>}
-                           </select>
-                        </div>
-                      </div>
-
-                      {/* Ad Setup */}
-                      <div>
-                        <div className="flex items-center gap-2 mb-2">
-                          <input type="radio" checked readOnly className="w-4 h-4 text-blue-600" />
-                          <label className={`font-bold text-sm ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>Ad setup</label>
-                        </div>
-                        <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-[#18191A] border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
-                           <select className={`w-full border rounded-lg p-2.5 outline-none text-sm font-medium mb-3 ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-900'}`}>
-                             <option value="USE_EXISTING_POST">Use existing posts</option>
-                           </select>
-                           
-                           <label className="flex items-start gap-2.5 cursor-pointer select-none">
-                             <input type="checkbox" defaultChecked className="w-4 h-4 mt-0.5 rounded text-blue-600 border-slate-400" />
-                             <div>
-                               <span className={`text-sm font-bold ${theme === 'dark' ? 'text-slate-200' : 'text-slate-800'}`}>Multi-advertiser ads</span>
-                               <p className={`text-[11px] ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>Your ad can appear with others in the same ad unit to help promote discoverability.</p>
-                             </div>
-                           </label>
-                        </div>
-                      </div>
-
-                      {/* Ad Creative */}
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <input type="radio" checked readOnly className="w-4 h-4 text-blue-600" />
-                          <label className={`font-bold text-sm ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>Ad creative</label>
-                        </div>
-                        <p className={`text-[12px] mb-3 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>Select and optimize your ad text, media and enhancements.</p>
-                        
-                        <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-[#18191A] border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
-                           <label className="flex items-center gap-2 mb-4 cursor-pointer select-none">
-                             <input type="checkbox" className="w-4 h-4 rounded text-blue-600 border-slate-400" />
-                             <span className={`text-sm font-medium ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>Expand each post to customize its text</span>
-                           </label>
-
-                           <div className={`p-3 rounded-lg border flex items-center justify-between gap-3 ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600' : 'bg-white border-slate-300'}`}>
-                             <div className="flex items-center gap-3 min-w-0">
-                               <div className="w-10 h-10 rounded bg-slate-200 shrink-0 flex items-center justify-center text-xs font-bold text-slate-500 overflow-hidden">
-                                 {selectedPost ? 'POST' : 'IMG'}
-                               </div>
-                               <p className={`text-xs truncate ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
-                                 {selectedPost ? `Post Selected: ${selectedPost}` : 'No post selected...'}
-                               </p>
-                             </div>
-                             <span className="text-xs text-blue-600 font-bold shrink-0 cursor-pointer hover:underline" onClick={() => setIsPostMenuOpen(true)}>Change</span>
-                           </div>
-
-                           <div className="flex items-center justify-between mt-4">
-                             <button type="button" className="text-[13px] font-bold text-slate-700 bg-slate-200 hover:bg-slate-300 px-4 py-2 rounded-lg transition cursor-pointer" onClick={() => setIsPostMenuOpen(true)}>Select post</button>
-                             <button type="button" className="text-[13px] font-bold text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-lg transition cursor-pointer" onClick={() => setIsCreatePostOpen(true)}>+ Create post</button>
-                           </div>
-                        </div>
-                      </div>
-
-                    </div>
-                  )}
                 </div>
 
                 {/* Ad Setup Area */}
