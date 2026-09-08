@@ -2079,7 +2079,7 @@ export default function Home() {
                 </div>
 
                 {/* ================================================= */}
-                {/* ៣. Ad Setup Section (ផ្នែកថ្មីទើបបង្កើត) */}
+                {/* ៣. Ad Setup Section (មានប៊ូតុង Dropdown បិទ/បើកត្រឹមត្រូវ) */}
                 {/* ================================================= */}
                 <div className={`p-6 rounded-xl shadow-sm border flex flex-col gap-5 w-full min-w-0 transition-colors mt-6 ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-800'}`}>
                   
@@ -2096,10 +2096,10 @@ export default function Home() {
                     </button>
                   </div>
 
-                  {/* Ad Name (បង្ហាញជានិច្ច) */}
+                  {/* Ad Name (បង្ហាញជានិច្ចនៅខាងក្រៅ) */}
                   <div>
                     <label className={`block text-sm font-semibold mb-1.5 ${theme === 'dark' ? 'text-slate-300' : 'text-slate-600'}`}>Ad name (ឈ្មោះពាណិជ្ជកម្ម)</label>
-                    <input type="text" value={adName} onChange={(e) => setAdName(e.target.value)} className={`w-full border rounded-lg p-3 outline-none focus:border-blue-500 font-semibold ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'}`} placeholder="New Engagement Ad" />
+                    <input type="text" value={adName} onChange={(e) => saveParam("adName", e.target.value, setAdName)} className={`w-full border rounded-lg p-3 outline-none focus:border-blue-500 font-semibold ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'}`} placeholder="New Engagement Ad" />
                   </div>
 
                   {/* 🌟 ផ្នែកខាងក្នុងដែលត្រូវលាក់/បង្ហាញ ពេលចុចប៊ូតុង Dropdown */}
@@ -2111,7 +2111,6 @@ export default function Home() {
                         <label className={`block text-sm font-semibold mb-1.5 ${theme === 'dark' ? 'text-slate-300' : 'text-slate-600'}`}>Identity</label>
                         <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-[#18191A] border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
                            <p className={`text-sm font-semibold mb-2 ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>Facebook Page</p>
-                           {/* បង្ហាញ Page ដែលបានរើស ឬអត់ */}
                            <select value={selectedPage} onChange={(e) => setSelectedPage(e.target.value)} className={`w-full border rounded-lg p-2.5 outline-none text-sm font-medium ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-900'}`}>
                               {pages.length > 0 ? pages.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>) : <option>No Page Selected</option>}
                            </select>
@@ -2148,28 +2147,6 @@ export default function Home() {
                         <p className={`text-[12px] mb-3 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>Select and optimize your ad text, media and enhancements.</p>
                         
                         <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-[#18191A] border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
-                           <label className="flex items-center gap-2 mb-4 cursor-pointer select-none">
-                             <input type="checkbox" className="w-4 h-4 rounded text-blue-600 border-slate-400" />
-                             <span className={`text-sm font-medium ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>Expand each post to customize its text</span>
-                           </label>
-
-                           <div className={`p-3 rounded-lg border flex items-center justify-between gap-3 ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600' : 'bg-white border-slate-300'}`}>
-                             <div className="flex items-center gap-3 min-w-0">
-                               <div className="w-10 h-10 rounded bg-slate-200 shrink-0 flex items-center justify-center text-xs font-bold text-slate-500 overflow-hidden">
-                                 {selectedPostId ? 'POST' : 'IMG'}
-                               </div>
-                               <p className={`text-xs truncate ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
-                                 {selectedPostId ? `Post Selected: ${selectedPostId}` : 'No post selected...'}
-                               </p>
-                             </div>
-                             <span className="text-xs text-blue-600 font-bold shrink-0 cursor-pointer hover:underline" onClick={() => setShowPostSelector(true)}>Change</span>
-                           </div>
-
-                           <div className="flex items-center justify-between mt-4">
-                             <button type="button" className="text-[13px] font-bold text-slate-700 bg-slate-200 hover:bg-slate-300 px-4 py-2 rounded-lg transition" onClick={() => setShowPostSelector(true)}>Select post</button>
-                             <button type="button" className="text-[13px] font-bold text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-lg transition">+ Create post</button>
-                           </div>
-                        </div>
                       </div>
 
                     </div>
