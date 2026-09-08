@@ -2306,19 +2306,30 @@ export default function Home() {
 
                 </div>
 
-                {/* Bottom Sticky Action Bar */}
-                <div className={`fixed bottom-0 left-0 md:left-[260px] right-0 border-t p-4 flex justify-between items-center z-50 shadow-[0_-10px_20px_-10px_rgba(0,0,0,0.1)] transition-colors ${theme === 'dark' ? 'bg-[#18191A] border-slate-700' : 'bg-white border-slate-300'}`}>
-                   <div className={`text-[13px] hidden sm:block ml-4 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>By clicking Publish, you acknowledge that your use of Meta's ad tools is subject to our <span className="text-[#1877F2] cursor-pointer hover:underline">Terms and Conditions</span>.</div>
-                   <div className="flex gap-3 w-full sm:w-auto justify-end mr-4">
-                      <button type="button" className={`px-6 py-2 border rounded-lg font-bold text-[14px] transition shadow-sm ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-slate-200 hover:bg-[#4E4F50]' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'}`}>Close</button>
-                      <button 
-                        type="submit" 
-                        disabled={loading || !selectedPost || isBudgetError}
-                        className={`px-10 py-2 rounded-lg text-white font-bold text-[14px] transition shadow-md ${loading || !selectedPost || isBudgetError ? (theme === 'dark' ? 'bg-[#3A3B3C] text-slate-500' : 'bg-[#E4E6EB] text-[#BCC0C4]') : 'bg-[#1877F2] hover:bg-[#166FE5]'}`}
-                      >
-                        {loading ? "Publishing..." : "Publish"}
-                      </button>
-                   </div>
+                {/* 🌟 ប៊ូតុង Close និង Publish នៅបាតក្រោម */}
+                <div className={`mt-6 p-4 rounded-xl border flex flex-col sm:flex-row justify-between items-center gap-4 shadow-sm mb-16 md:mb-4 ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-900'}`}>
+                  
+                  <div className="text-[12px] hidden sm:block">
+                    By clicking Publish, you acknowledge Meta's <span className="text-[#1877F2] cursor-pointer hover:underline">Terms and Conditions</span>.
+                  </div>
+                  
+                  <div className="flex gap-3 w-full sm:w-auto justify-end">
+                    <button 
+                      type="button" 
+                      className={`px-6 py-2.5 border rounded-lg font-bold text-[14px] transition shadow-sm flex-1 sm:flex-none cursor-pointer ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-slate-200 hover:bg-[#4E4F50]' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'}`}
+                    >
+                      Close
+                    </button>
+                    
+                    <button 
+                      type="submit" 
+                      disabled={loading || !selectedPost || isBudgetError}
+                      className={`px-10 py-2.5 rounded-lg text-white font-bold text-[14px] transition shadow-md flex-1 sm:flex-none cursor-pointer ${loading || !selectedPost || isBudgetError ? (theme === 'dark' ? 'bg-[#3A3B3C] text-slate-500' : 'bg-[#E4E6EB] text-[#BCC0C4]') : 'bg-[#1877F2] hover:bg-[#166FE5]'}`}
+                    >
+                      {loading ? "Publishing..." : "Publish"}
+                    </button>
+                  </div>
+
                 </div>
 
               </form>
