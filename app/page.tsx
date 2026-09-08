@@ -1512,61 +1512,51 @@ export default function Home() {
                           const resultBox = document.getElementById('extractedResultBox');
                           const idText = document.getElementById('extractedIdText');
                           
-                          // បង្ហាញស្ថានភាពកំពុងទាញយក (លុប alert() ចោលដើម្បីកុំឱ្យទើសភ្នែក)
                           if (resultBox && idText) {
-                            idText.innerText = "⏳ កំពុងស្វែងរក...";
+                            idText.innerText = "⏳ កំពុងបំប្លែង Link...";
                             resultBox.classList.remove('hidden');
                           }
 
                           let finalId = "";
 
-                          // ១. ទាញយកលេខចេញពីទម្រង់ pcb (ដូចក្នុងរូបទី២ របស់បង set=pcb.1516420673615366)
+                          // 1. សាកល្បងស្រង់យកលេខចេញពី Link ផ្ទាល់សិន (សម្រាប់ Link កុំព្យូទ័រធម្មតា)
                           const pcbMatch = urlInput.match(/set=pcb\.([0-9]+)/);
-                          // ២. ទាញយកលេខពី fbid ឬ story_fbid
                           const fbidMatch = urlInput.match(/(?:story_fbid=|fbid=)([0-9]+)/);
-                          // ៣. ទាញយកលេខពី /posts/
                           const postMatch = urlInput.match(/\/posts\/([0-9]+)/);
-                          // ៤. ទាញយក pfbid (បើសិនជាមានស្រាប់)
                           const pfbidMatch = urlInput.match(/(pfbid[a-zA-Z0-9]+)/);
 
-                          if (pcbMatch) {
-                            finalId = pcbMatch[1]; // យកលេខ 1516420673615366 សុទ្ធយកមកប្រើ
-                          } else if (fbidMatch) {
-                            finalId = fbidMatch[1];
-                          } else if (postMatch) {
-                            finalId = postMatch[1];
-                          } else if (pfbidMatch) {
-                            finalId = pfbidMatch[1];
-                          } else if (urlInput.includes('/share/')) {
-                            // បើជា short link (share/p) ទើបឱ្យវាសុំជំនួយពី API
+                          if (pcbMatch) finalId = pcbMatch[1];
+                          else if (fbidMatch) finalId = fbidMatch[1];
+                          else if (postMatch) finalId = postMatch[1];
+                          else if (pfbidMatch) finalId = pfbidMatch[1];
+
+                          // 2. បើសិនជា Link ខ្លីពីទូរស័ព្ទ (share/p) ឬរក ID មិនឃើញ ហៅ API ឱ្យជួយបំប្លែង!
+                          if (!finalId || urlInput.includes('/share/')) {
                             try {
-                              const userToken = localStorage.getItem('fb_user_token');
-                              const pageInfo = pages.find(p => p.id === selectedPage);
-                              const token = pageInfo?.access_token || userToken;
-
-                              if (token) {
-                                const res = await fetch('/api/get-post-id', {
-                                  method: 'POST',
-                                  headers: { 'Content-Type': 'application/json' },
-                                  body: JSON.stringify({ postUrl: urlInput, access_token: token, pageId: selectedPage })
-                                });
-                                const data = await res.json();
-                                if (data.success && data.postId) finalId = data.postId;
+                              const res = await fetch('/api/resolve-fb-link', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ url: urlInput })
+                              });
+                              const data = await res.json();
+                              
+                              if (data.success && data.id) {
+                                finalId = data.id; // ទាញបានលេខ ID ពិតប្រាកដជោគជ័យ!
                               }
-                            } catch (err) {}
+                            } catch(e) {
+                              console.log("API Fetch Error");
+                            }
                           }
 
-                          // បើរកមិនឃើញសោះ
+                          // 3. បើបំប្លែងហើយនៅតែមិនចេញទៀត
                           if (!finalId) {
-                            finalId = "❌ រកលេខ ID មិនឃើញទេ។ សូមកូពី Link ពេញពីកុំព្យូទ័រមកដាក់វិញ។";
+                            finalId = "❌ រកលេខ ID មិនឃើញទេ។ សូមពិនិត្យ Link ឡើងវិញ។";
                           }
 
-                          // បង្ហាញលទ្ធផលចុងក្រោយចូលប្រអប់
-                          if (idText) {
-                            idText.innerText = finalId;
-                          }
+                          // Update ចូលក្នុង UI
+                          if (idText) idText.innerText = finalId;
 
-                          // រក្សាទុកចូលក្នុង History (បើវាជា ID ត្រឹមត្រូវ)
+                          // រក្សាទុកចូលប្រវត្តិ History
                           if (finalId && !finalId.startsWith("❌")) {
                             try {
                               const newItem = { url: urlInput, id: finalId, time: new Date().toLocaleTimeString() };
