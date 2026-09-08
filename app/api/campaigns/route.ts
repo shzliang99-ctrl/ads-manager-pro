@@ -14,7 +14,12 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const queryAdAccountId = searchParams.get('adAccountId');
-    const datePreset = searchParams.get('datePreset') || 'today';
+    let datePreset = searchParams.get('datePreset') || 'maximum';
+
+    // 🌟 ការពារករណីពាក្យ Lifetime ឬ last_30d ឱ្យរត់ត្រូវជាមួយ Graph API
+    if (datePreset.toLowerCase() === 'lifetime' || datePreset.toLowerCase() === 'maximum') {
+      datePreset = 'maximum';
+    }
 
     const targetAdAccountId = queryAdAccountId ? `act_${queryAdAccountId.replace('act_', '')}` : defaultAdAccountId;
 
@@ -22,12 +27,10 @@ export async function GET(request: Request) {
       throw new Error("Missing Token or Ad Account ID");
     }
 
-    // 🌟 បានបន្ថែម &limit=500 រួចរាល់ ដើម្បីទាញយក Campaigns មកទាំងអស់
-    const response = await fetch(
-      `https://graph.facebook.com/v18.0/${targetAdAccountId}/campaigns?fields=id,name,status,effective_status,daily_budget,lifetime_budget,objective,start_time,stop_time,insights.date_preset(${datePreset}){spend,impressions,reach,actions}&limit=500&access_token=${accessToken}`,
-      { cache: 'no-store' }
-    );
-    
+    // 🌟 URL ដែលបានកែសម្រួលដើម្បីទាញយក insights ពេញលេញ និង limit=500
+    const endpoint = `https://graph.facebook.com/v18.0/${targetAdAccountId}/campaigns?fields=id,name,status,effective_status,daily_budget,lifetime_budget,objective,start_time,stop_time,insights.date_preset(${datePreset}){spend,impressions,reach,actions}&limit=500&access_token=${accessToken}`;
+
+    const response = await fetch(endpoint, { cache: 'no-store' });
     const data = await response.json();
 
     if (data.error) {
