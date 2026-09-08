@@ -263,6 +263,7 @@ export default function Home() {
   const [selectedDatePreset, setSelectedDatePreset] = useState("last_30d");
 
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
+  const [showPlacementsSection, setShowPlacementsSection] = useState(false);
   const [campaignName, setCampaignName] = useState("New Engagement Campaign");
   const [adsetName, setAdsetName] = useState("New Engagement Ad Set");
   const [adName, setAdName] = useState("New Engagement Ad");
@@ -1867,197 +1868,211 @@ export default function Home() {
                   </div>
 
                   <div className={`border rounded-xl overflow-visible mt-2 flex-1 ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-                    <div className={`p-3 border-b ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-700' : 'bg-slate-100 border-slate-200'}`}>
-                      <label className={`block text-sm font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>Placements</label>
+                    
+                    {/* 🌟 ប្តូរ Header ទៅជាប៊ូតុងដែលអាចចុចបិទ/បើកបាន */}
+                    <div 
+                      onClick={() => setShowPlacementsSection(!showPlacementsSection)}
+                      className={`p-3.5 border-b flex justify-between items-center cursor-pointer select-none transition-colors ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-700 text-white hover:bg-[#4E4F50]' : 'bg-slate-100 border-slate-200 text-slate-800 hover:bg-slate-200'}`}
+                    >
+                      <label className={`block text-sm font-bold cursor-pointer ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>
+                        📍 Placements
+                      </label>
+                      <button type="button" className="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1 cursor-pointer">
+                        {showPlacementsSection ? "▲ លាក់ការកំណត់" : "⚙️ បើកទម្លាក់មើលបន្ថែម"}
+                      </button>
                     </div>
-                    <div className={`p-4 flex flex-col gap-4 ${theme === 'dark' ? 'bg-[#242526]' : 'bg-white'}`}>
-                      <select value={placementType} onChange={(e) => saveParam("placementType", e.target.value, setPlacementType)} className={`w-full border rounded-lg p-2.5 text-sm outline-none font-medium cursor-pointer ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'}`}>
-                        <option value="ADVANTAGE">✨ Advantage+ placements</option>
-                        <option value="MANUAL">⚙️ Manual placements</option>
-                      </select>
 
-                      {placementType === "MANUAL" && (
-                        <div className={`flex flex-col gap-4 pt-4 border-t animate-in fade-in text-sm ${theme === 'dark' ? 'border-slate-700' : 'border-slate-100'}`}>
-                          
-                          {/* Devices and OS */}
-                          <div className={`rounded-lg border shadow-sm transition-all ${theme === 'dark' ? 'bg-[#18191A] border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
-                             <div className="flex justify-between items-center p-3 cursor-pointer select-none" onClick={() => setShowDevices(!showDevices)}>
-                                <h4 className={`font-bold ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`}>Devices and operating systems</h4>
-                                <span className="text-slate-500 font-black text-xs">{showDevices ? '▲' : '▼'}</span>
-                             </div>
-                             
-                             {showDevices && (
-                                <div className="flex flex-col gap-3 px-3 pb-4 animate-in fade-in slide-in-from-top-2">
-                                   <select value={deviceType} onChange={(e) => saveParam("deviceType", e.target.value, setDeviceType)} className={`w-full border rounded-md p-2 outline-none cursor-pointer shadow-sm ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-700'}`}>
-                                       <option value="ALL">All devices (recommended)</option>
-                                       <option value="MOBILE">Mobile</option>
-                                       <option value="DESKTOP">Desktop</option>
-                                   </select>
-                                   <select value={osType} onChange={(e) => saveParam("osType", e.target.value, setOsType)} className={`w-full border rounded-md p-2 outline-none cursor-pointer shadow-sm ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-700'}`}>
-                                       <option value="ALL">All mobile devices</option>
-                                       <option value="ANDROID">Android devices only</option>
-                                       <option value="IOS">iOS devices only</option>
-                                       <option value="FEATURE">Feature phones only</option>
-                                   </select>
-                                   {/* Wi-Fi Toggle */}
-                                   <label className={`flex items-center gap-2 mt-1 cursor-pointer font-medium select-none ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
-                                      <input 
-                                        type="checkbox" 
-                                        checked={wifiOnly} 
-                                        onChange={(e) => { 
-                                          setWifiOnly(e.target.checked); 
-                                          localStorage.setItem("wifiOnly", String(e.target.checked)); 
-                                        }} 
-                                        className={`w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer ${theme === 'dark' ? 'border-slate-600 bg-[#3A3B3C]' : 'border-slate-300'}`} 
-                                      /> 
-                                      Only when connected to Wi-Fi
-                                   </label>
+                    {/* 🌟 រុំកូដចាស់របស់បងទាំងអស់ជាមួយ showPlacementsSection */}
+                    {showPlacementsSection && (
+                      <div className={`p-4 flex flex-col gap-4 animate-in slide-in-from-top-2 duration-200 ${theme === 'dark' ? 'bg-[#242526]' : 'bg-white'}`}>
+                        <select value={placementType} onChange={(e) => saveParam("placementType", e.target.value, setPlacementType)} className={`w-full border rounded-lg p-2.5 text-sm outline-none font-medium cursor-pointer ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'}`}>
+                          <option value="ADVANTAGE">✨ Advantage+ placements</option>
+                          <option value="MANUAL">⚙️ Manual placements</option>
+                        </select>
+
+                        {placementType === "MANUAL" && (
+                          <div className={`flex flex-col gap-4 pt-4 border-t animate-in fade-in text-sm ${theme === 'dark' ? 'border-slate-700' : 'border-slate-100'}`}>
+                            
+                            {/* Devices and OS */}
+                            <div className={`rounded-lg border shadow-sm transition-all ${theme === 'dark' ? 'bg-[#18191A] border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
+                               <div className="flex justify-between items-center p-3 cursor-pointer select-none" onClick={() => setShowDevices(!showDevices)}>
+                                  <h4 className={`font-bold ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`}>Devices and operating systems</h4>
+                                  <span className="text-slate-500 font-black text-xs">{showDevices ? '▲' : '▼'}</span>
+                               </div>
+                               
+                               {showDevices && (
+                                  <div className="flex flex-col gap-3 px-3 pb-4 animate-in fade-in slide-in-from-top-2">
+                                     <select value={deviceType} onChange={(e) => saveParam("deviceType", e.target.value, setDeviceType)} className={`w-full border rounded-md p-2 outline-none cursor-pointer shadow-sm ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-700'}`}>
+                                         <option value="ALL">All devices (recommended)</option>
+                                         <option value="MOBILE">Mobile</option>
+                                         <option value="DESKTOP">Desktop</option>
+                                     </select>
+                                     <select value={osType} onChange={(e) => saveParam("osType", e.target.value, setOsType)} className={`w-full border rounded-md p-2 outline-none cursor-pointer shadow-sm ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-700'}`}>
+                                         <option value="ALL">All mobile devices</option>
+                                         <option value="ANDROID">Android devices only</option>
+                                         <option value="IOS">iOS devices only</option>
+                                         <option value="FEATURE">Feature phones only</option>
+                                     </select>
+                                     {/* Wi-Fi Toggle */}
+                                     <label className={`flex items-center gap-2 mt-1 cursor-pointer font-medium select-none ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
+                                        <input 
+                                          type="checkbox" 
+                                          checked={wifiOnly} 
+                                          onChange={(e) => { 
+                                            setWifiOnly(e.target.checked); 
+                                            localStorage.setItem("wifiOnly", String(e.target.checked)); 
+                                          }} 
+                                          className={`w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer ${theme === 'dark' ? 'border-slate-600 bg-[#3A3B3C]' : 'border-slate-300'}`} 
+                                        /> 
+                                        Only when connected to Wi-Fi
+                                     </label>
+                                  </div>
+                               )}
+                            </div>
+
+                            {/* Platforms */}
+                            <div className={`border rounded-lg shadow-sm transition-all ${theme === 'dark' ? 'bg-[#242526] border-slate-700' : 'bg-white border-slate-200'}`}>
+                              <div className={`p-3 font-bold flex justify-between cursor-pointer select-none ${theme === 'dark' ? 'bg-[#3A3B3C] text-slate-200' : 'bg-slate-50 text-slate-700'}`} onClick={() => setShowPlatforms(!showPlatforms)}>
+                                    Platforms <span className="text-slate-500 font-black text-xs">{showPlatforms ? '▲' : '▼'}</span>
+                              </div>
+                              
+                              {showPlatforms && (
+                                <div className={`p-4 grid grid-cols-2 gap-y-4 gap-x-2 font-medium animate-in fade-in slide-in-from-top-2 ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
+                                  <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={platforms.facebook} onChange={() => handlePlatformChange('facebook')} className="w-4 h-4 text-blue-600 rounded border-slate-500" /> Facebook</label>
+                                  <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={platforms.instagram} onChange={() => handlePlatformChange('instagram')} className="w-4 h-4 text-blue-600 rounded border-slate-500" /> Instagram</label>
+                                  <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={platforms.audienceNetwork} onChange={() => handlePlatformChange('audienceNetwork')} className="w-4 h-4 text-blue-600 rounded border-slate-500" /> Audience Network</label>
+                                  <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={platforms.messenger} onChange={() => handlePlatformChange('messenger')} className="w-4 h-4 text-blue-600 rounded border-slate-500" /> Messenger</label>
+                                  <label className="flex items-center gap-2 cursor-not-allowed opacity-40"><input type="checkbox" disabled checked={false} className="w-4 h-4 rounded border-slate-500 bg-slate-500/20" /> WhatsApp</label>
+                                  <label className="flex items-center gap-2 cursor-not-allowed opacity-40"><input type="checkbox" disabled checked={false} className="w-4 h-4 rounded border-slate-500 bg-slate-500/20" /> Threads</label>
                                 </div>
-                             )}
-                          </div>
-
-                          {/* Platforms */}
-                          <div className={`border rounded-lg shadow-sm transition-all ${theme === 'dark' ? 'bg-[#242526] border-slate-700' : 'bg-white border-slate-200'}`}>
-                            <div className={`p-3 font-bold flex justify-between cursor-pointer select-none ${theme === 'dark' ? 'bg-[#3A3B3C] text-slate-200' : 'bg-slate-50 text-slate-700'}`} onClick={() => setShowPlatforms(!showPlatforms)}>
-                                Platforms <span className="text-slate-500 font-black text-xs">{showPlatforms ? '▲' : '▼'}</span>
+                              )}
                             </div>
-                            
-                            {showPlatforms && (
-                              <div className={`p-4 grid grid-cols-2 gap-y-4 gap-x-2 font-medium animate-in fade-in slide-in-from-top-2 ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
-                                <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={platforms.facebook} onChange={() => handlePlatformChange('facebook')} className="w-4 h-4 text-blue-600 rounded border-slate-500" /> Facebook</label>
-                                <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={platforms.instagram} onChange={() => handlePlatformChange('instagram')} className="w-4 h-4 text-blue-600 rounded border-slate-500" /> Instagram</label>
-                                <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={platforms.audienceNetwork} onChange={() => handlePlatformChange('audienceNetwork')} className="w-4 h-4 text-blue-600 rounded border-slate-500" /> Audience Network</label>
-                                <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={platforms.messenger} onChange={() => handlePlatformChange('messenger')} className="w-4 h-4 text-blue-600 rounded border-slate-500" /> Messenger</label>
-                                <label className="flex items-center gap-2 cursor-not-allowed opacity-40"><input type="checkbox" disabled checked={false} className="w-4 h-4 rounded border-slate-500 bg-slate-500/20" /> WhatsApp</label>
-                                <label className="flex items-center gap-2 cursor-not-allowed opacity-40"><input type="checkbox" disabled checked={false} className="w-4 h-4 rounded border-slate-500 bg-slate-500/20" /> Threads</label>
-                              </div>
-                            )}
-                          </div>
 
-                          {/* Placement Controls */}
-                          <div className={`border rounded-lg shadow-sm mb-2 transition-all ${theme === 'dark' ? 'bg-[#242526] border-slate-700' : 'bg-white border-slate-200'}`}>
-                            <div className={`p-3 font-bold flex justify-between items-center cursor-pointer select-none ${theme === 'dark' ? 'bg-[#3A3B3C] text-slate-200' : 'bg-slate-50 text-slate-700'}`} onClick={() => setShowPlacementCtrls(!showPlacementCtrls)}>
-                                <span className="flex items-center gap-1">Placement controls <span className="w-3.5 h-3.5 rounded-full bg-slate-400 text-[9px] flex items-center justify-center font-bold text-white">i</span></span>
-                                <span className="text-slate-500 font-black text-xs">{showPlacementCtrls ? '▲' : '▼'}</span>
+                            {/* Placement Controls */}
+                            <div className={`border rounded-lg shadow-sm mb-2 transition-all ${theme === 'dark' ? 'bg-[#242526] border-slate-700' : 'bg-white border-slate-200'}`}>
+                              <div className={`p-3 font-bold flex justify-between items-center cursor-pointer select-none ${theme === 'dark' ? 'bg-[#3A3B3C] text-slate-200' : 'bg-slate-50 text-slate-700'}`} onClick={() => setShowPlacementCtrls(!showPlacementCtrls)}>
+                                    <span className="flex items-center gap-1">Placement controls <span className="w-3.5 h-3.5 rounded-full bg-slate-400 text-[9px] flex items-center justify-center font-bold text-white">i</span></span>
+                                    <span className="text-slate-500 font-black text-xs">{showPlacementCtrls ? '▲' : '▼'}</span>
+                              </div>
+                              
+                              {showPlacementCtrls && (
+                                <div className={`flex flex-col divide-y animate-in fade-in slide-in-from-top-2 ${theme === 'dark' ? 'divide-slate-700' : 'divide-slate-100'}`}>
+                                   
+                                   {/* Feeds */}
+                                   <div>
+                                      <div className={`p-3.5 flex justify-between items-center transition-colors ${theme === 'dark' ? 'hover:bg-[#3A3B3C]' : 'hover:bg-slate-50'}`}>
+                                        <div className="flex items-center gap-3">
+                                          <input type="checkbox" checked={isGroupChecked('feeds')} onChange={(e) => handleGroupToggle('feeds', e.target.checked)} className="w-4 h-4 text-blue-600 rounded border-slate-500 cursor-pointer" />
+                                          <span className={`font-semibold cursor-pointer select-none ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`} onClick={() => toggleAccordion('feeds')}>🪟 Feeds</span>
+                                        </div>
+                                        <div className="cursor-pointer px-2" onClick={() => toggleAccordion('feeds')}>
+                                          <span className="text-slate-500 font-black text-[10px]">{expandedPlacements.feeds ? '▲' : '▼'}</span>
+                                        </div>
+                                      </div>
+                                      {expandedPlacements.feeds && (
+                                        <div className={`px-10 pb-4 pt-2 flex flex-col gap-3.5 text-[13px] font-medium ${theme === 'dark' ? 'bg-[#18191A] text-slate-400' : 'bg-slate-50/50 text-slate-600'}`}>
+                                          <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.fb_feed} onChange={()=>handleDetailedPlacementChange('fb_feed')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Facebook Feed</label>
+                                          <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.fb_profile} onChange={()=>handleDetailedPlacementChange('fb_profile')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Facebook profile feed</label>
+                                          <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.ig_feed} onChange={()=>handleDetailedPlacementChange('ig_feed')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Instagram feed</label>
+                                          <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.ig_profile} onChange={()=>handleDetailedPlacementChange('ig_profile')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Instagram profile feed</label>
+                                          <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.fb_marketplace} onChange={()=>handleDetailedPlacementChange('fb_marketplace')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Facebook Marketplace</label>
+                                          <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.fb_right_col} onChange={()=>handleDetailedPlacementChange('fb_right_col')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Facebook right column</label>
+                                          <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.ig_explore} onChange={()=>handleDetailedPlacementChange('ig_explore')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Instagram Explore home</label>
+                                          <label className="flex items-center gap-3 cursor-pointer opacity-50"><input type="checkbox" disabled checked={detailedPlacements.fb_business} className="w-4 h-4 rounded border-slate-500 bg-slate-500/20" /> Facebook Business Explore</label>
+                                          <label className="flex items-center gap-3 cursor-pointer opacity-50"><input type="checkbox" disabled checked={detailedPlacements.threads_feed} className="w-4 h-4 rounded border-slate-500 bg-slate-500/20" /> Threads feed</label>
+                                          <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.fb_notifications} onChange={()=>handleDetailedPlacementChange('fb_notifications')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Facebook Notifications</label>
+                                        </div>
+                                      )}
+                                   </div>
+
+                                   {/* Stories, Status, Reels */}
+                                   <div>
+                                      <div className={`p-3.5 flex justify-between items-center transition-colors ${theme === 'dark' ? 'hover:bg-[#3A3B3C]' : 'hover:bg-slate-50'}`}>
+                                        <div className="flex items-center gap-3">
+                                          <input type="checkbox" checked={isGroupChecked('stories')} onChange={(e) => handleGroupToggle('stories', e.target.checked)} className="w-4 h-4 text-blue-600 rounded border-slate-500 cursor-pointer" />
+                                          <span className={`font-semibold cursor-pointer select-none ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`} onClick={() => toggleAccordion('stories')}>📱 Stories, Status, Reels</span>
+                                        </div>
+                                        <div className="cursor-pointer px-2" onClick={() => toggleAccordion('stories')}>
+                                          <span className="text-slate-500 font-black text-[10px]">{expandedPlacements.stories ? '▲' : '▼'}</span>
+                                        </div>
+                                      </div>
+                                      {expandedPlacements.stories && (
+                                        <div className={`px-10 pb-4 pt-2 flex flex-col gap-3.5 text-[13px] font-medium ${theme === 'dark' ? 'bg-[#18191A] text-slate-400' : 'bg-slate-50/50 text-slate-600'}`}>
+                                          <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.ig_stories} onChange={()=>handleDetailedPlacementChange('ig_stories')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Instagram Stories</label>
+                                          <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.fb_stories} onChange={()=>handleDetailedPlacementChange('fb_stories')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Facebook Stories</label>
+                                          <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.msg_stories} onChange={()=>handleDetailedPlacementChange('msg_stories')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Messenger Stories</label>
+                                          <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.ig_reels} onChange={()=>handleDetailedPlacementChange('ig_reels')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Instagram Reels</label>
+                                          <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.fb_reels} onChange={()=>handleDetailedPlacementChange('fb_reels')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Facebook Reels</label>
+                                          <label className="flex items-center gap-3 cursor-not-allowed opacity-50"><input type="checkbox" disabled checked={detailedPlacements.wa_status} className="w-4 h-4 rounded border-slate-500 bg-slate-500/20" /> WhatsApp Status</label>
+                                        </div>
+                                      )}
+                                   </div>
+
+                                   {/* In-stream ads for reels */}
+                                   <div>
+                                      <div className={`p-3.5 flex justify-between items-center transition-colors ${theme === 'dark' ? 'hover:bg-[#3A3B3C]' : 'hover:bg-slate-50'}`}>
+                                        <div className="flex items-center gap-3">
+                                          <input type="checkbox" checked={isGroupChecked('instream')} onChange={(e) => handleGroupToggle('instream', e.target.checked)} className="w-4 h-4 text-blue-600 rounded border-slate-500 cursor-pointer" />
+                                          <span className={`font-semibold cursor-pointer select-none ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`} onClick={() => toggleAccordion('instream')}>▷ In-stream ads for reels</span>
+                                        </div>
+                                        <div className="cursor-pointer px-2" onClick={() => toggleAccordion('instream')}>
+                                          <span className="text-slate-500 font-black text-[10px]">{expandedPlacements.instream ? '▲' : '▼'}</span>
+                                        </div>
+                                      </div>
+                                      {expandedPlacements.instream && (
+                                        <div className={`px-10 pb-4 pt-2 flex flex-col gap-3.5 text-[13px] font-medium ${theme === 'dark' ? 'bg-[#18191A] text-slate-400' : 'bg-slate-50/50 text-slate-600'}`}>
+                                          <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.instream_reels} onChange={()=>handleDetailedPlacementChange('instream_reels')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> In-stream for Reels</label>
+                                          <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.fb_reels_ads} onChange={()=>handleDetailedPlacementChange('fb_reels_ads')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Ads on Facebook Reels</label>
+                                        </div>
+                                      )}
+                                   </div>
+
+                                   {/* Search results */}
+                                   <div>
+                                      <div className={`p-3.5 flex justify-between items-center transition-colors ${theme === 'dark' ? 'hover:bg-[#3A3B3C]' : 'hover:bg-slate-50'}`}>
+                                        <div className="flex items-center gap-3">
+                                          <input type="checkbox" checked={isGroupChecked('search')} onChange={(e) => handleGroupToggle('search', e.target.checked)} className="w-4 h-4 text-blue-600 rounded border-slate-500 cursor-pointer" />
+                                          <span className={`font-semibold cursor-pointer select-none ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`} onClick={() => toggleAccordion('search')}>🔍 Search results</span>
+                                        </div>
+                                        <div className="cursor-pointer px-2" onClick={() => toggleAccordion('search')}>
+                                          <span className="text-slate-500 font-black text-[10px]">{expandedPlacements.search ? '▲' : '▼'}</span>
+                                        </div>
+                                      </div>
+                                      {expandedPlacements.search && (
+                                        <div className={`px-10 pb-4 pt-2 flex flex-col gap-3.5 text-[13px] font-medium ${theme === 'dark' ? 'bg-[#18191A] text-slate-400' : 'bg-slate-50/50 text-slate-600'}`}>
+                                          <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.fb_search} onChange={()=>handleDetailedPlacementChange('fb_search')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Facebook search results</label>
+                                          <label className="flex items-center gap-3 cursor-pointer opacity-50"><input type="checkbox" disabled checked={detailedPlacements.ig_search} className="w-4 h-4 rounded border-slate-500 bg-slate-500/20" /> Instagram search results</label>
+                                        </div>
+                                      )}
+                                   </div>
+
+                                   {/* Apps and sites */}
+                                   <div>
+                                      <div className={`p-3.5 flex justify-between items-center transition-colors ${theme === 'dark' ? 'hover:bg-[#3A3B3C]' : 'hover:bg-slate-50'}`}>
+                                        <div className="flex items-center gap-3">
+                                          <input type="checkbox" checked={isGroupChecked('apps')} onChange={(e) => handleGroupToggle('apps', e.target.checked)} className="w-4 h-4 text-blue-600 rounded border-slate-500 cursor-pointer" />
+                                          <span className={`font-semibold cursor-pointer select-none ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`} onClick={() => toggleAccordion('apps')}>💻 Apps and sites</span>
+                                        </div>
+                                        <div className="cursor-pointer px-2" onClick={() => toggleAccordion('apps')}>
+                                          <span className="text-slate-500 font-black text-[10px]">{expandedPlacements.apps ? '▲' : '▼'}</span>
+                                        </div>
+                                      </div>
+                                      {expandedPlacements.apps && (
+                                        <div className={`px-10 pb-4 pt-2 flex flex-col gap-3.5 text-[13px] font-medium ${theme === 'dark' ? 'bg-[#18191A] text-slate-400' : 'bg-slate-50/50 text-slate-600'}`}>
+                                          <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.an_native} onChange={()=>handleDetailedPlacementChange('an_native')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Audience Network native, banner and interstitial</label>
+                                          <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.an_rewarded} onChange={()=>handleDetailedPlacementChange('an_rewarded')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Audience Network rewarded videos</label>
+                                        </div>
+                                      )}
+                                   </div>
+
+                                </div>
+                              )}
                             </div>
-                            
-                            {showPlacementCtrls && (
-                              <div className={`flex flex-col divide-y animate-in fade-in slide-in-from-top-2 ${theme === 'dark' ? 'divide-slate-700' : 'divide-slate-100'}`}>
-                                 
-                                 {/* Feeds */}
-                                 <div>
-                                    <div className={`p-3.5 flex justify-between items-center transition-colors ${theme === 'dark' ? 'hover:bg-[#3A3B3C]' : 'hover:bg-slate-50'}`}>
-                                      <div className="flex items-center gap-3">
-                                        <input type="checkbox" checked={isGroupChecked('feeds')} onChange={(e) => handleGroupToggle('feeds', e.target.checked)} className="w-4 h-4 text-blue-600 rounded border-slate-500 cursor-pointer" />
-                                        <span className={`font-semibold cursor-pointer select-none ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`} onClick={() => toggleAccordion('feeds')}>🪟 Feeds</span>
-                                      </div>
-                                      <div className="cursor-pointer px-2" onClick={() => toggleAccordion('feeds')}>
-                                        <span className="text-slate-500 font-black text-[10px]">{expandedPlacements.feeds ? '▲' : '▼'}</span>
-                                      </div>
-                                    </div>
-                                    {expandedPlacements.feeds && (
-                                      <div className={`px-10 pb-4 pt-2 flex flex-col gap-3.5 text-[13px] font-medium ${theme === 'dark' ? 'bg-[#18191A] text-slate-400' : 'bg-slate-50/50 text-slate-600'}`}>
-                                        <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.fb_feed} onChange={()=>handleDetailedPlacementChange('fb_feed')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Facebook Feed</label>
-                                        <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.fb_profile} onChange={()=>handleDetailedPlacementChange('fb_profile')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Facebook profile feed</label>
-                                        <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.ig_feed} onChange={()=>handleDetailedPlacementChange('ig_feed')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Instagram feed</label>
-                                        <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.ig_profile} onChange={()=>handleDetailedPlacementChange('ig_profile')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Instagram profile feed</label>
-                                        <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.fb_marketplace} onChange={()=>handleDetailedPlacementChange('fb_marketplace')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Facebook Marketplace</label>
-                                        <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.fb_right_col} onChange={()=>handleDetailedPlacementChange('fb_right_col')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Facebook right column</label>
-                                        <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.ig_explore} onChange={()=>handleDetailedPlacementChange('ig_explore')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Instagram Explore home</label>
-                                        <label className="flex items-center gap-3 cursor-pointer opacity-50"><input type="checkbox" disabled checked={detailedPlacements.fb_business} className="w-4 h-4 rounded border-slate-500 bg-slate-500/20" /> Facebook Business Explore</label>
-                                        <label className="flex items-center gap-3 cursor-pointer opacity-50"><input type="checkbox" disabled checked={detailedPlacements.threads_feed} className="w-4 h-4 rounded border-slate-500 bg-slate-500/20" /> Threads feed</label>
-                                        <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.fb_notifications} onChange={()=>handleDetailedPlacementChange('fb_notifications')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Facebook Notifications</label>
-                                      </div>
-                                    )}
-                                 </div>
 
-                                 {/* Stories, Status, Reels */}
-                                 <div>
-                                    <div className={`p-3.5 flex justify-between items-center transition-colors ${theme === 'dark' ? 'hover:bg-[#3A3B3C]' : 'hover:bg-slate-50'}`}>
-                                      <div className="flex items-center gap-3">
-                                        <input type="checkbox" checked={isGroupChecked('stories')} onChange={(e) => handleGroupToggle('stories', e.target.checked)} className="w-4 h-4 text-blue-600 rounded border-slate-500 cursor-pointer" />
-                                        <span className={`font-semibold cursor-pointer select-none ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`} onClick={() => toggleAccordion('stories')}>📱 Stories, Status, Reels</span>
-                                      </div>
-                                      <div className="cursor-pointer px-2" onClick={() => toggleAccordion('stories')}>
-                                        <span className="text-slate-500 font-black text-[10px]">{expandedPlacements.stories ? '▲' : '▼'}</span>
-                                      </div>
-                                    </div>
-                                    {expandedPlacements.stories && (
-                                      <div className={`px-10 pb-4 pt-2 flex flex-col gap-3.5 text-[13px] font-medium ${theme === 'dark' ? 'bg-[#18191A] text-slate-400' : 'bg-slate-50/50 text-slate-600'}`}>
-                                        <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.ig_stories} onChange={()=>handleDetailedPlacementChange('ig_stories')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Instagram Stories</label>
-                                        <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.fb_stories} onChange={()=>handleDetailedPlacementChange('fb_stories')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Facebook Stories</label>
-                                        <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.msg_stories} onChange={()=>handleDetailedPlacementChange('msg_stories')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Messenger Stories</label>
-                                        <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.ig_reels} onChange={()=>handleDetailedPlacementChange('ig_reels')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Instagram Reels</label>
-                                        <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.fb_reels} onChange={()=>handleDetailedPlacementChange('fb_reels')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Facebook Reels</label>
-                                        <label className="flex items-center gap-3 cursor-not-allowed opacity-50"><input type="checkbox" disabled checked={detailedPlacements.wa_status} className="w-4 h-4 rounded border-slate-500 bg-slate-500/20" /> WhatsApp Status</label>
-                                      </div>
-                                    )}
-                                 </div>
-
-                                 {/* In-stream ads for reels */}
-                                 <div>
-                                    <div className={`p-3.5 flex justify-between items-center transition-colors ${theme === 'dark' ? 'hover:bg-[#3A3B3C]' : 'hover:bg-slate-50'}`}>
-                                      <div className="flex items-center gap-3">
-                                        <input type="checkbox" checked={isGroupChecked('instream')} onChange={(e) => handleGroupToggle('instream', e.target.checked)} className="w-4 h-4 text-blue-600 rounded border-slate-500 cursor-pointer" />
-                                        <span className={`font-semibold cursor-pointer select-none ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`} onClick={() => toggleAccordion('instream')}>▷ In-stream ads for reels</span>
-                                      </div>
-                                      <div className="cursor-pointer px-2" onClick={() => toggleAccordion('instream')}>
-                                        <span className="text-slate-500 font-black text-[10px]">{expandedPlacements.instream ? '▲' : '▼'}</span>
-                                      </div>
-                                    </div>
-                                    {expandedPlacements.instream && (
-                                      <div className={`px-10 pb-4 pt-2 flex flex-col gap-3.5 text-[13px] font-medium ${theme === 'dark' ? 'bg-[#18191A] text-slate-400' : 'bg-slate-50/50 text-slate-600'}`}>
-                                        <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.instream_reels} onChange={()=>handleDetailedPlacementChange('instream_reels')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> In-stream for Reels</label>
-                                        <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.fb_reels_ads} onChange={()=>handleDetailedPlacementChange('fb_reels_ads')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Ads on Facebook Reels</label>
-                                      </div>
-                                    )}
-                                 </div>
-
-                                 {/* Search results */}
-                                 <div>
-                                    <div className={`p-3.5 flex justify-between items-center transition-colors ${theme === 'dark' ? 'hover:bg-[#3A3B3C]' : 'hover:bg-slate-50'}`}>
-                                      <div className="flex items-center gap-3">
-                                        <input type="checkbox" checked={isGroupChecked('search')} onChange={(e) => handleGroupToggle('search', e.target.checked)} className="w-4 h-4 text-blue-600 rounded border-slate-500 cursor-pointer" />
-                                        <span className={`font-semibold cursor-pointer select-none ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`} onClick={() => toggleAccordion('search')}>🔍 Search results</span>
-                                      </div>
-                                      <div className="cursor-pointer px-2" onClick={() => toggleAccordion('search')}>
-                                        <span className="text-slate-500 font-black text-[10px]">{expandedPlacements.search ? '▲' : '▼'}</span>
-                                      </div>
-                                    </div>
-                                    {expandedPlacements.search && (
-                                      <div className={`px-10 pb-4 pt-2 flex flex-col gap-3.5 text-[13px] font-medium ${theme === 'dark' ? 'bg-[#18191A] text-slate-400' : 'bg-slate-50/50 text-slate-600'}`}>
-                                        <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.fb_search} onChange={()=>handleDetailedPlacementChange('fb_search')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Facebook search results</label>
-                                        <label className="flex items-center gap-3 cursor-pointer opacity-50"><input type="checkbox" disabled checked={detailedPlacements.ig_search} className="w-4 h-4 rounded border-slate-500 bg-slate-500/20" /> Instagram search results</label>
-                                      </div>
-                                    )}
-                                 </div>
-
-                                 {/* Apps and sites */}
-                                 <div>
-                                    <div className={`p-3.5 flex justify-between items-center transition-colors ${theme === 'dark' ? 'hover:bg-[#3A3B3C]' : 'hover:bg-slate-50'}`}>
-                                      <div className="flex items-center gap-3">
-                                        <input type="checkbox" checked={isGroupChecked('apps')} onChange={(e) => handleGroupToggle('apps', e.target.checked)} className="w-4 h-4 text-blue-600 rounded border-slate-500 cursor-pointer" />
-                                        <span className={`font-semibold cursor-pointer select-none ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`} onClick={() => toggleAccordion('apps')}>💻 Apps and sites</span>
-                                      </div>
-                                      <div className="cursor-pointer px-2" onClick={() => toggleAccordion('apps')}>
-                                        <span className="text-slate-500 font-black text-[10px]">{expandedPlacements.apps ? '▲' : '▼'}</span>
-                                      </div>
-                                    </div>
-                                    {expandedPlacements.apps && (
-                                      <div className={`px-10 pb-4 pt-2 flex flex-col gap-3.5 text-[13px] font-medium ${theme === 'dark' ? 'bg-[#18191A] text-slate-400' : 'bg-slate-50/50 text-slate-600'}`}>
-                                        <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.an_native} onChange={()=>handleDetailedPlacementChange('an_native')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Audience Network native, banner and interstitial</label>
-                                        <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.an_rewarded} onChange={()=>handleDetailedPlacementChange('an_rewarded')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Audience Network rewarded videos</label>
-                                      </div>
-                                    )}
-                                 </div>
-
-                              </div>
-                            )}
                           </div>
-
-                        </div>
-                      )}
-                    </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
 
