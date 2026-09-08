@@ -1647,7 +1647,7 @@ export default function Home() {
             {activeTab === "CREATE" && (
               <form onSubmit={handleAutoBoost} className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-in fade-in duration-200">
                 
-                {/* Campaign Details */}
+                {/* Campaign Details (Accordion Dropdown Mode) */}
                 <div className={`p-6 rounded-xl shadow-sm border flex flex-col gap-5 h-fit w-full min-w-0 transition-colors ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-800'}`}>
                   
                   <div className="flex justify-between items-center border-b pb-2">
@@ -1655,35 +1655,35 @@ export default function Home() {
                       <span className={`p-1 rounded ${theme === 'dark' ? 'bg-[#3A3B3C]' : 'bg-slate-100'}`}>📁</span> ១. Campaign Details
                     </h3>
                     
-                    {/* 🌟 ប៊ូតុង Toggle សម្រាប់បង្ហាញ/លាក់មុខងារ Advance */}
+                    {/* 🌟 ប៊ូតុងចុចបិទ/បើកទម្លាក់ (Dropdown Toggle Button) */}
                     <button
                       type="button"
                       onClick={() => setShowAdvancedSettings(!showAdvancedSettings)}
-                      className="text-[12px] font-bold text-blue-600 hover:text-blue-700 hover:underline flex items-center gap-1 cursor-pointer transition-colors"
+                      className="text-[12px] font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1.5 cursor-pointer bg-blue-50 dark:bg-blue-950/40 px-3 py-1.5 rounded-lg transition-all"
                     >
-                      {showAdvancedSettings ? "▲ លាក់កម្រិតខ្ពស់" : "⚙️ កែប្រែកម្រិតខ្ពស់"}
+                      <span>{showAdvancedSettings ? "▲ បិទព័ត៌មានលម្អិត" : "⚙️ បើកទម្លាក់មើលបន្ថែម"}</span>
                     </button>
                   </div>
 
-                  {/* ឈ្មោះ Campaign */}
+                  {/* ឈ្មោះ Campaign (បង្ហាញជានិច្ច) */}
                   <div>
                     <label className={`block text-sm font-semibold mb-1.5 ${theme === 'dark' ? 'text-slate-300' : 'text-slate-600'}`}>Campaign name (ឈ្មោះយុទ្ធនាការ)</label>
                     <input type="text" value={campaignName} onChange={(e) => saveParam("campaignName", e.target.value, setCampaignName)} className={`w-full border rounded-lg p-3 outline-none focus:border-blue-500 font-semibold ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'}`} />
                   </div>
                   
-                  {/* 🌟 ផ្នែក Advanced Settings (លាក់/បង្ហាញតាម State) */}
+                  {/* 🌟 ផ្នែកទម្លាក់ចុះក្រោម (Dropdown Content: Objective, Conversion Location, Performance Goal) */}
                   {showAdvancedSettings && (
-                    <div className="flex flex-col gap-4 p-4 rounded-xl border bg-slate-50/50 dark:bg-[#18191A]/50 border-slate-200 dark:border-slate-700 animate-in fade-in duration-200">
+                    <div className="flex flex-col gap-4 p-4 rounded-xl border bg-slate-50/80 dark:bg-[#18191A] border-slate-200 dark:border-slate-700 animate-in slide-in-from-top-2 duration-200">
                       <div className="flex gap-4">
                         <div className="flex-1 min-w-0">
                           <label className={`block text-sm font-semibold mb-1.5 ${theme === 'dark' ? 'text-slate-300' : 'text-slate-600'}`}>Objective</label>
-                          <select value={objective} onChange={(e) => saveParam("obj", e.target.value, setObjective)} className={`w-full border rounded-lg p-3 outline-none focus:border-blue-500 ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-900'}`}>
+                          <select value={objective} onChange={(e) => saveParam("obj", e.target.value, setObjective)} className={`w-full border rounded-lg p-3 outline-none ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-900'}`}>
                             <option value="ENGAGEMENT">💬 Engagement</option>
                           </select>
                         </div>
                         <div className="flex-1 min-w-0">
                           <label className={`block text-sm font-semibold mb-1.5 ${theme === 'dark' ? 'text-slate-300' : 'text-slate-600'}`}>Conversion Location</label>
-                          <select value={conversionLocation} onChange={(e) => saveParam("conversionLoc", e.target.value, setConversionLocation)} className={`w-full border rounded-lg p-3 outline-none focus:border-blue-500 ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-900'}`}>
+                          <select value={conversionLocation} onChange={(e) => saveParam("conversionLoc", e.target.value, setConversionLocation)} className={`w-full border rounded-lg p-3 outline-none ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-900'}`}>
                             <option value="MESSAGES">📨 Message destinations</option>
                             <option value="ON_AD">👍 On your ad</option>
                           </select>
@@ -1703,7 +1703,7 @@ export default function Home() {
                     </div>
                   )}
                   
-                  {/* Budget Strategy (បង្ហាញជានិច្ច ព្រោះជាតម្រូវការចាំបាច់) */}
+                  {/* Budget Strategy (បង្ហាញជានិច្ច) */}
                   <div className={`p-4 rounded-xl border mt-1 ${theme === 'dark' ? 'bg-[#18191A] border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
                     <label className={`block text-sm font-bold mb-2 ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>Budget strategy (ទឹកលុយចំណាយ)</label>
                     <div className="flex flex-col sm:flex-row gap-3">
@@ -1742,19 +1742,6 @@ export default function Home() {
                             {' '}(ប្រហែល <span className="font-bold">${((Number(budget) || 0) / (Number(duration) || 1)).toFixed(2)}</span> ក្នុងមួយថ្ងៃ)
                           </div>
                         </div>
-                      </div>
-                    )}
-
-                    {budgetType === "DAILY" && (
-                      <div className="mt-2 text-[12px] text-slate-500 font-medium">
-                        ℹ️ ថវិកាប្រចាំថ្ងៃនឹងត្រូវកាត់ជារៀងរាល់ថ្ងៃ រហូតទាល់តែបងចូលទៅបិទវាដោយខ្លួនឯង។
-                      </div>
-                    )}
-
-                    {isBudgetError && (
-                      <div className={`mt-3 px-4 py-3 rounded-lg text-[13px] flex items-start gap-2 shadow-sm animate-in fade-in border ${theme === 'dark' ? 'bg-red-950/40 border-red-900/50 text-red-400' : 'bg-red-50 border-red-200 text-red-600'}`}>
-                        <span className="text-base leading-none mt-0.5">⚠️</span>
-                        <span><strong>ការព្រមាន៖</strong> ថវិកាសរុបរបស់អ្នកតិចជាងចំនួនថ្ងៃដែលត្រូវរត់។ សូមដំឡើងថវិកា ឬកាត់បន្ថយចំនួនថ្ងៃ យ៉ាងហោចណាស់ $1 ក្នុងមួយថ្ងៃ។</span>
                       </div>
                     )}
                   </div>
