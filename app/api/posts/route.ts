@@ -15,8 +15,8 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: false, error: "Missing pageId or pageToken" }, { status: 400 });
       }
 
-      // 🌟 ដូរពី &limit=100 មកជា &limit=500 ដើម្បីទាញយកផុសរហូតដល់ ៥០០ មកបង្ហាញ
-      const url = `https://graph.facebook.com/v18.0/${pageId}/posts?fields=id,message,created_time,full_picture,status_type,attachments,shares&limit=500&access_token=${token}`;
+      // 🌟 កំណត់ limit=100 (ព្រោះ Facebook API មិនអនុញ្ញាតឱ្យលើសពី 100 ទេ)
+      const url = `https://graph.facebook.com/v18.0/${pageId}/posts?fields=id,message,created_time,full_picture,status_type,attachments,shares&limit=100&access_token=${token}`;
       
       const res = await fetch(url, { cache: 'no-store' });
       const data = await res.json();
