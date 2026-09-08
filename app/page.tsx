@@ -20,6 +20,39 @@ export default function Home() {
   const [postFilterType, setPostFilterType] = useState("Published posts");
   const [isPostFilterMenuOpen, setIsPostFilterMenuOpen] = useState(false);
 
+ const [postFilter, setPostFilter] = useState("published"); // default យក Published posts
+
+  const fetchPostsByFilter = async (filterVal: string) => {
+    setPostFilter(filterVal);
+    // setIsLoadingPosts(true); 
+
+    try {
+      const pageInfo = pages.find(p => p.id === selectedPage);
+      if (!pageInfo) return;
+
+      const res = await fetch('/api/get-posts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pageId: selectedPage,
+          accessToken: pageInfo.access_token,
+          filterType: filterVal 
+        })
+      });
+      
+      const data = await res.json();
+      if (data.success) {
+        setPosts(data.data);
+      } else {
+        alert("បរាជ័យក្នុងការទាញយកផុស៖ " + data.error);
+      }
+    } catch (error) {
+      console.error("Error fetching posts:", error);
+    } finally {
+      // setIsLoadingPosts(false);
+    }
+  };
+
   // 1. ដាក់កូដ State នេះនៅកន្លែងប្រកាស States ក្នុង Component Home
   const [activeTab, setActiveTab] = useState("CREATE");
   const [isMounted, setIsMounted] = useState(false);
@@ -2487,7 +2520,7 @@ export default function Home() {
                     <span className="text-slate-500 hover:text-slate-700 cursor-pointer flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#F5C33B]"></span> Partner Content</span>
                   </div>
 
-                  {/* 🌟 ប្រអប់ Filter Dropdown និង Search ថ្មីដូច Facebook 100% */}
+                  {/* 🌟 ប្រអប់ Filter Dropdown និង Search ថ្មីដែលភ្ជាប់ API រួចជាស្រេច */}
                   <div className={`px-4 py-2 border-b flex items-center gap-3 ${theme === 'dark' ? 'border-slate-700 bg-[#242526]' : 'border-slate-200 bg-white'}`}>
                     <div className="text-[12px] text-slate-500 font-medium whitespace-nowrap">Filter by:</div>
                     
@@ -2506,16 +2539,30 @@ export default function Home() {
                         <>
                           <div className="fixed inset-0 z-40" onClick={() => setIsPostFilterMenuOpen(false)}></div>
                           <div className={`absolute top-full left-0 mt-1 w-[220px] border rounded-lg shadow-xl z-50 py-1.5 ${theme === 'dark' ? 'bg-[#242526] border-slate-600 text-white' : 'bg-white border-[#CED0D4] text-[#050505]'}`}>
-                            {['All post types', 'Published posts', 'Ads posts', 'Scheduled posts', 'Available posts only'].map((type) => (
+                            {[
+                              { label: 'All post types', val: 'all' },
+                              { label: 'Published posts', val: 'published' },
+                              { label: 'Ads posts', val: 'ads' },
+                              { label: 'Scheduled posts', val: 'scheduled' },
+                              { label: 'Available posts only', val: 'available' }
+                            ].map((item) => (
                               <div 
-                                key={type}
-                                onClick={() => { setPostFilterType(type); setIsPostFilterMenuOpen(false); }}
+                                key={item.val}
+                                onClick={async () => {
+                                  setPostFilterType(item.label);
+                                  setIsPostFilterMenuOpen(false);
+                                  
+                                  // 🌟 ហៅ API ទាញយកទិន្នន័យមកវិញភ្លាមៗតាមប្រភេទ Filter ទាំង ៥
+                                  if (typeof fetchPostsByFilter === 'function') {
+                                    await fetchPostsByFilter(item.val);
+                                  }
+                                }}
                                 className={`px-3 py-2 flex items-center gap-3 cursor-pointer text-[13px] transition-colors ${theme === 'dark' ? 'hover:bg-[#3A3B3C]' : 'hover:bg-[#F0F2F5]'}`}
                               >
                                 <span className="w-4 flex justify-center text-[#1877F2] font-bold text-[14px]">
-                                  {postFilterType === type ? '✓' : ''}
+                                  {postFilterType === item.label ? '✓' : ''}
                                 </span>
-                                <span>{type}</span>
+                                <span>{item.label}</span>
                               </div>
                             ))}
                           </div>
@@ -2531,7 +2578,7 @@ export default function Home() {
                         value={postSearchQuery}
                         onChange={(e) => setPostSearchQuery(e.target.value)}
                         placeholder="Post, image or video IDs, or other keywords" 
-                        className={`w-full border rounded p-1.5 pl-8 text-[12px] outline-none shadow-xs transition-colors focus:border-[#1877F2] ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white placeholder-slate-400' : 'bg-white hover:bg-[#F5F6F8] border-[#CED0D4] text-[#050505] placeholder-[#65676B]'}`} 
+                        className={`w-full border rounded p-1.5 pl-8 text-[12px] outline-none shadow-sm transition-colors focus:border-[#1877F2] ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white placeholder-slate-400' : 'bg-white hover:bg-[#F5F6F8] border-[#CED0D4] text-[#050505] placeholder-[#65676B]'}`} 
                       />
                     </div>
                   </div>
@@ -2552,17 +2599,12 @@ export default function Home() {
                       </thead>
                       <tbody className={`text-[13px] ${theme === 'dark' ? 'divide-slate-700' : 'divide-slate-200'} divide-y`}>
                         {(() => {
-                          // 🌟 រូបមន្ត Filter កាត់គ្រោះ (ធានាចេញ ១០០% ទោះ Facebook បោះទិន្នន័យមកទម្រង់ណាក៏ដោយ)
                           const filteredPosts = posts.filter(post => {
-                            // បើអត់វាយអក្សរ Search ទេ គឺឱ្យវាបង្ហាញ Post ទាំងអស់មកមុនសិន
                             if (!postSearchQuery || postSearchQuery.trim() === "") return true;
-
-                            // ការពារការគាំងពេលវាយ Search
                             const query = postSearchQuery.toLowerCase().trim();
                             const messageMatch = (post.message || "").toLowerCase().includes(query);
                             const storyMatch = (post.story || "").toLowerCase().includes(query);
                             const idMatch = (post.id || "").toLowerCase().includes(query);
-                            
                             return messageMatch || storyMatch || idMatch;
                           });
 
