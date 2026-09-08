@@ -8,7 +8,7 @@ export async function POST(req: Request) {
     const prompt = formData.get('prompt') as string || "ជួយសរសេរអត្ថបទលក់ផលិតផលក្នុងរូបភាពនេះឱ្យបានទាក់ទាញបំផុត";
     const file = formData.get('file') as File | null;
 
-    // ត្រៀមភ្ជាប់ជាមួយ Google Gemini API (កុំភ្លេចដាក់ GEMINI_API_KEY ក្នុង .env.local)
+    // ត្រៀមភ្ជាប់ជាមួយ Google Gemini API (កុំភ្លេចដាក់ GEMINI_API_KEY ក្នុង Vercel និង .env.local)
     const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
     let contents: any[] = [prompt];
@@ -27,14 +27,14 @@ export async function POST(req: Request) {
           },
         },
         {
-          text: `ផ្អែកលើរូបភាព/វីដេអូដែលបានផ្ដល់ជូនนี้ សូមជួយសរសេរអត្ថបទផ្សាយពាណិជ្ជកម្ម (Copywriting) ជាភាសាខ្មែរឱ្យបានទាក់ទាញបំផុត តាមសំណើ៖ ${prompt}`
+          text: `ផ្អែកលើរូបភាព/វីដេអូដែលបានផ្ដល់ជូននេះ សូមជួយសរសេរអត្ថបទផ្សាយពាណិជ្ជកម្ម (Copywriting) ជាភាសាខ្មែរឱ្យបានទាក់ទាញបំផុត តាមសំណើ៖ ${prompt}`
         }
       ];
     }
 
-    // ហៅប្រើប្រាស់ Gemini Model ស៊េរីថ្មីដែល SDK ទទួលស្គាល់ (ប្ដូរពី gemini-3.6-flash មកជា gemini-2.5-flash)
+    // ហៅប្រើប្រាស់ Gemini Model ស៊េរីថ្មីដែល SDK ទទួលស្គាល់ (gemini-3.6-flash)
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash', 
+      model: 'gemini-3.6-flash', 
       contents: contents,
     });
 
