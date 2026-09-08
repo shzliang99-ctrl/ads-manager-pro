@@ -1509,58 +1509,71 @@ export default function Home() {
                           const urlInput = (document.getElementById('postUrlInput') as HTMLInputElement).value;
                           if (!urlInput.trim()) return alert("⚠️ សូមដាក់ Link ផុសជាមុនសិន!");
 
-                          try {
-                            alert("⏳ កំពុងទាញយកលេខ ID ពិតប្រាកដពី Facebook...");
+                          const resultBox = document.getElementById('extractedResultBox');
+                          const idText = document.getElementById('extractedIdText');
+                          
+                          // បង្ហាញស្ថានភាពកំពុងទាញយក (លុប alert() ចោលដើម្បីកុំឱ្យទើសភ្នែក)
+                          if (resultBox && idText) {
+                            idText.innerText = "⏳ កំពុងស្វែងរក...";
+                            resultBox.classList.remove('hidden');
+                          }
 
-                            // យក Token និង Page ID ដែលបងបាន Login រួចមកប្រើប្រាស់
-                            const userToken = localStorage.getItem('fb_user_token');
-                            const pageInfo = pages.find(p => p.id === selectedPage);
-                            const token = pageInfo?.access_token || userToken;
+                          let finalId = "";
 
-                            if (!token) {
-                              alert("⚠️ រកមិនឃើញ Token ទេ! សូម Connect Facebook ជាមុនសិន។");
-                              return;
-                            }
+                          // ១. ទាញយកលេខចេញពីទម្រង់ pcb (ដូចក្នុងរូបទី២ របស់បង set=pcb.1516420673615366)
+                          const pcbMatch = urlInput.match(/set=pcb\.([0-9]+)/);
+                          // ២. ទាញយកលេខពី fbid ឬ story_fbid
+                          const fbidMatch = urlInput.match(/(?:story_fbid=|fbid=)([0-9]+)/);
+                          // ៣. ទាញយកលេខពី /posts/
+                          const postMatch = urlInput.match(/\/posts\/([0-9]+)/);
+                          // ៤. ទាញយក pfbid (បើសិនជាមានស្រាប់)
+                          const pfbidMatch = urlInput.match(/(pfbid[a-zA-Z0-9]+)/);
 
-                            // ហៅទៅកាន់ API ខាងក្រោយដើម្បីឱ្យវាបំប្លែង Link ទៅជាលេខ ID វែងៗពិតប្រាកដ
-                            const res = await fetch('/api/get-post-id', {
-                              method: 'POST',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({ postUrl: urlInput, access_token: token, pageId: selectedPage })
-                            });
-                            const data = await res.json();
+                          if (pcbMatch) {
+                            finalId = pcbMatch[1]; // យកលេខ 1516420673615366 សុទ្ធយកមកប្រើ
+                          } else if (fbidMatch) {
+                            finalId = fbidMatch[1];
+                          } else if (postMatch) {
+                            finalId = postMatch[1];
+                          } else if (pfbidMatch) {
+                            finalId = pfbidMatch[1];
+                          } else if (urlInput.includes('/share/')) {
+                            // បើជា short link (share/p) ទើបឱ្យវាសុំជំនួយពី API
+                            try {
+                              const userToken = localStorage.getItem('fb_user_token');
+                              const pageInfo = pages.find(p => p.id === selectedPage);
+                              const token = pageInfo?.access_token || userToken;
 
-                            let finalId = "";
-                            if (data.success && data.postId) {
-                              finalId = data.postId; // จะได้លេខ ID សុទ្ធ 100% ដូចក្នុងរូបរបស់បង
-                            } else {
-                              // បើ API ទាញមិនចេញ ប្រើវិធីទាញស្រង់លេខវែងៗពី Link ផ្ទាល់ (សម្រាប់ Link ពីកុំព្យូទ័រ)
-                              const longNumMatch = urlInput.match(/([0-9]{12,})/g);
-                              if (longNumMatch && longNumMatch.length > 0) {
-                                finalId = longNumMatch[longNumMatch.length - 1]; // យកលេខវែងចុងក្រោយគេ
-                              } else {
-                                alert("❌ មិនអាចទាញយកលេខ ID បានទេ។ \n\n💡 គន្លឹះ៖ សូមចូលយក Link ពេញពីកុំព្យូទ័រ (ដោយចុចលើម៉ោង/Timestamp របស់ផុស) យកមកដាក់គឺប្រាកដជាចេញលេខ ID ស្អាតជូនបង!");
-                                return;
+                              if (token) {
+                                const res = await fetch('/api/get-post-id', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ postUrl: urlInput, access_token: token, pageId: selectedPage })
+                                });
+                                const data = await res.json();
+                                if (data.success && data.postId) finalId = data.postId;
                               }
-                            }
+                            } catch (err) {}
+                          }
 
-                            const resultBox = document.getElementById('extractedResultBox');
-                            const idText = document.getElementById('extractedIdText');
-                            if (resultBox && idText) {
-                              idText.innerText = finalId;
-                              resultBox.classList.remove('hidden');
-                            }
+                          // បើរកមិនឃើញសោះ
+                          if (!finalId) {
+                            finalId = "❌ រកលេខ ID មិនឃើញទេ។ សូមកូពី Link ពេញពីកុំព្យូទ័រមកដាក់វិញ។";
+                          }
 
-                            // រក្សាទុកចូលក្នុង localStorage ជា History
+                          // បង្ហាញលទ្ធផលចុងក្រោយចូលប្រអប់
+                          if (idText) {
+                            idText.innerText = finalId;
+                          }
+
+                          // រក្សាទុកចូលក្នុង History (បើវាជា ID ត្រឹមត្រូវ)
+                          if (finalId && !finalId.startsWith("❌")) {
                             try {
                               const newItem = { url: urlInput, id: finalId, time: new Date().toLocaleTimeString() };
                               const updatedHistory = [newItem, ...postIdHistory.filter((item: any) => item.id !== finalId)].slice(0, 10);
                               localStorage.setItem('post_id_history', JSON.stringify(updatedHistory));
                               setPostIdHistory(updatedHistory);
                             } catch(e) {}
-
-                          } catch(e) {
-                            alert("❌ មានបញ្ហាតភ្ជាប់ទៅកាន់ប្រព័ន្ធ API!");
                           }
                         }}
                         className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 rounded-xl text-[14px] shadow-md transition cursor-pointer shrink-0"
