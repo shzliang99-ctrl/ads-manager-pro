@@ -1167,7 +1167,7 @@ export default function Home() {
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-[#1c1c1e] rounded-[22.5%] overflow-hidden shadow-md border border-white/10 flex items-center justify-center shrink-0">
             <img 
-              src="/path-to-your-logo.png" 
+              src="/logo.png"
               alt="1 Click Boost Logo" 
               className="w-[85%] h-[85%] object-contain pointer-events-none" 
             />
