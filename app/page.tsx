@@ -3738,62 +3738,59 @@ export default function Home() {
         </div>
       )}
 
-      {/* 🌟 Mobile Bottom Navigation Bar (Modern Glassmorphism Style) */}
-      <nav className={`md:hidden fixed bottom-0 left-0 right-0 z-[99999] border-t flex justify-around items-center h-[62px] px-3 shadow-[0_-10px_25px_rgba(0,0,0,0.08)] backdrop-blur-xl transition-all duration-300 ${
+      {/* 🌟 Mobile Bottom Navigation Bar (Pro Pill-Style & Custom Icons) */}
+      <nav className={`md:hidden fixed bottom-0 left-0 right-0 z-[99999] border-t flex justify-around items-center h-[65px] px-3 shadow-[0_-10px_25px_rgba(0,0,0,0.1)] backdrop-blur-xl transition-all duration-300 ${
         theme === 'dark' 
-          ? 'bg-[#18191A]/90 border-slate-800/80 text-white' 
-          : 'bg-white/90 border-slate-200/80 text-slate-800'
+          ? 'bg-[#18191A]/95 border-slate-800 text-slate-300' 
+          : 'bg-white/95 border-slate-200 text-slate-600'
       }`}>
          
-         {/* Tab 1: Create */}
+         {/* Tab 1: Create (ប្ដូរមកជារូបខ្មៅដៃ/សរសេរ - ដែនបង្កើតយុទ្ធនាការ) */}
          <button 
             type="button"
             onClick={() => handleTabChange("CREATE")}
-            className={`relative flex flex-col items-center justify-center w-full h-full gap-1 transition-all duration-200 cursor-pointer group ${
-               activeTab === "CREATE" 
-                  ? 'text-blue-600 font-bold' 
-                  : theme === 'dark' ? 'text-slate-400 hover:text-slate-200' : 'text-slate-500 hover:text-slate-900'
-            }`}
+            className={`flex flex-col items-center justify-center w-full h-full gap-1 transition-all duration-200 cursor-pointer group`}
          >
-            {activeTab === "CREATE" && (
-               <span className="absolute top-0 w-8 h-1 bg-blue-600 rounded-full shadow-[0_0_8px_rgba(37,99,235,0.6)] animate-in fade-in duration-200"></span>
-            )}
-            <span className={`text-[21px] leading-none transition-transform duration-200 ${activeTab === "CREATE" ? 'scale-110 -translate-y-0.5' : 'group-hover:scale-105'}`}>✍️</span>
-            <span className="text-[10px] tracking-wide font-medium">បង្កើត</span>
+            <div className={`px-4 py-1 rounded-full flex items-center justify-center transition-all duration-300 ${
+               activeTab === "CREATE" 
+                  ? 'bg-blue-600 text-white shadow-md shadow-blue-500/30 scale-105' 
+                  : 'hover:bg-slate-500/10'
+            }`}>
+               <span className="text-[18px] leading-none">📝</span>
+            </div>
+            <span className={`text-[10px] tracking-tight font-bold ${activeTab === "CREATE" ? (theme === 'dark' ? 'text-white' : 'text-blue-600') : 'opacity-70'}`}>បង្កើត</span>
          </button>
 
-         {/* Tab 2: Manage */}
+         {/* Tab 2: Manage (ប្ដូរមកជារូបតារាងស្ថិតិ/យុទ្ធសាស្ត្រ - ដែនគ្រប់គ្រង) */}
          <button 
             type="button"
             onClick={() => handleTabChange("MANAGE")}
-            className={`relative flex flex-col items-center justify-center w-full h-full gap-1 transition-all duration-200 cursor-pointer group ${
-               activeTab === "MANAGE" 
-                  ? 'text-blue-600 font-bold' 
-                  : theme === 'dark' ? 'text-slate-400 hover:text-slate-200' : 'text-slate-500 hover:text-slate-900'
-            }`}
+            className={`flex flex-col items-center justify-center w-full h-full gap-1 transition-all duration-200 cursor-pointer group`}
          >
-            {activeTab === "MANAGE" && (
-               <span className="absolute top-0 w-8 h-1 bg-blue-600 rounded-full shadow-[0_0_8px_rgba(37,99,235,0.6)] animate-in fade-in duration-200"></span>
-            )}
-            <span className={`text-[21px] leading-none transition-transform duration-200 ${activeTab === "MANAGE" ? 'scale-110 -translate-y-0.5' : 'group-hover:scale-105'}`}>📊</span>
-            <span className="text-[10px] tracking-wide font-medium">គ្រប់គ្រង</span>
+            <div className={`px-4 py-1 rounded-full flex items-center justify-center transition-all duration-300 ${
+               activeTab === "MANAGE" 
+                  ? 'bg-blue-600 text-white shadow-md shadow-blue-500/30 scale-105' 
+                  : 'hover:bg-slate-500/10'
+            }`}>
+               <span className="text-[18px] leading-none">📊</span>
+            </div>
+            <span className={`text-[10px] tracking-tight font-bold ${activeTab === "MANAGE" ? (theme === 'dark' ? 'text-white' : 'text-blue-600') : 'opacity-70'}`}>គ្រប់គ្រង</span>
          </button>
 
-         {/* Tab 3: AI Copywriter */}
+         {/* Tab 3: AI Copywriter (រក្សារូបផ្កាយរះ ឬអាចប្ដូរជា Bot ជំនួយការ) */}
          <button 
             type="button"
             onClick={() => handleTabChange("AI")}
-            className={`relative flex flex-col items-center justify-center w-full h-full gap-1 transition-all duration-200 cursor-pointer group ${
-               activeTab === "AI" 
-                  ? 'text-indigo-600 font-bold' 
-                  : theme === 'dark' ? 'text-slate-400 hover:text-slate-200' : 'text-slate-500 hover:text-slate-900'
-            }`}
+            className={`flex flex-col items-center justify-center w-full h-full gap-1 transition-all duration-200 cursor-pointer group`}
          >
-            {activeTab === "AI" && (
-               <span className="absolute top-0 w-8 h-1 bg-indigo-600 rounded-full shadow-[0_0_8px_rgba(99,102,241,0.6)] animate-in fade-in duration-200"></span>
-            )}
-            <span className={`text-[21px] leading-none transition-transform duration-200 ${activeTab === "AI" ? 'scale-110 -translate-y-0.5' : 'group-hover:scale-105'}`}>✨</span>
-            <span className="text-[10px] tracking-wide font-medium">AI Copy</span>
+            <div className={`px-4 py-1 rounded-full flex items-center justify-center transition-all duration-300 ${
+               activeTab === "AI" 
+                  ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md shadow-indigo-500/30 scale-105' 
+                  : 'hover:bg-slate-500/10'
+            }`}>
+               <span className="text-[18px] leading-none">✨</span>
+            </div>
+            <span className={`text-[10px] tracking-tight font-bold ${activeTab === "AI" ? 'text-indigo-600 dark:text-indigo-400' : 'opacity-70'}`}>AI Copy</span>
          </button>
 
       </nav>
