@@ -1161,151 +1161,151 @@ export default function Home() {
     <div className={`min-h-screen font-sans flex flex-col pb-20 transition-colors duration-300 ${theme === 'dark' ? 'bg-[#18191A] text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
       
       {/* Global Header */}
-      <header className={`${theme === 'dark' ? 'bg-[#18191A] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-900'} shadow-sm h-16 flex items-center px-4 lg:px-8 justify-between sticky top-0 z-30 border-b transition-colors duration-300`}>
+      <header className={`${theme === 'dark' ? 'bg-[#18191A] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-900'} shadow-sm py-3 px-3 lg:px-8 flex flex-wrap items-center justify-between sticky top-0 z-30 border-b transition-colors duration-300 gap-3`}>
+        
+        {/* ផ្នែកទី១៖ Logo & Title */}
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center text-white font-black text-xl shadow-md">f</div>
-          <h1 className="text-xl font-black text-blue-600 hidden sm:block">Ads Manager Pro</h1>
+          <div className="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center text-white font-black text-lg shadow-md">f</div>
+          <h1 className="text-lg font-black text-blue-600 hidden sm:block">Ads Manager Pro</h1>
         </div>
 
-        {/* 🔗 ប៊ូតុង Connect / Connected Status */}
+        {/* ផ្នែកទី២៖ Connect Button / Connected Badge */}
+        <div className="flex items-center">
           {isFbConnected ? (
-            <div className="px-4 py-2 bg-green-500 text-white font-bold rounded-lg flex items-center gap-2 text-xs shadow-md shrink-0 cursor-default">
-              <span>✅</span> <span className="hidden md:inline">{fbPageName || "Connected (Active)"}</span>
+            <div className="px-3 py-1.5 bg-green-500 text-white font-bold rounded-lg flex items-center gap-1.5 text-xs shadow-sm shrink-0 cursor-default">
+              <span>✅</span> <span className="hidden md:inline">{fbPageName || "Connected"}</span>
             </div>
           ) : (
             <button 
               onClick={() => {
                 const appId = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID;
-                // ប្រើ window.location.origin ដើម្បីឱ្យវាស្គាល់ទាំង Localhost និង Vercel
                 const redirectUri = encodeURIComponent(`${window.location.origin}/api/auth/facebook/callback`);
                 const scope = 'public_profile,ads_management,ads_read,pages_read_engagement,pages_show_list,pages_manage_ads';
                 window.location.href = `https://www.facebook.com/v18.0/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code`;
               }}
-              className="px-4 py-2 bg-[#1877F2] text-white font-bold rounded-lg hover:bg-blue-600 transition flex items-center gap-2 text-xs shadow-md shrink-0"
+              className="px-3 py-1.5 bg-[#1877F2] text-white font-bold rounded-lg hover:bg-blue-600 transition flex items-center gap-1.5 text-xs shadow-sm shrink-0 cursor-pointer"
               title="Connect with Facebook"
             >
               <span>🔄</span> <span className="hidden md:inline">Connect Facebook</span>
             </button>
           )}
+        </div>
 
-        <div className="flex items-center gap-3">
+        {/* ផ្នែកទី៣៖ Controls (Language, Theme, Ad Account, Reporting) */}
+        <div className="flex items-center flex-wrap gap-2 ml-auto lg:ml-0">
           
-          {/* 🌟 ប៊ូតុងប្តូរភាសាទំនើប ទាន់សម័យ (Modern Language Selector) */}
+          {/* ប៊ូតុងប្តូរភាសា */}
           <button 
             onClick={() => setLang(lang === 'kh' ? 'en' : 'kh')} 
-            className={`px-3.5 h-9 flex items-center gap-2.5 rounded-full font-bold text-xs shadow-sm transition-all cursor-pointer border group ${
+            className={`px-3 h-8 flex items-center gap-2 rounded-full font-bold text-xs shadow-sm transition-all cursor-pointer border group ${
               theme === 'dark' 
-                ? 'bg-gradient-to-r from-[#242526] to-[#3A3B3C] border-slate-600 text-slate-100 hover:border-blue-500 shadow-blue-500/10' 
-                : 'bg-gradient-to-r from-white to-slate-50 border-slate-300 text-slate-700 hover:border-blue-500 shadow-slate-200/50'
+                ? 'bg-[#242526] border-slate-600 text-slate-100 hover:border-blue-500' 
+                : 'bg-white border-slate-300 text-slate-700 hover:border-blue-500'
             }`}
             title="ប្តូរភាសា / Change Language"
           >
-            {/* រូបតំណាងសកលលោក (Globe Icon) មានចលនាបន្តិចពេល Hover */}
-            <div className="w-5 h-5 rounded-full bg-blue-500/10 text-blue-600 flex items-center justify-center text-xs group-hover:rotate-45 transition-transform duration-300">
+            <div className="w-4 h-4 rounded-full bg-blue-500/10 text-blue-600 flex items-center justify-center text-[10px] group-hover:rotate-45 transition-transform duration-300">
               🌐
             </div>
-            
-            {/* អក្សរបង្ហាញភាសា */}
-            <span className="tracking-wide font-extrabold">
-              {lang === 'kh' ? 'ភាសាខ្មែរ (KH)' : 'English (EN)'}
+            <span className="tracking-wide font-extrabold text-[11px]">
+              {lang === 'kh' ? 'KH' : 'EN'}
             </span>
-
-            {/* សញ្ញាลูกศรទម្លាក់ចុះតូចមួយ */}
-            <span className="text-[10px] opacity-60 ml-[-2px]">▼</span>
+            <span className="text-[9px] opacity-60 ml-[-2px]">▼</span>
           </button>
 
-          {/* 🌟 ប៊ូតុងផ្លាស់ប្តូរ យប់/ថ្ងៃ (Theme Toggle) */}
+          {/* ប៊ូតុងផ្លាស់ប្តូរ យប់/ថ្ងៃ */}
           <button 
             onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} 
-            className={`w-9 h-9 flex items-center justify-center rounded-full text-lg shadow-sm transition-all mr-2 ${theme === 'dark' ? 'bg-slate-700 hover:bg-slate-600' : 'bg-slate-100 hover:bg-slate-200'}`}
+            className={`w-8 h-8 flex items-center justify-center rounded-full text-base shadow-sm transition-all cursor-pointer ${theme === 'dark' ? 'bg-slate-700 hover:bg-slate-600' : 'bg-slate-100 hover:bg-slate-200'}`}
             title="ប្តូរទម្រង់ យប់/ថ្ងៃ"
           >
             {theme === 'light' ? '🌙' : '☀️'}
           </button>
 
-           {/* Ad Account Dropdown */}
-           <div className="relative">
-             <div 
-               onClick={() => setIsAccountMenuOpen(!isAccountMenuOpen)}
-               className={`${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-white hover:bg-[#3A3B3C]' : 'bg-white border-slate-300 text-slate-800 hover:bg-slate-50'} border rounded-lg px-3 py-1.5 flex items-center gap-3 cursor-pointer shadow-sm transition min-w-[200px] lg:min-w-[260px] justify-between h-[45px]`}
-             >
-               <div className="flex items-center gap-2 text-left">
-                 <span className="text-base hidden lg:inline-block">🖥️</span>
-                 <div className="flex flex-col truncate">
-                   <span className={`text-xs font-bold truncate ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>{adAccountsList.find(acc => acc.account_id === selectedAdAccount)?.name || "Select Account"}</span>
-                   <span className="text-[10px] text-slate-400">ID: {selectedAdAccount}</span>
-                 </div>
-               </div>
-               <span className="text-xs text-slate-400 ml-1">▼</span>
-             </div>
+          {/* Ad Account Dropdown (បានដាក់បន្ថែម text-xs max-w-[140px] lg:max-w-[200px]) */}
+          <div className="relative">
+            <div 
+              onClick={() => setIsAccountMenuOpen(!isAccountMenuOpen)}
+              className={`${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-white hover:bg-[#3A3B3C]' : 'bg-white border-slate-300 text-slate-800 hover:bg-slate-50'} border rounded-lg px-2.5 py-1 flex items-center gap-1.5 cursor-pointer shadow-sm transition max-w-[140px] sm:max-w-[180px] lg:max-w-[220px] justify-between h-[38px]`}
+            >
+              <div className="flex items-center gap-1.5 text-left truncate min-w-0">
+                <span className="text-xs shrink-0 hidden sm:inline-block">🖥️</span>
+                <div className="flex flex-col truncate min-w-0">
+                  <span className={`text-[11px] font-bold truncate ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>
+                    {adAccountsList.find(acc => acc.account_id === selectedAdAccount)?.name || "Account"}
+                  </span>
+                  <span className="text-[9px] text-slate-400 truncate">ID: {selectedAdAccount}</span>
+                </div>
+              </div>
+              <span className="text-[10px] text-slate-400 ml-1 shrink-0">▼</span>
+            </div>
 
-             {isAccountMenuOpen && (
-               <>
-                 <div className="fixed inset-0 z-40" onClick={() => setIsAccountMenuOpen(false)}></div>
-                 <div className={`absolute top-[110%] right-0 w-[320px] border rounded-xl shadow-2xl z-50 p-2 flex flex-col gap-2 animate-in fade-in slide-in-from-top-2 duration-150 ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-white' : 'bg-white border-slate-300'}`}>
-                   <div className="text-xs font-bold text-slate-400 px-3 py-1">{adAccountsList.length} ad accounts</div>
-                   <div className="max-h-[300px] overflow-y-auto">
-                     {adAccountsList.map((acc: any) => (
-                       <div 
-                         key={acc.account_id}
-                         onClick={() => {
-                           setSelectedAdAccount(acc.account_id);
-                           setIsAccountMenuOpen(false);
-                           localStorage.setItem("selectedAdAccount", acc.account_id);
-                         }}
-                         className={`p-3 rounded-lg border flex items-center justify-between cursor-pointer transition mb-1 ${selectedAdAccount === acc.account_id ? (theme === 'dark' ? 'bg-blue-900/40 border-blue-600' : 'bg-blue-50/60 border-blue-300') : (theme === 'dark' ? 'border-slate-700 hover:bg-[#3A3B3C]' : 'border-slate-200 hover:bg-slate-50')}`}
-                       >
-                         <div className="flex items-center gap-3 flex-1 min-w-0 pr-2">
-                           <input type="radio" checked={selectedAdAccount === acc.account_id} readOnly className="text-blue-600 w-4 h-4 shrink-0" />
-                           <div className="text-left flex-1 min-w-0">
-                             <div className={`text-xs font-bold truncate ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>{acc.name}</div>
-                             <div className="text-[10px] text-slate-400 truncate">ID: {acc.account_id}</div>
-                           </div>
-                         </div>
-                       </div>
-                     ))}
-                   </div>
-                 </div>
-               </>
-             )}
-           </div>
+            {isAccountMenuOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setIsAccountMenuOpen(false)}></div>
+                <div className={`absolute top-[110%] right-0 w-[280px] border rounded-xl shadow-2xl z-50 p-2 flex flex-col gap-2 ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-white' : 'bg-white border-slate-300'}`}>
+                  <div className="text-xs font-bold text-slate-400 px-3 py-1">{adAccountsList.length} ad accounts</div>
+                  <div className="max-h-[250px] overflow-y-auto">
+                    {adAccountsList.map((acc: any) => (
+                      <div 
+                        key={acc.account_id}
+                        onClick={() => {
+                          setSelectedAdAccount(acc.account_id);
+                          setIsAccountMenuOpen(false);
+                          localStorage.setItem("selectedAdAccount", acc.account_id);
+                        }}
+                        className={`p-2.5 rounded-lg border flex items-center justify-between cursor-pointer transition mb-1 ${selectedAdAccount === acc.account_id ? (theme === 'dark' ? 'bg-blue-900/40 border-blue-600' : 'bg-blue-50/60 border-blue-300') : (theme === 'dark' ? 'border-slate-700 hover:bg-[#3A3B3C]' : 'border-slate-200 hover:bg-slate-50')}`}
+                      >
+                        <div className="flex items-center gap-2.5 flex-1 min-w-0 pr-2">
+                          <input type="radio" checked={selectedAdAccount === acc.account_id} readOnly className="text-blue-600 w-3.5 h-3.5 shrink-0" />
+                          <div className="text-left flex-1 min-w-0">
+                            <div className={`text-xs font-bold truncate ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>{acc.name}</div>
+                            <div className="text-[9px] text-slate-400 truncate">ID: {acc.account_id}</div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
 
-           {/* Date Preset Dropdown */}
-           <div className="relative">
-             <div 
-               onClick={() => setIsDateMenuOpen(!isDateMenuOpen)}
-               className={`${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-white hover:bg-[#3A3B3C]' : 'bg-white border-slate-300 text-slate-800 hover:bg-slate-50'} border rounded-lg px-3 py-1.5 flex items-center gap-2.5 cursor-pointer shadow-sm transition min-w-[140px] lg:min-w-[170px] h-[45px] justify-between`}
-             >
-               <div className="flex flex-col text-left">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase">Reporting</span>
-                  <span className={`text-sm font-bold leading-tight ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>{getSelectedDateLabel()}</span>
-               </div>
-               <span className="text-xs text-slate-400">▼</span>
-             </div>
+          {/* Date Preset Dropdown (បានដាក់បន្ថែម text-xs max-w-[120px]) */}
+          <div className="relative">
+            <div 
+              onClick={() => setIsDateMenuOpen(!isDateMenuOpen)}
+              className={`${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-white hover:bg-[#3A3B3C]' : 'bg-white border-slate-300 text-slate-800 hover:bg-slate-50'} border rounded-lg px-2.5 py-1 flex items-center gap-1.5 cursor-pointer shadow-sm transition max-w-[120px] sm:max-w-[155px] h-[38px] justify-between`}
+            >
+              <div className="flex flex-col text-left truncate min-w-0">
+                <span className="text-[9px] font-bold text-slate-400 uppercase">Reporting</span>
+                <span className={`text-[11px] font-bold truncate leading-tight ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>{getSelectedDateLabel()}</span>
+              </div>
+              <span className="text-[10px] text-slate-400 shrink-0">▼</span>
+            </div>
 
-             {isDateMenuOpen && (
-               <>
-                 <div className="fixed inset-0 z-40" onClick={() => setIsDateMenuOpen(false)}></div>
-                 <div className={`absolute top-[110%] right-0 w-[230px] border rounded-xl shadow-2xl z-50 p-1.5 flex flex-col animate-in fade-in slide-in-from-top-2 duration-150 ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-white' : 'bg-white border-slate-300'}`}>
-                   {datePresetOptions.map((option) => (
-                     <div 
-                       key={option.value}
-                       onClick={() => {
-                         setSelectedDatePreset(option.value);
-                         setIsDateMenuOpen(false);
-                         localStorage.setItem("selectedDatePreset", option.value);
-                       }}
-                       className={`p-2.5 rounded-lg text-sm cursor-pointer transition flex items-center justify-between ${selectedDatePreset === option.value ? 'bg-blue-600 text-white font-bold' : (theme === 'dark' ? 'text-slate-200 hover:bg-[#3A3B3C]' : 'text-slate-700 hover:bg-slate-100 font-medium')}`}
-                     >
-                       {option.label}
-                       {selectedDatePreset === option.value && <span className="text-xs">✓</span>}
-                     </div>
-                   ))}
-                   <div className="border-t border-slate-700 mt-1.5 pt-1.5 p-2 text-xs text-slate-500 font-medium cursor-not-allowed opacity-60">Custom Range... (Not enabled)</div>
-                 </div>
-               </>
-             )}
-           </div>
+            {isDateMenuOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setIsDateMenuOpen(false)}></div>
+                <div className={`absolute top-[110%] right-0 w-[180px] border rounded-xl shadow-2xl z-50 p-1.5 flex flex-col ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-white' : 'bg-white border-slate-300'}`}>
+                  {datePresetOptions.map((option) => (
+                    <div 
+                      key={option.value}
+                      onClick={() => {
+                        setSelectedDatePreset(option.value);
+                        setIsDateMenuOpen(false);
+                        localStorage.setItem("selectedDatePreset", option.value);
+                      }}
+                      className={`p-2 rounded-lg text-xs cursor-pointer transition flex items-center justify-between ${selectedDatePreset === option.value ? 'bg-blue-600 text-white font-bold' : (theme === 'dark' ? 'text-slate-200 hover:bg-[#3A3B3C]' : 'text-slate-700 hover:bg-slate-100 font-medium')}`}
+                    >
+                      {option.label}
+                      {selectedDatePreset === option.value && <span className="text-xs">✓</span>}
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
 
         </div>
       </header>
@@ -1332,7 +1332,7 @@ export default function Home() {
               <span className="text-lg leading-none">📊</span> <span className="text-[13.5px]">គ្រប់គ្រងយុទ្ធនាការ</span>
             </button>
             
-            {/* 🌟 ផ្នែក Tools: ប៊ូតុង AI Copywriter និង Post ID Finder */}
+            {/* 🌟 ផ្នែក Tools: នៅសល់តែកន្លែង AI Copywriter */}
             <div className={`border-t my-2 mt-4 ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}></div>
             <div className="text-[11px] font-bold text-slate-400 mb-2 px-3 uppercase tracking-widest">Tools</div>
             
@@ -1341,13 +1341,6 @@ export default function Home() {
               className={`w-full text-left px-4 py-3.5 rounded-xl font-bold transition-all flex items-center gap-3 cursor-pointer ${activeTab === "AI" ? "bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-md" : (theme === 'dark' ? 'text-slate-300 hover:bg-[#3A3B3C] hover:text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900')}`}
             >
               <span className="text-lg leading-none">✨</span> <span className="text-[13.5px]">AI Copywriter</span>
-            </button>
-
-            <button 
-              onClick={() => handleTabChange("POST_ID_FINDER")}
-              className={`w-full text-left px-4 py-3.5 rounded-xl font-bold transition-all flex items-center gap-3 cursor-pointer ${activeTab === "POST_ID_FINDER" ? "bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-md" : (theme === 'dark' ? 'text-slate-300 hover:bg-[#3A3B3C] hover:text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900')}`}
-            >
-              <span className="text-lg leading-none">🔗</span> <span className="text-[13.5px]">Post ID Finder</span>
             </button>
         </div>
         </aside>
@@ -1483,171 +1476,11 @@ export default function Home() {
               </div>
             )}
 
-            {activeTab === "POST_ID_FINDER" && (
-              <div className={`p-6 rounded-xl shadow-sm border w-full max-w-4xl mx-auto my-6 animate-in fade-in zoom-in-95 duration-300 transition-colors ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-900'}`}>
-                
-                {/* Header */}
-                <div className={`flex items-center gap-4 mb-6 p-4 rounded-xl border ${theme === 'dark' ? 'bg-gradient-to-r from-blue-950/40 to-cyan-950/40 border-blue-900/50' : 'bg-gradient-to-r from-blue-50 to-cyan-50 border-blue-100/50'}`}>
-                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-xl flex items-center justify-center text-white text-2xl shadow-lg">🔗</div>
-                  <div>
-                    <h2 className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>Facebook Post ID Finder</h2>
-                    <p className={`text-sm mt-1 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>បំប្លែងតំណភ្ជាប់ (URL) ផុសនៅលើ Facebook ឱ្យទៅជា Post ID សម្រាប់យកទៅ Boost</p>
-                  </div>
-                </div>
-
-                {/* Input Form */}
-                <div className="space-y-4">
-                  <div>
-                    <label className={`block text-[14px] font-bold mb-2 ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`}>ដាក់តំណភ្ជាប់ផុស (Post URL)</label>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        id="postUrlInput"
-                        placeholder="ឧ. https://www.facebook.com/permalink.php?story_fbid=pfbid0... ឬ https://www.facebook.com/share/p/..."
-                        className={`w-full border rounded-xl p-3.5 text-[14px] outline-none shadow-sm ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white placeholder:text-slate-500' : 'bg-slate-50 border-slate-300 text-slate-800'}`}
-                      />
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          const urlInput = (document.getElementById('postUrlInput') as HTMLInputElement).value;
-                          if (!urlInput.trim()) return alert("⚠️ សូមដាក់ Link ផុសជាមុនសិន!");
-
-                          const resultBox = document.getElementById('extractedResultBox');
-                          const idText = document.getElementById('extractedIdText');
-                          
-                          if (resultBox && idText) {
-                            idText.innerText = "⏳ កំពុងកាយរកលេខ ID សុទ្ធ...";
-                            resultBox.classList.remove('hidden');
-                          }
-
-                          try {
-                              // តែងតែបាញ់ទៅ API ដើម្បីលាតត្រដាង និងកាយយកលេខសុទ្ធពី Facebook 100%
-                              const res = await fetch('/api/resolve-fb-link', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ url: urlInput })
-                              });
-                              const data = await res.json();
-
-                              let finalId = "";
-                              if (data.success && data.id) {
-                                  finalId = data.id; // ទាញបានលេខសុទ្ធ ដូចអ្វីដែលបងចង់បាន!
-                              } else {
-                                  finalId = "❌ រកលេខសុទ្ធមិនឃើញទេ សាកល្បង Copy Link ពីកុំព្យូទ័រវិញ។";
-                              }
-
-                              if (idText) idText.innerText = finalId;
-
-                              // Save ចូល History
-                              if (finalId && !finalId.startsWith("❌")) {
-                                const newItem = { url: urlInput, id: finalId, time: new Date().toLocaleTimeString() };
-                                const updatedHistory = [newItem, ...postIdHistory.filter((item: any) => item.id !== finalId)].slice(0, 10);
-                                localStorage.setItem('post_id_history', JSON.stringify(updatedHistory));
-                                setPostIdHistory(updatedHistory);
-                              }
-
-                          } catch (error) {
-                              if (idText) idText.innerText = "❌ បរាជ័យក្នុងការតភ្ជាប់ទៅកាន់ API";
-                          }
-                        }}
-                        className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 rounded-xl text-[14px] shadow-md transition cursor-pointer shrink-0"
-                      >
-                        ⚡ Generate ID
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Result Display Box */}
-                  <div id="extractedResultBox" className="hidden mt-6 p-4 rounded-xl border bg-emerald-50 border-emerald-200 text-emerald-900 flex items-center justify-between shadow-sm">
-                    <div>
-                      <span className="text-xs font-bold uppercase tracking-wider text-emerald-600 block mb-1">✅ Post ID ដែលទើបទទួលបាន៖</span>
-                      <span id="extractedIdText" className="font-mono font-black text-lg select-all text-emerald-950"></span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const idText = document.getElementById('extractedIdText')?.innerText;
-                        if (idText) {
-                          navigator.clipboard.writeText(idText);
-                          alert("📋 បានចម្លង Post ID រួចរាល់!");
-                        }
-                      }}
-                      className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2 rounded-lg transition shadow-sm cursor-pointer"
-                    >
-                      📋 Copy ID
-                    </button>
-                  </div>
-
-                  {/* 🌟 ផ្នែកប្រវត្តិរក្សាទុក (History List) */}
-                  <div className="mt-8 pt-6 border-t border-slate-200 dark:border-slate-700">
-                    <div className="flex justify-between items-center mb-3">
-                      <h3 className={`font-bold text-[15px] ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>📜 ប្រវត្តិ Post ID ដែលធ្លាប់រក (១០ ចុងក្រោយ)</h3>
-                      {postIdHistory.length > 0 && (
-                        <button 
-                          type="button"
-                          onClick={() => {
-                            localStorage.removeItem('post_id_history');
-                            setPostIdHistory([]);
-                          }}
-                          className="text-xs text-red-500 hover:underline font-bold cursor-pointer"
-                        >
-                          សម្អាតប្រវត្តិ (Clear)
-                        </button>
-                      )}
-                    </div>
-
-                    <div className={`border rounded-xl overflow-hidden max-h-[300px] overflow-y-auto ${theme === 'dark' ? 'border-slate-700 bg-[#18191A]' : 'border-slate-200 bg-slate-50'}`}>
-                      {postIdHistory.length === 0 ? (
-                        <div className="p-4 text-center text-xs text-slate-400">មិនទាន់មានប្រវត្តិរក្សាទុកនៅឡើយទេ</div>
-                      ) : (
-                        <table className="w-full text-left text-xs border-collapse">
-                          <thead>
-                            <tr className="border-b bg-slate-200/50 dark:bg-slate-800 font-bold text-slate-600 dark:text-slate-300">
-                              <th className="p-2.5">Post ID</th>
-                              <th className="p-2.5">URL ដើម</th>
-                              <th className="p-2.5 text-right">សកម្មភាព</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {postIdHistory.map((item, idx) => (
-                              <tr key={idx} className="border-b border-slate-200 dark:border-slate-700 hover:bg-blue-50/50 dark:hover:bg-slate-800">
-                                <td className="p-2.5 font-mono font-bold text-blue-600 dark:text-blue-400">{item.id}</td>
-                                <td className="p-2.5 truncate max-w-[250px] text-slate-500">{item.url}</td>
-                                <td className="p-2.5 text-right">
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      navigator.clipboard.writeText(item.id);
-                                      alert(`📋 បានចម្លង ID: ${item.id}`);
-                                    }}
-                                    className="bg-blue-600 hover:bg-blue-700 text-white px-2.5 py-1 rounded font-bold shadow-xs cursor-pointer"
-                                  >
-                                    Copy
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* ណែនាំវិធីយក Link */}
-                  <div className={`mt-6 p-4 rounded-xl border text-[13px] leading-relaxed ${theme === 'dark' ? 'bg-[#3A3B3C]/50 border-slate-700 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-600'}`}>
-                    <strong className="block font-bold mb-1 text-blue-500">💡 របៀបយក Link ផុសពី Facebook៖</strong>
-                    ១. ចុចលើអត្ថបទម៉ោង ឬកាលបរិច្ឆេទ (Timestamp) នៃផុសនោះនៅលើ Page របស់អ្នក។<br />
-                    ២. ចម្លង (Copy) តំណភ្ជាប់ (URL) ពី Address Bar ខាងលើមកដាក់ក្នុងប្រអប់ខាងលើជាការស្រេច។
-                  </div>
-                </div>
-              </div>
-            )}
-
             {/* ========================================================= */}
             {/* ផ្ទាំងបង្កើតយុទ្ធនាការ (CREATE) - Dark Mode Supported */}
             {/* ========================================================= */}
             {activeTab === "CREATE" && (
-              <form onSubmit={handleAutoBoost} className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-in fade-in duration-200">
+              <form onSubmit={handleAutoBoost} className="grid grid-cols-1 xl:grid-cols-2 gap-4 lg:gap-6 animate-in fade-in duration-200 w-full overflow-hidden">
                 
                 {/* Campaign Details (Accordion Dropdown Mode) */}
                 <div className={`p-6 rounded-xl shadow-sm border flex flex-col gap-5 h-fit w-full min-w-0 transition-colors ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-800'}`}>
