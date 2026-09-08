@@ -138,6 +138,18 @@ export default function Home() {
   const [isSuccessModal, setIsSuccessModal] = useState(false); // 🌟 បន្ថែម State សម្រាប់បង្ហាញផ្ទាំងជោគជ័យ និងប៊ូតុង OK
   const [activeManageTab, setActiveManageTab] = useState('CAMPAIGNS'); // មាន ៣ ជម្រើស: 'CAMPAIGNS', 'ADSETS', 'ADS'
   
+  const [postIdHistory, setPostIdHistory] = useState<any[]>([]);
+
+  // ឱ្យវាទាញយកទិន្នន័យពី localStorage ពេល Component ដំណើរការដំបូង
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem('post_id_history');
+        if (saved) setPostIdHistory(JSON.parse(saved));
+      } catch (e) {}
+    }
+  }, []);
+
   // 🌟 create-post
   const [isCreatePostOpen, setIsCreatePostOpen] = useState(false);
   const [newPostMessage, setNewPostMessage] = useState("");
@@ -1317,14 +1329,22 @@ export default function Home() {
               <span className="text-lg leading-none">📊</span> <span className="text-[13.5px]">គ្រប់គ្រងយុទ្ធនាការ</span>
             </button>
             
-            {/* 🌟 ផ្នែក Tools: ប៊ូតុង AI Copywriter */}
+            {/* 🌟 ផ្នែក Tools: ប៊ូតុង AI Copywriter និង Post ID Finder */}
             <div className={`border-t my-2 mt-4 ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}></div>
             <div className="text-[11px] font-bold text-slate-400 mb-2 px-3 uppercase tracking-widest">Tools</div>
+            
             <button 
               onClick={() => handleTabChange("AI")}
               className={`w-full text-left px-4 py-3.5 rounded-xl font-bold transition-all flex items-center gap-3 cursor-pointer ${activeTab === "AI" ? "bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-md" : (theme === 'dark' ? 'text-slate-300 hover:bg-[#3A3B3C] hover:text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900')}`}
             >
               <span className="text-lg leading-none">✨</span> <span className="text-[13.5px]">AI Copywriter</span>
+            </button>
+
+            <button 
+              onClick={() => handleTabChange("POST_ID_FINDER")}
+              className={`w-full text-left px-4 py-3.5 rounded-xl font-bold transition-all flex items-center gap-3 cursor-pointer ${activeTab === "POST_ID_FINDER" ? "bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-md" : (theme === 'dark' ? 'text-slate-300 hover:bg-[#3A3B3C] hover:text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900')}`}
+            >
+              <span className="text-lg leading-none">🔗</span> <span className="text-[13.5px]">Post ID Finder</span>
             </button>
         </div>
         </aside>
@@ -1457,6 +1477,168 @@ export default function Home() {
                   </div>
                 )}
 
+              </div>
+            )}
+
+            {activeTab === "POST_ID_FINDER" && (
+              <div className={`p-6 rounded-xl shadow-sm border w-full max-w-4xl mx-auto my-6 animate-in fade-in zoom-in-95 duration-300 transition-colors ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-900'}`}>
+                
+                {/* Header */}
+                <div className={`flex items-center gap-4 mb-6 p-4 rounded-xl border ${theme === 'dark' ? 'bg-gradient-to-r from-blue-950/40 to-cyan-950/40 border-blue-900/50' : 'bg-gradient-to-r from-blue-50 to-cyan-50 border-blue-100/50'}`}>
+                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-xl flex items-center justify-center text-white text-2xl shadow-lg">🔗</div>
+                  <div>
+                    <h2 className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>Facebook Post ID Finder</h2>
+                    <p className={`text-sm mt-1 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>បំប្លែងតំណភ្ជាប់ (URL) ផុសនៅលើ Facebook ឱ្យទៅជា Post ID សម្រាប់យកទៅ Boost</p>
+                  </div>
+                </div>
+
+                {/* Input Form */}
+                <div className="space-y-4">
+                  <div>
+                    <label className={`block text-[14px] font-bold mb-2 ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`}>ដាក់តំណភ្ជាប់ផុស (Post URL)</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        id="postUrlInput"
+                        placeholder="ឧ. https://www.facebook.com/permalink.php?story_fbid=pfbid0... ឬ https://www.facebook.com/share/p/..."
+                        className={`w-full border rounded-xl p-3.5 text-[14px] outline-none shadow-sm ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white placeholder:text-slate-500' : 'bg-slate-50 border-slate-300 text-slate-800'}`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const urlInput = (document.getElementById('postUrlInput') as HTMLInputElement).value;
+                          if (!urlInput.trim()) return alert("⚠️ សូមដាក់ Link ផុសជាមុនសិន!");
+
+                          let extractedId = "";
+
+                          // 1. ស្វែងរកលេខ ID វែងៗ (ចាប់ពី ១៣ខ្ទង់ឡើងទៅ) ដែលជាទូទៅជា ID ពិតរបស់ Facebook
+                          const longNumMatch = urlInput.match(/([0-9]{13,})/);
+                          if (longNumMatch) {
+                            extractedId = longNumMatch[1];
+                          } else {
+                            // 2. ស្វែងរកតាមរយៈ format ផ្សេងទៀត
+                            const fbidMatch = urlInput.match(/(?:story_fbid=|fbid=)([0-9]+)/);
+                            if (fbidMatch) {
+                              extractedId = fbidMatch[1];
+                            } else {
+                              // បើជា Link កាត់ខ្លីពីទូរសព្ទ (share/p) មិនអាចទាញយក ID ផ្ទាល់បានទេ ត្រូវប្រាប់ណែនាំ
+                              if (urlInput.includes('/share/p/') || urlInput.includes('share/v/')) {
+                                alert("⚠️ Link កាត់ខ្លីពីទូរសព្ទ (share/p) មិនអាចទាញយកលេខ ID ពិតប្រាកដបានទេ។\n\n💡 សូមចូលយក Link ពេញពីកុំព្យូទ័រដោយចុចលើ 'ម៉ោង (Timestamp)' របស់ផុសនោះ!");
+                                return;
+                              }
+                              
+                              const segments = urlInput.split('/');
+                              extractedId = segments.filter(Boolean).pop() || "";
+                            }
+                          }
+
+                          const finalId = extractedId || urlInput;
+
+                          const resultBox = document.getElementById('extractedResultBox');
+                          const idText = document.getElementById('extractedIdText');
+                          if (resultBox && idText) {
+                            idText.innerText = finalId;
+                            resultBox.classList.remove('hidden');
+                          }
+
+                          // Save to localStorage & update state
+                          try {
+                            const newItem = { url: urlInput, id: finalId, time: new Date().toLocaleTimeString() };
+                            const updatedHistory = [newItem, ...postIdHistory.filter((item: any) => item.id !== finalId)].slice(0, 10);
+                            localStorage.setItem('post_id_history', JSON.stringify(updatedHistory));
+                            setPostIdHistory(updatedHistory);
+                          } catch(e) {}
+                        }}
+                        className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 rounded-xl text-[14px] shadow-md transition cursor-pointer shrink-0"
+                      >
+                        ⚡ Generate ID
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Result Display Box */}
+                  <div id="extractedResultBox" className="hidden mt-6 p-4 rounded-xl border bg-emerald-50 border-emerald-200 text-emerald-900 flex items-center justify-between shadow-sm">
+                    <div>
+                      <span className="text-xs font-bold uppercase tracking-wider text-emerald-600 block mb-1">✅ Post ID ដែលទើបទទួលបាន៖</span>
+                      <span id="extractedIdText" className="font-mono font-black text-lg select-all text-emerald-950"></span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const idText = document.getElementById('extractedIdText')?.innerText;
+                        if (idText) {
+                          navigator.clipboard.writeText(idText);
+                          alert("📋 បានចម្លង Post ID រួចរាល់!");
+                        }
+                      }}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2 rounded-lg transition shadow-sm cursor-pointer"
+                    >
+                      📋 Copy ID
+                    </button>
+                  </div>
+
+                  {/* 🌟 ផ្នែកប្រវត្តិរក្សាទុក (History List) */}
+                  <div className="mt-8 pt-6 border-t border-slate-200 dark:border-slate-700">
+                    <div className="flex justify-between items-center mb-3">
+                      <h3 className={`font-bold text-[15px] ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>📜 ប្រវត្តិ Post ID ដែលធ្លាប់រក (១០ ចុងក្រោយ)</h3>
+                      {postIdHistory.length > 0 && (
+                        <button 
+                          type="button"
+                          onClick={() => {
+                            localStorage.removeItem('post_id_history');
+                            setPostIdHistory([]);
+                          }}
+                          className="text-xs text-red-500 hover:underline font-bold cursor-pointer"
+                        >
+                          សម្អាតប្រវត្តិ (Clear)
+                        </button>
+                      )}
+                    </div>
+
+                    <div className={`border rounded-xl overflow-hidden max-h-[300px] overflow-y-auto ${theme === 'dark' ? 'border-slate-700 bg-[#18191A]' : 'border-slate-200 bg-slate-50'}`}>
+                      {postIdHistory.length === 0 ? (
+                        <div className="p-4 text-center text-xs text-slate-400">មិនទាន់មានប្រវត្តិរក្សាទុកនៅឡើយទេ</div>
+                      ) : (
+                        <table className="w-full text-left text-xs border-collapse">
+                          <thead>
+                            <tr className="border-b bg-slate-200/50 dark:bg-slate-800 font-bold text-slate-600 dark:text-slate-300">
+                              <th className="p-2.5">Post ID</th>
+                              <th className="p-2.5">URL ដើម</th>
+                              <th className="p-2.5 text-right">សកម្មភាព</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {postIdHistory.map((item, idx) => (
+                              <tr key={idx} className="border-b border-slate-200 dark:border-slate-700 hover:bg-blue-50/50 dark:hover:bg-slate-800">
+                                <td className="p-2.5 font-mono font-bold text-blue-600 dark:text-blue-400">{item.id}</td>
+                                <td className="p-2.5 truncate max-w-[250px] text-slate-500">{item.url}</td>
+                                <td className="p-2.5 text-right">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(item.id);
+                                      alert(`📋 បានចម្លង ID: ${item.id}`);
+                                    }}
+                                    className="bg-blue-600 hover:bg-blue-700 text-white px-2.5 py-1 rounded font-bold shadow-xs cursor-pointer"
+                                  >
+                                    Copy
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* ណែនាំវិធីយក Link */}
+                  <div className={`mt-6 p-4 rounded-xl border text-[13px] leading-relaxed ${theme === 'dark' ? 'bg-[#3A3B3C]/50 border-slate-700 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-600'}`}>
+                    <strong className="block font-bold mb-1 text-blue-500">💡 របៀបយក Link ផុសពី Facebook៖</strong>
+                    ១. ចុចលើអត្ថបទម៉ោង ឬកាលបរិច្ឆេទ (Timestamp) នៃផុសនោះនៅលើ Page របស់អ្នក។<br />
+                    ២. ចម្លង (Copy) តំណភ្ជាប់ (URL) ពី Address Bar ខាងលើមកដាក់ក្នុងប្រអប់ខាងលើជាការស្រេច។
+                  </div>
+                </div>
               </div>
             )}
 
