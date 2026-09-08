@@ -1314,35 +1314,35 @@ export default function Home() {
       <div className="flex flex-1 w-full items-stretch">
 
         {/* 🌟 Layout Main + Left Sidebar (Multi-Language & Dark Mode Supported) */}
-        <aside className={`hidden md:flex flex-col w-[260px] shrink-0 border-r min-h-[calc(100vh-64px)] shadow-sm z-10 transition-colors ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'}`}>
-        <div className="sticky top-[64px] p-4 flex flex-col gap-2 pt-6">
-            <div className="text-[11px] font-bold text-slate-400 mb-2 px-3 uppercase tracking-widest">{lang === 'kh' ? 'Main Menu' : 'Main Menu'}</div>
-            
-            <button 
-              onClick={() => handleTabChange("CREATE")}
-              className={`w-full text-left px-4 py-3.5 rounded-xl font-bold transition-all flex items-center gap-3 cursor-pointer ${activeTab === "CREATE" ? "bg-blue-600 text-white shadow-md" : (theme === 'dark' ? 'text-slate-300 hover:bg-[#3A3B3C] hover:text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900')}`}
-            >
-              <span className="text-lg leading-none">✍️</span> <span className="text-[13.5px]">បង្កើតយុទ្ធនាការ</span>
-            </button>
+        <aside className={`hidden md:flex flex-col w-[260px] shrink-0 border-r min-h-[calc(100vh-64px)] shadow-sm z-10 transition-colors pb-16 ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'}`}>
+          <div className="sticky top-[64px] p-4 flex flex-col gap-2 pt-6">
+              <div className="text-[11px] font-bold text-slate-400 mb-2 px-3 uppercase tracking-widest">{lang === 'kh' ? 'Main Menu' : 'Main Menu'}</div>
+              
+              <button 
+                onClick={() => handleTabChange("CREATE")}
+                className={`w-full text-left px-4 py-3.5 rounded-xl font-bold transition-all flex items-center gap-3 cursor-pointer ${activeTab === "CREATE" ? "bg-blue-600 text-white shadow-md" : (theme === 'dark' ? 'text-slate-300 hover:bg-[#3A3B3C] hover:text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900')}`}
+              >
+                <span className="text-lg leading-none">✍️</span> <span className="text-[13.5px]">បង្កើតយុទ្ធនាការ</span>
+              </button>
 
-            <button 
-              onClick={() => handleTabChange("MANAGE")}
-              className={`w-full text-left px-4 py-3.5 rounded-xl font-bold transition-all flex items-center gap-3 cursor-pointer ${activeTab === "MANAGE" ? "bg-blue-600 text-white shadow-md" : (theme === 'dark' ? 'text-slate-300 hover:bg-[#3A3B3C] hover:text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900')}`}
-            >
-              <span className="text-lg leading-none">📊</span> <span className="text-[13.5px]">គ្រប់គ្រងយុទ្ធនាការ</span>
-            </button>
-            
-            {/* 🌟 ផ្នែក Tools: នៅសល់តែកន្លែង AI Copywriter */}
-            <div className={`border-t my-2 mt-4 ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}></div>
-            <div className="text-[11px] font-bold text-slate-400 mb-2 px-3 uppercase tracking-widest">Tools</div>
-            
-            <button 
-              onClick={() => handleTabChange("AI")}
-              className={`w-full text-left px-4 py-3.5 rounded-xl font-bold transition-all flex items-center gap-3 cursor-pointer ${activeTab === "AI" ? "bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-md" : (theme === 'dark' ? 'text-slate-300 hover:bg-[#3A3B3C] hover:text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900')}`}
-            >
-              <span className="text-lg leading-none">✨</span> <span className="text-[13.5px]">AI Copywriter</span>
-            </button>
-        </div>
+              <button 
+                onClick={() => handleTabChange("MANAGE")}
+                className={`w-full text-left px-4 py-3.5 rounded-xl font-bold transition-all flex items-center gap-3 cursor-pointer ${activeTab === "MANAGE" ? "bg-blue-600 text-white shadow-md" : (theme === 'dark' ? 'text-slate-300 hover:bg-[#3A3B3C] hover:text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900')}`}
+              >
+                <span className="text-lg leading-none">📊</span> <span className="text-[13.5px]">គ្រប់គ្រងយុទ្ធនាការ</span>
+              </button>
+              
+              {/* 🌟 ផ្នែក Tools: នៅសល់តែកន្លែង AI Copywriter */}
+              <div className={`border-t my-2 mt-4 ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}></div>
+              <div className="text-[11px] font-bold text-slate-400 mb-2 px-3 uppercase tracking-widest">Tools</div>
+              
+              <button 
+                onClick={() => handleTabChange("AI")}
+                className={`w-full text-left px-4 py-3.5 rounded-xl font-bold transition-all flex items-center gap-3 cursor-pointer ${activeTab === "AI" ? "bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-md" : (theme === 'dark' ? 'text-slate-300 hover:bg-[#3A3B3C] hover:text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900')}`}
+              >
+                <span className="text-lg leading-none">✨</span> <span className="text-[13.5px]">AI Copywriter</span>
+              </button>
+          </div>
         </aside>
 
         {/* Main Content Area */}
@@ -1480,23 +1480,26 @@ export default function Home() {
             {/* ផ្ទាំងបង្កើតយុទ្ធនាការ (CREATE) - Dark Mode Supported */}
             {/* ========================================================= */}
             {activeTab === "CREATE" && (
-              <form onSubmit={handleAutoBoost} className="grid grid-cols-1 xl:grid-cols-2 gap-4 lg:gap-6 animate-in fade-in duration-200 w-full overflow-hidden">
+              <form onSubmit={handleAutoBoost} className="flex flex-col gap-4 animate-in fade-in duration-200 w-full overflow-hidden pb-16 md:pb-0">
                 
-                {/* Campaign Details (Accordion Dropdown Mode) */}
-                <div className={`p-6 rounded-xl shadow-sm border flex flex-col gap-5 h-fit w-full min-w-0 transition-colors ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-800'}`}>
-                  
-                  <div className="flex justify-between items-center border-b pb-2">
-                    <h3 className={`font-bold flex items-center gap-2 ${theme === 'dark' ? 'border-slate-700 text-white' : 'border-slate-200 text-slate-800'}`}>
-                      <span className={`p-1 rounded ${theme === 'dark' ? 'bg-[#3A3B3C]' : 'bg-slate-100'}`}>📁</span> ១. Campaign Details
-                    </h3>
-                    
-                    {/* 🌟 ប៊ូតុងចុចបិទ/បើកទម្លាក់ (Dropdown Toggle Button) */}
-                    <button
-                      type="button"
-                      onClick={() => setShowAdvancedSettings(!showAdvancedSettings)}
-                      className="text-[12px] font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1.5 cursor-pointer bg-blue-50 dark:bg-blue-950/40 px-3 py-1.5 rounded-lg transition-all"
+                {/* 🌟 ថ្មី៖ Top Action Bar (ប៊ូតុង Publish នៅខាងលើ) */}
+                <div className={`sticky top-[60px] md:top-[64px] z-40 flex justify-between items-center p-3 mt-1 rounded-xl shadow-sm border transition-colors ${theme === 'dark' ? 'bg-[#242526]/95 backdrop-blur-md border-slate-700' : 'bg-white/95 backdrop-blur-md border-slate-200'}`}>
+                  <div className={`text-[12px] hidden sm:flex items-center gap-1.5 font-semibold ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
+                    <span className="text-[#1877F2] text-lg leading-none">ℹ</span> By clicking Publish, you agree to Meta's Terms.
+                  </div>
+                  <div className={`text-[14px] sm:hidden font-bold flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>
+                    <span className="text-xl leading-none">🚀</span> New Ad
+                  </div>
+                  <div className="flex gap-2.5">
+                    <button type="button" className={`px-4 py-2 border rounded-lg font-bold text-[13px] transition shadow-sm ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-slate-200 hover:bg-[#4E4F50]' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'}`}>
+                      Close
+                    </button>
+                    <button 
+                      type="submit" 
+                      disabled={loading || !selectedPost || isBudgetError}
+                      className={`px-6 py-2 rounded-lg text-white font-bold text-[13px] transition shadow-md ${loading || !selectedPost || isBudgetError ? (theme === 'dark' ? 'bg-[#3A3B3C] text-slate-500' : 'bg-[#E4E6EB] text-[#BCC0C4]') : 'bg-[#1877F2] hover:bg-[#166FE5]'}`}
                     >
-                      <span>{showAdvancedSettings ? "▲ បិទព័ត៌មានលម្អិត" : "⚙️ បើកទម្លាក់មើលបន្ថែម"}</span>
+                      {loading ? "Publishing..." : "Publish"}
                     </button>
                   </div>
 
