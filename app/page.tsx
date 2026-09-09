@@ -1194,11 +1194,33 @@ export default function Home() {
           <h1 className="text-sm sm:text-lg font-black text-blue-600 truncate">Ads Manager Pro</h1>
         </div>
 
-        {/* ផ្នែកទី២៖ Connect Button / Connected Badge */}
-        <div className="flex items-center">
+        {/* ផ្នែកទី២៖ Connect Button / Connected Badge & Logout */}
+        <div className="flex items-center gap-2">
           {isFbConnected ? (
-            <div className="px-3 py-1.5 bg-green-500 text-white font-bold rounded-lg flex items-center gap-1.5 text-xs shadow-sm shrink-0 cursor-default">
-              <span>✅</span> <span className="hidden md:inline">{fbPageName || "Connected"}</span>
+            <div className="flex items-center gap-2">
+              <div className="px-3 py-1.5 bg-green-500 text-white font-bold rounded-lg flex items-center gap-1.5 text-xs shadow-sm shrink-0 cursor-default">
+                <span>✅</span> <span className="hidden md:inline">{fbPageName || "Connected"}</span>
+              </div>
+              
+              {/* 🌟 ប៊ូតុង Log Out ដាក់នៅជាប់ខាងស្តាំប៊ូតុងពណ៌បៃតង */}
+              <button 
+                onClick={() => {
+                  localStorage.removeItem('fb_user_token');
+                  localStorage.removeItem('selectedPage');
+                  localStorage.removeItem('selectedAdAccount');
+                  setIsFbConnected(false);
+                  setFbPageName("");
+                  window.location.reload();
+                }}
+                className={`px-3 py-1.5 font-bold rounded-lg border text-xs transition shadow-sm shrink-0 cursor-pointer flex items-center gap-1 ${
+                  theme === 'dark' 
+                    ? 'bg-red-950/40 border-red-900/50 text-red-400 hover:bg-red-900/40' 
+                    : 'bg-white border-red-200 text-red-600 hover:bg-red-50'
+                }`}
+                title="Log Out from Facebook"
+              >
+                <span>🚪</span> <span>Log Out</span>
+              </button>
             </div>
           ) : (
             <button 
