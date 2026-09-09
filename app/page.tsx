@@ -1182,16 +1182,16 @@ export default function Home() {
       {/* Global Header */}
       <header className={`${theme === 'dark' ? 'bg-[#18191A] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-900'} shadow-sm py-3 px-3 lg:px-8 flex flex-wrap items-center justify-between sticky top-0 z-30 border-b transition-colors duration-300 gap-3`}>
         
-        {/* ផ្នែកទី១៖ Logo & Title (ដាក់រូបឡូហ្គោពណ៌ទឹកក្រូចថ្មីនៅទីនេះ) */}
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-[#1c1c1e] rounded-[22.5%] overflow-hidden shadow-md border border-white/10 flex items-center justify-center shrink-0">
+        {/* ផ្នែកទី១៖ Logo & Title */}
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-10 h-10 bg-white rounded-[22.5%] overflow-hidden shadow-sm border border-slate-200 flex items-center justify-center shrink-0">
             <img 
               src="/logo.png"
               alt="1 Click Boost Logo" 
               className="w-[85%] h-[85%] object-contain pointer-events-none" 
             />
           </div>
-          <h1 className="text-lg font-black text-blue-600 hidden sm:block">Ads Manager Pro</h1>
+          <h1 className="text-sm sm:text-lg font-black text-blue-600 truncate">Ads Manager Pro</h1>
         </div>
 
         {/* ផ្នែកទី២៖ Connect Button / Connected Badge */}
