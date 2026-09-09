@@ -2049,33 +2049,7 @@ export default function Home() {
         </div>
       </div>
 
-      {/* --- Action Buttons (Close / Publish) នៅបាតខាងឆ្វេង --- */}
-      <div className={`p-5 rounded-2xl border flex flex-col sm:flex-row justify-between items-center gap-4 shadow-sm w-full mt-2 mb-16 md:mb-4 ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-900'}`}>
-        <div className="text-[12px] hidden sm:block opacity-80">
-          By clicking Publish, you acknowledge Meta's <span className="text-[#1877F2] cursor-pointer hover:underline">Terms and Conditions</span>.
-        </div>
-        <div className="flex gap-3 w-full sm:w-auto justify-end">
-          <button 
-            type="button" 
-            onClick={() => setActiveTab("MANAGE")}
-            className={`px-6 py-3 border rounded-xl font-bold text-[14px] transition shadow-sm cursor-pointer ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-slate-200 hover:bg-[#4E4F50]' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'}`}
-          >
-            Close
-          </button>
-          
-          <button 
-            type="submit" 
-            disabled={loading || !selectedPost || isBudgetError} 
-            className={`px-10 py-3 rounded-xl font-bold text-[14px] transition shadow-md cursor-pointer ${
-              loading || !selectedPost || isBudgetError 
-                ? (theme === 'dark' ? 'bg-[#3A3B3C] text-slate-500 cursor-not-allowed' : 'bg-[#E4E6EB] text-[#BCC0C4] cursor-not-allowed') 
-                : 'bg-[#1877F2] hover:bg-[#166FE5] text-white'
-            }`}
-          >
-            {loading ? "Publishing..." : "Publish"}
-          </button>
-        </div>
-      </div>
+      
 
     </div>
 
@@ -2279,7 +2253,33 @@ export default function Home() {
           )}
         </div>
       </div>
-
+      {/* --- Action Buttons (Close / Publish) នៅបាតខាងឆ្វេង --- */}
+      <div className={`p-5 rounded-2xl border flex flex-col sm:flex-row justify-between items-center gap-4 shadow-sm w-full mt-2 mb-16 md:mb-4 ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-900'}`}>
+        <div className="text-[12px] hidden sm:block opacity-80">
+          By clicking Publish, you acknowledge Meta's <span className="text-[#1877F2] cursor-pointer hover:underline">Terms and Conditions</span>.
+        </div>
+        <div className="flex gap-3 w-full sm:w-auto justify-end">
+          <button 
+            type="button" 
+            onClick={() => setActiveTab("MANAGE")}
+            className={`px-6 py-3 border rounded-xl font-bold text-[14px] transition shadow-sm cursor-pointer ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-slate-200 hover:bg-[#4E4F50]' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'}`}
+          >
+            Close
+          </button>
+          
+          <button 
+            type="submit" 
+            disabled={loading || !selectedPost || isBudgetError} 
+            className={`px-10 py-3 rounded-xl font-bold text-[14px] transition shadow-md cursor-pointer ${
+              loading || !selectedPost || isBudgetError 
+                ? (theme === 'dark' ? 'bg-[#3A3B3C] text-slate-500 cursor-not-allowed' : 'bg-[#E4E6EB] text-[#BCC0C4] cursor-not-allowed') 
+                : 'bg-[#1877F2] hover:bg-[#166FE5] text-white'
+            }`}
+          >
+            {loading ? "Publishing..." : "Publish"}
+          </button>
+        </div>
+      </div>
     </div>
 
   </form>
