@@ -26,6 +26,42 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState("CREATE");
   const [isMounted, setIsMounted] = useState(false);
 
+  // 🌟 ដាក់កូដ useEffect ឆែក Supabase ត្រង់ចំណុចនេះ (កន្លែងកម្រិតក្រៅបង្អស់ក្នុង Home Component)
+  useEffect(() => {
+    const checkSupabaseConnection = async () => {
+      try {
+        const res = await fetch('/api/facebook/get-account');
+        const result = await res.json();
+
+        if (result.connected) {
+          setIsFbConnected(true);
+          setFbPageName(result.pageName);
+          if (result.accessToken) {
+            localStorage.setItem('fb_user_token', result.accessToken);
+          }
+          if (result.adAccountId) {
+            setSelectedAdAccount(result.adAccountId);
+            localStorage.setItem('selectedAdAccount', result.adAccountId);
+          }
+        }
+      } catch (err) {
+        console.error("Error checking Supabase connection:", err);
+      }
+    };
+
+    checkSupabaseConnection();
+  }, []);
+
+  useEffect(() => {
+    setIsMounted(true);
+    if (typeof window !== "undefined") {
+      const savedTab = localStorage.getItem("activeTab");
+      if (savedTab) {
+        setActiveTab(savedTab);
+      }
+    }
+  }, []);
+  
   // 🌟 States សម្រាប់ Pages និង Selected Page (ត្រូវប្រកាសមុនគេ)
   const [pages, setPages] = useState<any[]>([]);
   const [selectedPage, setSelectedPage] = useState("");
@@ -49,6 +85,8 @@ export default function Home() {
       localStorage.setItem('fb_user_token', tokenFromUrl);
       window.history.replaceState({}, document.title, window.location.pathname);
     }
+
+    
 
     // 2. ឆែកមើល Token ក្នុង localStorage ហើយប្តូរ State ព្រមទាំងហៅ API ភ្លាមៗ
     const token = localStorage.getItem('fb_user_token');
@@ -2070,7 +2108,6 @@ export default function Home() {
           </div>
         </div>
       </div>
-
       
 
     </div>
@@ -2276,7 +2313,7 @@ export default function Home() {
         </div>
       </div>
       {/* --- Action Buttons (Close / Publish) នៅបាតខាងឆ្វេង --- */}
-      <div className={`p-5 rounded-2xl border flex flex-col sm:flex-row justify-between items-center gap-4 shadow-sm w-full mt-2 mb-16 md:mb-4 ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-900'}`}>
+      <div className={`p-5 rounded-2xl border flex flex-col sm:flex-row justify-between items-center gap-4 shadow-sm w-full mt-2 mb-16 md:mb-4 relative z-30 ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-900'}`}>
         <div className="text-[12px] hidden sm:block opacity-80">
           By clicking Publish, you acknowledge Meta's <span className="text-[#1877F2] cursor-pointer hover:underline">Terms and Conditions</span>.
         </div>
