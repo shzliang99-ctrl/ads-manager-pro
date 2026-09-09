@@ -1670,6 +1670,7 @@ export default function Home() {
 
         <div>
           <label className={`block text-sm font-semibold mb-1.5 ${theme === 'dark' ? 'text-slate-300' : 'text-slate-600'}`}>Detailed Targeting (Interests)</label>
+          
           <div className="flex gap-2 flex-wrap sm:flex-nowrap">
             <input 
               type="text"
@@ -1681,6 +1682,7 @@ export default function Home() {
               placeholder="Search interests (e.g. Shoes, Footwear)..."
               className={`w-full border rounded-xl p-3 text-sm outline-none focus:border-blue-500 shadow-sm font-medium ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white placeholder-slate-400' : 'bg-white border-slate-300 text-slate-800'}`}
             />
+            
             <button
               type="button"
               onClick={async () => {
@@ -1702,6 +1704,7 @@ export default function Home() {
             >
               AI Pro - Fill
             </button>
+
             <button
               type="button"
               onClick={() => { setTargeting(""); localStorage.removeItem("targeting"); }}
@@ -1710,6 +1713,7 @@ export default function Home() {
               Clear
             </button>
           </div>
+
           <textarea 
             rows={3}
             value={targeting} 
@@ -1720,15 +1724,20 @@ export default function Home() {
         </div>
 
         <div className={`border rounded-xl overflow-visible mt-2 flex-1 ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+          
+          {/* Placements Dropdown Toggle */}
           <div 
             onClick={() => setShowPlacementsSection(!showPlacementsSection)}
             className={`p-3.5 border-b flex justify-between items-center cursor-pointer select-none transition-colors ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-700 text-white hover:bg-[#4E4F50]' : 'bg-slate-100 border-slate-200 text-slate-800 hover:bg-slate-200'}`}
           >
-            <label className={`block text-sm font-bold cursor-pointer ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>📍 Placements</label>
+            <label className={`block text-sm font-bold cursor-pointer ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>
+              📍 Placements
+            </label>
             <button type="button" className="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1 cursor-pointer">
               {showPlacementsSection ? "▲ លាក់ការកំណត់" : "⚙️ បើកទម្លាក់មើលបន្ថែម"}
             </button>
           </div>
+
           {showPlacementsSection && (
             <div className={`p-4 flex flex-col gap-4 animate-in slide-in-from-top-2 duration-200 ${theme === 'dark' ? 'bg-[#242526]' : 'bg-white'}`}>
               <select value={placementType} onChange={(e) => saveParam("placementType", e.target.value, setPlacementType)} className={`w-full border rounded-xl p-3 text-sm outline-none font-medium cursor-pointer ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'}`}>
@@ -1738,12 +1747,14 @@ export default function Home() {
 
               {placementType === "MANUAL" && (
                 <div className={`flex flex-col gap-4 pt-4 border-t animate-in fade-in text-sm ${theme === 'dark' ? 'border-slate-700' : 'border-slate-100'}`}>
+                  
                   {/* Devices and OS */}
                   <div className={`rounded-xl border shadow-sm transition-all ${theme === 'dark' ? 'bg-[#18191A] border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
                     <div className="flex justify-between items-center p-3.5 cursor-pointer select-none" onClick={() => setShowDevices(!showDevices)}>
                         <h4 className={`font-bold ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`}>Devices and operating systems</h4>
                         <span className="text-slate-500 font-black text-xs">{showDevices ? '▲' : '▼'}</span>
                     </div>
+                    
                     {showDevices && (
                         <div className="flex flex-col gap-3 px-3.5 pb-4 animate-in fade-in slide-in-from-top-2">
                           <select value={deviceType} onChange={(e) => saveParam("deviceType", e.target.value, setDeviceType)} className={`w-full border rounded-xl p-2.5 outline-none cursor-pointer shadow-sm ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-700'}`}>
@@ -1772,12 +1783,13 @@ export default function Home() {
                         </div>
                     )}
                   </div>
-                  
+
                   {/* Platforms */}
                   <div className={`border rounded-xl shadow-sm transition-all ${theme === 'dark' ? 'bg-[#242526] border-slate-700' : 'bg-white border-slate-200'}`}>
                     <div className={`p-3.5 font-bold flex justify-between cursor-pointer select-none ${theme === 'dark' ? 'bg-[#3A3B3C] text-slate-200' : 'bg-slate-50 text-slate-700'}`} onClick={() => setShowPlatforms(!showPlatforms)}>
                         Platforms <span className="text-slate-500 font-black text-xs">{showPlatforms ? '▲' : '▼'}</span>
                     </div>
+                    
                     {showPlatforms && (
                       <div className={`p-4 grid grid-cols-2 gap-y-4 gap-x-2 font-medium animate-in fade-in slide-in-from-top-2 ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
                         <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={platforms.facebook} onChange={() => handlePlatformChange('facebook')} className="w-4 h-4 text-blue-600 rounded border-slate-500" /> Facebook</label>
@@ -1793,8 +1805,8 @@ export default function Home() {
                   {/* Placement Controls */}
                   <div className={`border rounded-xl shadow-sm mb-2 transition-all ${theme === 'dark' ? 'bg-[#242526] border-slate-700' : 'bg-white border-slate-200'}`}>
                     <div className={`p-3.5 font-bold flex justify-between items-center cursor-pointer select-none ${theme === 'dark' ? 'bg-[#3A3B3C] text-slate-200' : 'bg-slate-50 text-slate-700'}`} onClick={() => setShowPlacementCtrls(!showPlacementCtrls)}>
-                          <span className="flex items-center gap-1">Placement controls <span className="w-3.5 h-3.5 rounded-full bg-slate-400 text-[9px] flex items-center justify-center font-bold text-white">i</span></span>
-                          <span className="text-slate-500 font-black text-xs">{showPlacementCtrls ? '▲' : '▼'}</span>
+                        <span className="flex items-center gap-1">Placement controls <span className="w-3.5 h-3.5 rounded-full bg-slate-400 text-[9px] flex items-center justify-center font-bold text-white">i</span></span>
+                        <span className="text-slate-500 font-black text-xs">{showPlacementCtrls ? '▲' : '▼'}</span>
                     </div>
                     
                     {showPlacementCtrls && (
