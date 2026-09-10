@@ -3,7 +3,6 @@ import { supabase } from '@/lib/supabase';
 
 export async function GET(request: Request) {
   try {
-    // បច្ចុប្បន្នយើងដាក់ user_id = 1 សិន (ថ្ងៃក្រោយពេលធ្វើระบบ Login ค่อยดึงตาม User ID ពិតប្រាកដ)
     const currentUserId = 1; 
 
     const { data, error } = await supabase
@@ -16,7 +15,6 @@ export async function GET(request: Request) {
       return NextResponse.json({ connected: false });
     }
 
-    // ប្រសិនបើរកឃើញ មានន័យថាເຄີຍ Connect រួចហើយ
     return NextResponse.json({
       connected: true,
       pageName: data.page_name,
