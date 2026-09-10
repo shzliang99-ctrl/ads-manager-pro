@@ -27,22 +27,29 @@ export default function Home() {
   const [isMounted, setIsMounted] = useState(false);
 
   // 🌟 ដាក់កូដ useEffect ឆែក Supabase ត្រង់ចំណុចនេះ (កន្លែងកម្រិតក្រៅបង្អស់ក្នុង Home Component)
+  // 🌟 ឆែកមើលការតភ្ជាប់ Facebook ពី Supabase Database (ការពារ Error JSON)
   useEffect(() => {
     const checkSupabaseConnection = async () => {
       try {
         const res = await fetch('/api/facebook/get-account');
-        const result = await res.json();
+        const contentType = res.headers.get("content-type");
 
-        if (result.connected) {
-          setIsFbConnected(true);
-          setFbPageName(result.pageName);
-          if (result.accessToken) {
-            localStorage.setItem('fb_user_token', result.accessToken);
+        // ឆែកមើលថាតើ API  trả មកជា JSON ពិតប្រាកដដែរឬទេ? (ការពារករណីចេញ HTML 404)
+        if (contentType && contentType.indexOf("application/json") !== -1) {
+          const result = await res.json();
+          if (result.connected) {
+            setIsFbConnected(true);
+            setFbPageName(result.pageName);
+            if (result.accessToken) {
+              localStorage.setItem('fb_user_token', result.accessToken);
+            }
+            if (result.adAccountId) {
+              setSelectedAdAccount(result.adAccountId);
+              localStorage.setItem('selectedAdAccount', result.adAccountId);
+            }
           }
-          if (result.adAccountId) {
-            setSelectedAdAccount(result.adAccountId);
-            localStorage.setItem('selectedAdAccount', result.adAccountId);
-          }
+        } else {
+          console.warn("API /api/facebook/get-account រកមិនឃើញ ឬឆ្លើយតບខុសទម្រង់ (HTML Page)");
         }
       } catch (err) {
         console.error("Error checking Supabase connection:", err);
