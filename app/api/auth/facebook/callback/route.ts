@@ -9,14 +9,14 @@ export async function GET(request: Request) {
     const code = url.searchParams.get('code');
 
     if (!code) {
-      throw new Error("Missing authorization code from Facebook");
+      return NextResponse.json({ success: false, error: "Missing authorization code from Facebook" }, { status: 400 });
     }
 
     const clientId = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID;
     const clientSecret = process.env.FACEBOOK_APP_SECRET;
 
     if (!clientId || !clientSecret) {
-      throw new Error("Missing Facebook App ID or Secret in environment variables");
+      return NextResponse.json({ success: false, error: "Missing Facebook App ID or Secret in environment variables" }, { status: 400 });
     }
 
     const redirectUri = `${origin}/api/auth/facebook/callback`;
@@ -28,17 +28,17 @@ export async function GET(request: Request) {
     const tokenData = await tokenRes.json();
 
     if (tokenData.error) {
-      throw new Error(`Facebook OAuth Error: ${tokenData.error.message}`);
+      return NextResponse.json({ success: false, error: `Facebook Token Error: ${tokenData.error.message}` }, { status: 400 });
     }
 
     const userAccessToken = tokenData.access_token;
 
-    // 2. ទាញយក Profile Facebook User ID
+    // 2. ទាញយក Facebook User Profile (ID)
     const meRes = await fetch(`https://graph.facebook.com/v18.0/me?access_token=${userAccessToken}`);
     const meData = await meRes.json();
     const facebookUserId = meData.id;
 
-    // 3. ទាញយក Pages
+    // 3. ទាញយក Facebook Pages របស់ User
     const pagesRes = await fetch(`https://graph.facebook.com/v18.0/me/accounts?access_token=${userAccessToken}`);
     const pagesData = await pagesRes.json();
 
@@ -53,7 +53,7 @@ export async function GET(request: Request) {
     const firstAdAccount = adAccountsData.data && adAccountsData.data.length > 0 ? adAccountsData.data[0] : null;
     const adAccountId = firstAdAccount ? firstAdAccount.id : null;
 
-    // 5. បង្កើត Supabase Client ផ្ទាល់ (ទាញយកតាម Key ដែលមានក្នុង Vercel របស់បង)
+    // 5. តភ្ជាប់ Supabase Admin Client
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const supabaseKey = 
       process.env.SUPABASE_SERVICE_ROLE_KEY || 
@@ -66,7 +66,7 @@ export async function GET(request: Request) {
 
     const currentUserId = 1;
 
-    // 6. Save ចូល Database Table facebook_accounts
+    // 6. រក្សាទុកចូល Supabase Database (facebook_accounts table)
     const { error: dbError } = await supabaseAdmin
       .from('facebook_accounts')
       .upsert({
@@ -80,18 +80,20 @@ export async function GET(request: Request) {
       }, { onConflict: 'facebook_user_id' });
 
     if (dbError) {
-      console.error("Database Insert Error:", dbError);
-      throw new Error(`Database Error: ${dbError.message}`);
+      return NextResponse.json({ success: false, error: `Supabase Database Error: ${dbError.message}` }, { status: 400 });
     }
 
-    // 7. Redirect ត្រឡប់មក Dashboard ជាមួយ Token ក្នុង Param ដើម្បីឱ្យ Browser Sync ជាប់ភ្លាមៗ
+    // 7. បើជោគជ័យ ១០០% គឺ Redirect ត្រឡប់មក Dashboard វិញ ព្រមទាំងបញ្ជូន Token តាម URL
     return NextResponse.redirect(
       new URL(`/?connected=true&token=${pageAccessToken}`, origin)
     );
 
   } catch (error: any) {
-    console.error("Facebook Callback Failure:", error.message);
-    const reason = encodeURIComponent(error.message || "Unknown error");
-    return NextResponse.redirect(new URL(`/?error=facebook_failed&reason=${reason}`, origin));
+    console.error("Critical Facebook Callback Error:", error);
+    // 🌟 បើមានបញ្ហាអ្វីកើតឡើង វាគ្មិនបង្ហាញសារ Error ច្បាស់ៗនៅលើអكرង់ប្រូស៊ោន (Browser) ផ្ទាល់តែម្ដង មិនបាច់ស្មានទៀតទេ
+    return NextResponse.json({ 
+      success: false, 
+      error: error.message || "Unknown server error during facebook callback" 
+    }, { status: 500 });
   }
 }
