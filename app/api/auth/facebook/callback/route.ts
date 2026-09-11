@@ -11,22 +11,14 @@ export async function GET(request: Request) {
       throw new Error("Missing authorization code from Facebook");
     }
 
-    // 🌟 1. ឆែកមើលថា តើ User ណាជាអ្នកកំពុង Login ក្នុងប្រព័ន្ធឥឡូវនេះ?
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    // បើអតិថិជនអត់ទាន់ Log in ចូលគណនីគេទេ ឱ្យ redirect ទៅកាន់ទំព័រ login ជាមុនសិន
-    if (!session) {
-      return NextResponse.redirect(new URL('/login?error=not_authenticated', origin));
-    }
-
-    // ជំនួសឱ្យការទាញ session ស្មុគស្មាញ យើងដាក់ថេរលេខ ១ សិន
+    // 🌟 កំណត់ User ID (លុបកូដឆែក Session ចាស់ចោល ព្រោះវាជាអ្នកធ្វើឱ្យរត់ទៅទំព័រ Login វិញ)
     const currentUserId = 1;
 
     const clientId = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID;
     const clientSecret = process.env.FACEBOOK_APP_SECRET;
     const redirectUri = `${origin}/api/auth/facebook/callback`;
 
-    // 2. ប្តូរយក User Access Token ពី Facebook Graph API
+    // 1. ប្តូរយក User Access Token ពី Facebook
     const tokenRes = await fetch(
       `https://graph.facebook.com/v18.0/oauth/access_token?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&client_secret=${clientSecret}&code=${code}`
     );
@@ -38,12 +30,12 @@ export async function GET(request: Request) {
 
     const userAccessToken = tokenData.access_token;
 
-    // 3. ទាញយក Facebook User Profile (ID)
+    // 2. ទាញយក Facebook User Profile (ID)
     const meRes = await fetch(`https://graph.facebook.com/v18.0/me?access_token=${userAccessToken}`);
     const meData = await meRes.json();
     const facebookUserId = meData.id;
 
-    // 4. ទាញយកបញ្ជី Facebook Pages របស់ User ນີ້
+    // 3. ទាញយកបញ្ជី Facebook Pages
     const pagesRes = await fetch(`https://graph.facebook.com/v18.0/me/accounts?access_token=${userAccessToken}`);
     const pagesData = await pagesRes.json();
     
@@ -52,18 +44,18 @@ export async function GET(request: Request) {
     const pageName = firstPage ? firstPage.name : null;
     const pageAccessToken = firstPage ? firstPage.access_token : userAccessToken;
 
-    // 5. ទាញយក Ad Account ID របស់ User ນີ້
+    // 4. ទាញយក Ad Account ID
     const adAccountsRes = await fetch(`https://graph.facebook.com/v18.0/me/adaccounts?access_token=${userAccessToken}`);
     const adAccountsData = await adAccountsRes.json();
     const firstAdAccount = adAccountsData.data && adAccountsData.data.length > 0 ? adAccountsData.data[0] : null;
     const adAccountId = firstAdAccount ? firstAdAccount.id : null;
 
-    // 🌟 6. រក្សាទុក (Save) ចូលទៅក្នុង Database (Supabase) ដោយผูกជាមួយ user_id ពិតប្រាកដ
+    // 5. រក្សាទុក (Save) ចូលទៅក្នុង Database (Supabase)
     const { error: dbError } = await supabase
       .from('facebook_accounts')
       .upsert([
         {
-          user_id: currentUserId, // ຜูกជាប់กับ Client នីមួយៗដាច់ដោយឡែកពីគ្នា
+          user_id: currentUserId,
           facebook_user_id: facebookUserId,
           access_token: pageAccessToken,
           page_id: pageId,
@@ -77,11 +69,13 @@ export async function GET(request: Request) {
       throw new Error("Supabase Error: " + dbError.message);
     }
 
-    // 7. Redirect ត្រឡប់មក Dashboard វិញ ព្រមទាំងបញ្ជាក់ថា Connected ជោគជ័យ
+    // 6. Redirect ត្រឡប់មក Dashboard វិញ (ភ្ជាប់ជោគជ័យ)
     return NextResponse.redirect(new URL(`/?connected=true`, origin));
     
   } catch (error: any) {
     console.error("Facebook OAuth Callback Error:", error.message);
-    return NextResponse.json({ success: false, error: error.message }, { status: 400 });
+    // បើមាន Error អ្វីមួយ ឱ្យត្រឡប់មក Dashboard ជាមួយនឹងសារបញ្ជាក់ថាភ្ជាប់បរាជ័យ
+    const url = new URL(request.url);
+    return NextResponse.redirect(new URL(`/?error=facebook_failed`, url.origin));
   }
 }

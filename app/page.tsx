@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
 
 // 🌟 Option សម្រាប់ជ្រើសរើសថ្ងៃ
 const datePresetOptions = [
@@ -15,6 +16,17 @@ const datePresetOptions = [
 ];
 
 export default function Home() {
+
+  // 🌟 កូដថ្មី៖ បង្ខំឱ្យប្រាកដថា User បាន Login មុននឹងអាចឃើញផ្ទាំង Dashboard
+  useEffect(() => {
+    const enforceLogin = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (!data.session) {
+        window.location.href = '/login'; // បោះទៅទំព័រ Login បើមិនទាន់ចូលគណនី
+      }
+    };
+    enforceLogin();
+  }, []);
 
   const [adName, setAdName] = useState("");
 
