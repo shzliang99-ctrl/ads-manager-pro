@@ -17,38 +17,63 @@ const datePresetOptions = [
 
 export default function Home() {
 
-  // 🌟 ឆែកមើលការតភ្ជាប់ Facebook ពី Cloud Database អូតូ (No Cache)
+  // 🌟 វិធីសាស្ត្រថ្មីកាត់ផ្ដាច់ API៖ ទាញយកទិន្នន័យផ្ទាល់ពី Supabase Database ចូលមក Device តែម្ដង (Direct Cloud Sync)
   useEffect(() => {
-    const checkCloudConnection = async () => {
+    const syncFacebookDataDirectly = async () => {
       try {
-        // 🌟 ថែមពាក្យ { cache: 'no-store' } ដើម្បីកុំឱ្យទូរស័ព្ទអានទិន្នន័យចាស់
-        const res = await fetch('/api/facebook/get-account', { cache: 'no-store' });
-        const contentType = res.headers.get("content-type");
+        // ១. ឆែកមើលក្រែងលោក្នុងម៉ាស៊ីន/ទូរស័ព្ទនេះ មាន Token រួចហើយ មិនបាច់ទាញទេ
+        const localToken = localStorage.getItem('fb_user_token');
+        if (localToken) {
+           setIsFbConnected(true);
+           return;
+        }
 
-        if (contentType && contentType.includes("application/json")) {
-          const result = await res.json();
+        console.log("កំពុងទាញយកទិន្នន័យពី Cloud ផ្ទាល់...");
+        
+        // ២. ទាញទិន្នន័យពី Database ផ្ទាល់ដោយប្រើ Supabase Client (ធានាមិនគាំង Error 500)
+        const { data, error } = await supabase
+          .from('facebook_accounts')
+          .select('*')
+          .order('updated_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        if (error) {
+          console.log("រកមិនឃើញទិន្នន័យតភ្ជាប់នៅលើ Cloud ទេ:", error.message);
+          return;
+        }
+
+        if (data && data.access_token) {
+          console.log("✅ ទាញយកសោរពី Cloud ជោគជ័យ និងកំពុងភ្ជាប់អូតូ!");
           
-          if (result.connected && result.accessToken) {
-            setIsFbConnected(true);
-            setFbPageName(result.pageName);
-            localStorage.setItem('fb_user_token', result.accessToken);
-            
-            if (result.adAccountId) {
-              setSelectedAdAccount(result.adAccountId);
-              localStorage.setItem('selectedAdAccount', result.adAccountId);
-            }
-            if (result.pageId) {
-              setSelectedPage(result.pageId);
-              localStorage.setItem('selectedPage', result.pageId);
-            }
+          // ៣. បញ្ចូលទិន្នន័យទៅក្នុងទូរស័ព្ទ ឬកុំព្យូទ័រថ្មីនេះភ្លាមៗ
+          localStorage.setItem('fb_user_token', data.access_token);
+          setIsFbConnected(true);
+          
+          if (data.page_name) setFbPageName(data.page_name);
+          
+          if (data.page_id) {
+             setSelectedPage(data.page_id);
+             localStorage.setItem('selectedPage', data.page_id);
+          }
+          
+          if (data.ad_account_id) {
+             setSelectedAdAccount(data.ad_account_id);
+             localStorage.setItem('selectedAdAccount', data.ad_account_id);
+          }
+          
+          // ៤. ហៅមុខងារទាញយក Ad Account ឱ្យលោតចេញមកអូតូ
+          if (typeof fetchAdAccounts === 'function') {
+            fetchAdAccounts();
           }
         }
       } catch (err) {
-        console.error("❌ Error fetching cloud account:", err);
+        console.error("❌ Cloud Direct Sync Error:", err);
       }
     };
 
-    checkCloudConnection();
+    // ដំណើរការពេលទំព័រដើរ
+    syncFacebookDataDirectly();
   }, []);
 
   // 🌟 កូដថ្មី៖ បង្ខំឱ្យប្រាកដថា User បាន Login មុននឹងអាចឃើញផ្ទាំង Dashboard
