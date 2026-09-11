@@ -1391,22 +1391,42 @@ export default function Home() {
       </div>
       
       <button 
-        onClick={() => {
-          localStorage.removeItem('fb_user_token');
-          localStorage.removeItem('selectedPage');
-          localStorage.removeItem('selectedAdAccount');
-          setIsFbConnected(false);
-          setFbPageName("");
-          window.location.reload();
-        }}
-        className={`px-3 py-1.5 font-bold rounded-lg border text-xs transition shadow-sm shrink-0 cursor-pointer flex items-center gap-1 ${
-          theme === 'dark' 
-            ? 'bg-red-950/40 border-red-900/50 text-red-400 hover:bg-red-900/40' 
-            : 'bg-white border-red-200 text-red-600 hover:bg-red-50'
-        }`}
-      >
-        <span>🚪</span> <span>Disconnect</span>
-      </button>
+                onClick={async () => {
+                  try {
+                    // ១. លុបទិន្នន័យក្នុង Browser (LocalStorage)
+                    localStorage.removeItem('fb_user_token');
+                    localStorage.removeItem('selectedPage');
+                    localStorage.removeItem('selectedAdAccount');
+                    setIsFbConnected(false);
+                    setFbPageName("");
+
+                    // ២. 🌟 លុប Account ទាំងអស់ចេញពី Supabase Database ផ្ទាល់តែម្ដង
+                    const { error } = await supabase
+                      .from('facebook_accounts')
+                      .delete()
+                      .neq('id', 0); // លុបទិន្នន័យក្នុង Table ចោលទាំងអស់ដើម្បីឱ្យដាច់ស្រឡះ
+
+                    if (error) {
+                      console.error("Error clearing cloud database:", error);
+                    } else {
+                      console.log("✅ Disconnected ពី Cloud ជោគជ័យ!");
+                    }
+
+                    // ៣. Reload ទំព័រដើម្បីសម្អាត State ទាំងស្រុង
+                    window.location.href = window.location.origin;
+                  } catch (err) {
+                    console.error("Disconnect error:", err);
+                    window.location.reload();
+                  }
+                }}
+                className={`px-3 py-1.5 font-bold rounded-lg border text-xs transition shadow-sm shrink-0 cursor-pointer flex items-center gap-1 ${
+                  theme === 'dark' 
+                    ? 'bg-red-950/40 border-red-900/50 text-red-400 hover:bg-red-900/40' 
+                    : 'bg-white border-red-200 text-red-600 hover:bg-red-50'
+                }`}
+              >
+                <span>🚪</span> <span>Disconnect</span>
+              </button>
     </div>
   ) : (
     /* 🌟 ហៅ Function មកប្រើត្រង់នេះតែម្ដង ខ្លីស្អាត */
@@ -1887,43 +1907,27 @@ export default function Home() {
               className={`w-full border rounded-xl p-3 text-sm outline-none focus:border-blue-500 shadow-sm font-medium ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white placeholder-slate-400' : 'bg-white border-slate-300 text-slate-800'}`}
             />
             
-            <button 
-                onClick={async () => {
-                  try {
-                    // ១. លុបទិន្នន័យក្នុង Browser (LocalStorage)
-                    localStorage.removeItem('fb_user_token');
-                    localStorage.removeItem('selectedPage');
-                    localStorage.removeItem('selectedAdAccount');
-                    setIsFbConnected(false);
-                    setFbPageName("");
-
-                    // ២. 🌟 លុប Account ទាំងអស់ចេញពី Supabase Database ផ្ទាល់តែម្ដង
-                    const { error } = await supabase
-                      .from('facebook_accounts')
-                      .delete()
-                      .neq('id', 0); // លុបទិន្នន័យក្នុង Table ចោលទាំងអស់ដើម្បីឱ្យដាច់ស្រឡះ
-
-                    if (error) {
-                      console.error("Error clearing cloud database:", error);
-                    } else {
-                      console.log("✅ Disconnected ពី Cloud ជោគជ័យ!");
-                    }
-
-                    // ៣. Reload ទំព័រដើម្បីសម្អាត State ទាំងស្រុង
-                    window.location.href = window.location.origin;
-                  } catch (err) {
-                    console.error("Disconnect error:", err);
-                    window.location.reload();
-                  }
-                }}
-                className={`px-3 py-1.5 font-bold rounded-lg border text-xs transition shadow-sm shrink-0 cursor-pointer flex items-center gap-1 ${
-                  theme === 'dark' 
-                    ? 'bg-red-950/40 border-red-900/50 text-red-400 hover:bg-red-900/40' 
-                    : 'bg-white border-red-200 text-red-600 hover:bg-red-50'
-                }`}
-              >
-                <span>🚪</span> <span>Disconnect</span>
-              </button>
+            <button
+              type="button"
+              onClick={async () => {
+                if (!interestQuery.trim()) { alert("⚠️ សូមវាយពាក្យគន្លឹះចូលក្នុងប្រអប់ជាមុនសិន!"); return; }
+                try {
+                  const pageInfo = pages.find(p => p.id === selectedPage);
+                  const token = pageInfo?.access_token || "";
+                  const res = await fetch(`/api/interests?q=${interestQuery}&token=${token}`);
+                  const result = await res.json();
+                  if (result.success && result.data.length > 0) {
+                    const proKeywords = result.data.map((item: any) => item.name).join(", ");
+                    setTargeting(proKeywords);
+                    localStorage.setItem("targeting", proKeywords);
+                    alert(`🔥 ទាញយក AI Pro - Fill ចំនួន ${result.data.length} ដោយជោគជ័យ!`);
+                  } else { alert("⚠️ រកមិនឃើញទិន្នន័យទេ: " + (result.error || "Unknown error")); }
+                } catch (err) { console.error("Error:", err); }
+              }}
+              className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white px-4 py-2.5 rounded-xl text-xs font-bold hover:from-emerald-700 hover:to-teal-700 transition shrink-0 cursor-pointer shadow-sm"
+            >
+              AI Pro - Fill
+            </button>
 
             <button
               type="button"
