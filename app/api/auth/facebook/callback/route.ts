@@ -31,7 +31,6 @@ export async function GET(request: Request) {
       throw new Error(`Facebook Token Error: ${tokenData.error.message}`);
     }
 
-    // 🌟 ប្រើប្រាស់សោរមេ (Master Token) ធានាថាទាញយកបញ្ជី Page បានពេញលេញ
     const userAccessToken = tokenData.access_token;
 
     // 2. ទាញយក Facebook User Profile (ID)
@@ -64,12 +63,12 @@ export async function GET(request: Request) {
       auth: { persistSession: false }
     });
 
-    // 6. 🌟 រក្សាទុក "សោរមេ (userAccessToken)" ចូល Supabase Database
+    // 6. រក្សាទុកចូល Supabase
     const { error: dbError } = await supabaseAdmin
       .from('facebook_accounts')
       .upsert({
         facebook_user_id: String(facebookUserId),
-        access_token: userAccessToken, // 👈 ប្រើសោរមេនៅទីនេះ
+        access_token: userAccessToken,
         page_id: pageId ? String(pageId) : null,
         page_name: pageName,
         ad_account_id: adAccountId ? String(adAccountId) : null,
@@ -80,7 +79,7 @@ export async function GET(request: Request) {
       throw new Error(`Supabase DB Error: ${dbError.message}`);
     }
 
-    // 7. 🌟 Redirect បញ្ជូនសោរមេទៅកាន់ Website ដើម្បីឱ្យវា Sync គ្រប់ Devices ទាំងអស់
+    // 7. Redirect ទៅកាន់ Website
     return NextResponse.redirect(
       new URL(`/?connected=true&token=${userAccessToken}`, origin)
     );
