@@ -4,7 +4,7 @@ export async function POST(request: Request) {
   try {
     const contentType = request.headers.get("content-type") || "";
 
-    // 🌟 ករណីទី១៖ បើ Frontend ផ្ញើមកជា JSON (សម្រាប់ទាញយក Posts មកបង្ហាញក្នុង Table)
+    // 🌟 ករណីទី១៖ បើ Frontend ផ្ញើមកជា JSON (សម្រាប់ទាញយក Posts មកបង្ហាញក្នុង Table ព្រមទាំង Likes & Comments)
     if (contentType.includes("application/json")) {
       const body = await request.json();
       const { pageId, pageToken, access_token } = body;
@@ -15,8 +15,8 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: false, error: "Missing pageId or pageToken" }, { status: 400 });
       }
 
-      // 🌟 កំណត់ limit=100 (ព្រោះ Facebook API មិនអនុញ្ញាតឱ្យលើសពី 100 ទេ)
-      const url = `https://graph.facebook.com/v18.0/${pageId}/posts?fields=id,message,created_time,full_picture,status_type,attachments,shares&limit=100&access_token=${token}`;
+      // 🌟 កំណត់ limit=20 និងថែម fields សម្រាប់ Likes, Comments និង Shares ឱ្យបានពេញលេញ
+      const url = `https://graph.facebook.com/v18.0/${pageId}/posts?fields=id,message,created_time,full_picture,status_type,attachments,likes.summary(true),comments.summary(true),shares&limit=20&access_token=${token}`;
       
       const res = await fetch(url, { cache: 'no-store' });
       const data = await res.json();
@@ -26,11 +26,11 @@ export async function POST(request: Request) {
          return NextResponse.json({ success: false, error: data.error.message }, { status: 400 });
       }
 
-      // ចម្រាញ់ទិន្នន័យឱ្យស្រួលប្រើប្រាស់លើ Frontend
+      // ចម្រាញ់ទិន្នន័យទាញយកចំនួន Likes, Comments និង Shares ពិតប្រាកដមកបង្ហាញ
       const formattedPosts = (data.data || []).map((p: any) => ({
         ...p,
-        likesCount: 0,     // ជៀសវាងការគាំងរឿង summary
-        commentsCount: 0,  // ជៀសវាងការគាំងរឿង summary
+        likesCount: p.likes?.summary?.total_count || 0,
+        commentsCount: p.comments?.summary?.total_count || 0,
         sharesCount: p.shares?.count || 0
       }));
 
