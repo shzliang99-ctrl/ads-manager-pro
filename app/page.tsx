@@ -17,18 +17,18 @@ const datePresetOptions = [
 
 export default function Home() {
 
-  // 🌟 [មុខងារស្តង់ដារ ManyChat] ឆែកមើលការតភ្ជាប់ Facebook ពី Cloud Database អូតូ
+  // 🌟 ឆែកមើលការតភ្ជាប់ Facebook ពី Cloud Database អូតូ (No Cache)
   useEffect(() => {
     const checkCloudConnection = async () => {
       try {
-        const res = await fetch('/api/facebook/get-account');
+        // 🌟 ថែមពាក្យ { cache: 'no-store' } ដើម្បីកុំឱ្យទូរស័ព្ទអានទិន្នន័យចាស់
+        const res = await fetch('/api/facebook/get-account', { cache: 'no-store' });
         const contentType = res.headers.get("content-type");
 
         if (contentType && contentType.includes("application/json")) {
           const result = await res.json();
           
           if (result.connected && result.accessToken) {
-            // ពេល Cloud ប្រាប់ថាមាន Token, យើងយកវាមក Save ចូលទូរស័ព្ទ/កុំព្យូទ័រដែលកំពុងប្រើនេះភ្លាម
             setIsFbConnected(true);
             setFbPageName(result.pageName);
             localStorage.setItem('fb_user_token', result.accessToken);
@@ -41,12 +41,10 @@ export default function Home() {
               setSelectedPage(result.pageId);
               localStorage.setItem('selectedPage', result.pageId);
             }
-
-            console.log("✅ Auto-Connected ពី Cloud ជោគជ័យ!");
           }
         }
       } catch (err) {
-        console.error("❌ បរាជ័យក្នុងការភ្ជាប់ទៅកាន់ Cloud:", err);
+        console.error("❌ Error fetching cloud account:", err);
       }
     };
 

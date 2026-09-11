@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
+// 🌟 បន្ទាត់នេះសំខាន់បំផុត៖ បិទការចងចាំ (Cache) របស់ Vercel ដាច់ខាត!
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -13,7 +16,7 @@ export async function GET() {
       auth: { persistSession: false }
     });
 
-    // 🌟 ទាញយកទិន្នន័យចុងក្រោយបង្អស់ពី Table facebook_accounts
+    // 🌟 ទាញយកទិន្នន័យថ្មីៗបំផុតពី Table facebook_accounts
     const { data, error } = await supabaseAdmin
       .from('facebook_accounts')
       .select('*')
@@ -21,12 +24,11 @@ export async function GET() {
       .limit(1);
 
     if (error || !data || data.length === 0) {
-      return NextResponse.json({ connected: false, error: "No account found in table" });
+      return NextResponse.json({ connected: false });
     }
 
     const account = data[0];
 
-    // 🌟 ส่งទិន្នន័យត្រឡប់ទៅ Website វិញ
     return NextResponse.json({
       connected: true,
       accessToken: account.access_token,
