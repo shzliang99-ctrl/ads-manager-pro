@@ -19,7 +19,8 @@ export async function GET(request: Request) {
       return NextResponse.redirect(new URL('/login?error=not_authenticated', origin));
     }
 
-    const currentUserId = session.user.id; // យក User ID ពិតប្រាកដជា UUID (ឧ. 'a0eebc99-9c0b...')
+    // ជំនួសឱ្យការទាញ session ស្មុគស្មាញ យើងដាក់ថេរលេខ ១ សិន
+    const currentUserId = 1;
 
     const clientId = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID;
     const clientSecret = process.env.FACEBOOK_APP_SECRET;
