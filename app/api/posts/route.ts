@@ -16,7 +16,7 @@ export async function POST(request: Request) {
       }
 
       // 🌟 កំណត់ limit=100 (ព្រោះ Facebook API មិនអនុញ្ញាតឱ្យលើសពី 100 ទេ)
-      const url = `https://graph.facebook.com/v18.0/${pageId}/posts?fields=id,message,created_time,full_picture,status_type,attachments,shares&limit=100&access_token=${token}`;
+      const url = `https://graph.facebook.com/v18.0/${pageId}/posts?fields=id,message,created_time,full_picture,status_type,attachments,shares&limit=10&access_token=${token}`;
       
       const res = await fetch(url, { cache: 'no-store' });
       const data = await res.json();

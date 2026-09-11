@@ -31,22 +31,27 @@ export async function GET(request: Request) {
       throw new Error(`Facebook Token Error: ${tokenData.error.message}`);
     }
 
-    const userAccessToken = tokenData.access_token; // 🌟 នេះជាសោរមេ (Master Token)
+    const userAccessToken = tokenData.access_token;
 
     // 2. ទាញយក Facebook User Profile (ID)
     const meRes = await fetch(`https://graph.facebook.com/v18.0/me?access_token=${userAccessToken}`);
     const meData = await meRes.json();
     const facebookUserId = meData.id;
 
-    // 3. ទាញយក Facebook Pages របស់ User
+    // 3. ទាញយក Facebook Pages របស់ User (ដើម្បីទាញយក Page Access Token ផ្ទាល់)
     const pagesRes = await fetch(`https://graph.facebook.com/v18.0/me/accounts?access_token=${userAccessToken}`);
     const pagesData = await pagesRes.json();
     const firstPage = pagesData.data && pagesData.data.length > 0 ? pagesData.data[0] : null;
+    
+    const pageId = firstPage ? firstPage.id : null;
+    const pageName = firstPage ? firstPage.name : null;
+    const pageAccessToken = firstPage && firstPage.access_token ? firstPage.access_token : userAccessToken; // 🌟 ប្រើ Page Token បើមាន
 
     // 4. ទាញយក Ad Account ID
     const adAccountsRes = await fetch(`https://graph.facebook.com/v18.0/me/adaccounts?access_token=${userAccessToken}`);
     const adAccountsData = await adAccountsRes.json();
     const firstAdAccount = adAccountsData.data && adAccountsData.data.length > 0 ? adAccountsData.data[0] : null;
+    const adAccountId = firstAdAccount ? firstAdAccount.id : null;
 
     // 5. តភ្ជាប់ Supabase Admin Client
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -59,15 +64,15 @@ export async function GET(request: Request) {
       auth: { persistSession: false }
     });
 
-    // 6. រក្សាទុកចូល Supabase (🌟 ត្រូវ Save សោរមេ userAccessToken ទើបមានសិទ្ធិអាន API)
+    // 6. 🌟 រក្សាទុក "Page Access Token" ចូល Supabase Database (ដើម្បីកុំឱ្យ Error ពេលទាញ Page ធំៗ)
     const { error: dbError } = await supabaseAdmin
       .from('facebook_accounts')
       .upsert({
         facebook_user_id: String(facebookUserId),
-        access_token: userAccessToken, // 👈 កែមកប្រើសោរមេនៅទីនេះ
-        page_id: firstPage ? String(firstPage.id) : null,
-        page_name: firstPage ? firstPage.name : null,
-        ad_account_id: firstAdAccount ? String(firstAdAccount.id) : null,
+        access_token: pageAccessToken, // 👈 ប្រើ Page Token នៅទីនេះ
+        page_id: pageId ? String(pageId) : null,
+        page_name: pageName,
+        ad_account_id: adAccountId ? String(adAccountId) : null,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'facebook_user_id' });
 
@@ -75,9 +80,9 @@ export async function GET(request: Request) {
       throw new Error(`Supabase DB Error: ${dbError.message}`);
     }
 
-    // 7. 🌟 Redirect បញ្ជូន "សោរមេ" ទៅកាន់ Website ដើម្បីឱ្យវាអាចទាញបញ្ជី Page បាន
+    // 7. 🌟 Redirect បញ្ជូន Page Token ទៅកាន់ Website ដើម្បីឱ្យវា Sync គ្រប់ Devices ទាំងអស់
     return NextResponse.redirect(
-      new URL(`/?connected=true&token=${userAccessToken}`, origin) // 👈 កែមកប្រើសោរមេនៅទីនេះ
+      new URL(`/?connected=true&token=${pageAccessToken}`, origin) // 👈 បញ្ជូន Page Token
     );
 
   } catch (error: any) {

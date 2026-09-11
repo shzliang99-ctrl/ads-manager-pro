@@ -17,6 +17,18 @@ const datePresetOptions = [
 
 export default function Home() {
 
+  // 🔗 មុខងារសម្រាប់ពេលចុច Connect Facebook
+  const handleFacebookConnect = () => {
+    const appId = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID;
+    if (!appId) {
+      alert("❌ រកមិនឃើញ Facebook App ID ទេ (សូមពិនិត្យ env.local)!");
+      return;
+    }
+    const redirectUri = encodeURIComponent(`${window.location.origin}/api/auth/facebook/callback`);
+    const scope = 'public_profile,ads_management,ads_read,pages_read_engagement,pages_show_list,pages_manage_ads';
+    window.location.href = `https://www.facebook.com/v18.0/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code`;
+  };
+
   // 🌟 វិធីសាស្ត្រថ្មីកាត់ផ្ដាច់ API៖ ទាញយកទិន្នន័យផ្ទាល់ពី Supabase Database ចូលមក Device តែម្ដង (Direct Cloud Sync)
   useEffect(() => {
     const syncFacebookDataDirectly = async () => {
@@ -1372,50 +1384,41 @@ export default function Home() {
         {/* ផ្នែកទី២៖ Connect Button / Connected Badge & Logout */}
         {/* ផ្នែកប៊ូតុង Connect Facebook */}
         <div className="flex items-center gap-2">
-          {isFbConnected ? (
-            <div className="flex items-center gap-2">
-              <div className="px-3 py-1.5 bg-green-500 text-white font-bold rounded-lg flex items-center gap-1.5 text-xs shadow-sm shrink-0 cursor-default">
-                <span>✅</span> <span className="hidden md:inline">{fbPageName || "Connected"}</span>
-              </div>
-              
-              <button 
-                onClick={() => {
-                  localStorage.removeItem('fb_user_token');
-                  localStorage.removeItem('selectedPage');
-                  localStorage.removeItem('selectedAdAccount');
-                  setIsFbConnected(false);
-                  setFbPageName("");
-                  window.location.reload();
-                }}
-                className={`px-3 py-1.5 font-bold rounded-lg border text-xs transition shadow-sm shrink-0 cursor-pointer flex items-center gap-1 ${
-                  theme === 'dark' 
-                    ? 'bg-red-950/40 border-red-900/50 text-red-400 hover:bg-red-900/40' 
-                    : 'bg-white border-red-200 text-red-600 hover:bg-red-50'
-                }`}
-              >
-                <span>🚪</span> <span>Disconnect</span>
-              </button>
-            </div>
-          ) : (
-            /* 🌟 កូដបង្ការ៖ ពេលចុច វានឹងហៅតំណភ្ជាប់ទៅកាន់ Facebook Login API ផ្ទាល់តែម្ដង */
-            <button 
-              type="button"
-              onClick={() => {
-                const appId = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID;
-                if (!appId) {
-                  alert("❌ រកមិនឃើញ Facebook App ID ទេ (សូមពិនិត្យ env.local)!");
-                  return;
-                }
-                const redirectUri = encodeURIComponent(`${window.location.origin}/api/auth/facebook/callback`);
-                const scope = 'public_profile,ads_management,ads_read,pages_read_engagement,pages_show_list,pages_manage_ads';
-                window.location.href = `https://www.facebook.com/v18.0/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code`;
-              }}
-              className="px-3.5 py-1.5 bg-[#1877F2] text-white font-bold rounded-lg hover:bg-blue-600 transition flex items-center gap-1.5 text-xs shadow-sm shrink-0 cursor-pointer"
-            >
-              <span>🔄</span> <span>Connect Facebook</span>
-            </button>
-          )}
-        </div>
+  {isFbConnected ? (
+    <div className="flex items-center gap-2">
+      <div className="px-3 py-1.5 bg-green-500 text-white font-bold rounded-lg flex items-center gap-1.5 text-xs shadow-sm shrink-0 cursor-default">
+        <span>✅</span> <span className="hidden md:inline">{fbPageName || "Connected"}</span>
+      </div>
+      
+      <button 
+        onClick={() => {
+          localStorage.removeItem('fb_user_token');
+          localStorage.removeItem('selectedPage');
+          localStorage.removeItem('selectedAdAccount');
+          setIsFbConnected(false);
+          setFbPageName("");
+          window.location.reload();
+        }}
+        className={`px-3 py-1.5 font-bold rounded-lg border text-xs transition shadow-sm shrink-0 cursor-pointer flex items-center gap-1 ${
+          theme === 'dark' 
+            ? 'bg-red-950/40 border-red-900/50 text-red-400 hover:bg-red-900/40' 
+            : 'bg-white border-red-200 text-red-600 hover:bg-red-50'
+        }`}
+      >
+        <span>🚪</span> <span>Disconnect</span>
+      </button>
+    </div>
+  ) : (
+    /* 🌟 ហៅ Function មកប្រើត្រង់នេះតែម្ដង ខ្លីស្អាត */
+    <button 
+      type="button"
+      onClick={handleFacebookConnect}
+      className="px-3.5 py-1.5 bg-[#1877F2] text-white font-bold rounded-lg hover:bg-blue-600 transition flex items-center gap-1.5 text-xs shadow-sm shrink-0 cursor-pointer"
+    >
+      <span>🔄</span> <span>Connect Facebook</span>
+    </button>
+  )}
+</div>
 
         {/* ផ្នែកទី៣៖ Controls (Language, Theme, Ad Account, Reporting) */}
         <div className="flex items-center flex-wrap gap-2 ml-auto lg:ml-0">
