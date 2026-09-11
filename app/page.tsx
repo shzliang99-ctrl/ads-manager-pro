@@ -17,39 +17,16 @@ const datePresetOptions = [
 
 export default function Home() {
 
-  // 🔗 មុខងារ Connect បង្ខំបើក App Facebook មុន បើគ្មានទើបធ្លាក់មក Web Browser
+  // 🔗 មុខងារសម្រាប់ពេលចុច Connect Facebook
   const handleFacebookConnect = () => {
     const appId = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID;
     if (!appId) {
       alert("❌ រកមិនឃើញ Facebook App ID ទេ (សូមពិនិត្យ env.local)!");
       return;
     }
-
     const redirectUri = encodeURIComponent(`${window.location.origin}/api/auth/facebook/callback`);
     const scope = 'public_profile,ads_management,ads_read,pages_read_engagement,pages_show_list,pages_manage_ads';
-    
-    // តំណ Web OAuth ស្តង់ដារ (Fallback URL)
-    const webOAuthUrl = `https://www.facebook.com/v18.0/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code`;
-
-    // ពិនិត្យមើលថាជាទូរស័ព្ទដៃ (Mobile Device) ឬអត់
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-
-    if (isMobile) {
-      // 🌟 ព្យាយាមហៅបើក App Facebook តាមរយៈ Custom Scheme (fb://)
-      // ប្រសិនបើក្នុងទូរស័ព្ទមាន App Facebook វានឹងលោតចូល App នោះភ្លាម
-      const fbAppDeepLink = `fb://authorize?app_id=${appId}&redirect_uri=${redirectUri}&scope=${scope}`;
-      
-      window.location.href = fbAppDeepLink;
-
-      // កំណត់ពេល (Timeout) 0.8វិនាទី៖ បើទូរស័ព្ទអត់មាន App Facebook ទេ វានឹងទម្លាក់ចូល Web Browser វិញអូតូ
-      setTimeout(() => {
-        window.location.href = webOAuthUrl;
-      }, 800);
-
-    } else {
-      // បើបើកតាមកុំព្យូទ័រ (PC) ឱ្យវាបើក Web Link ធម្មតា
-      window.location.href = webOAuthUrl;
-    }
+    window.location.href = `https://www.facebook.com/v18.0/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code`;
   };
 
   // 🌟 វិធីសាស្ត្រថ្មីកាត់ផ្ដាច់ API៖ ទាញយកទិន្នន័យផ្ទាល់ពី Supabase Database ចូលមក Device តែម្ដង (Direct Cloud Sync)
