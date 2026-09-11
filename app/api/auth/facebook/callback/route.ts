@@ -64,13 +64,10 @@ export async function GET(request: Request) {
       auth: { persistSession: false }
     });
 
-    const currentUserId = 1;
-
-    // 6. រក្សាទុកចូល Supabase Database (facebook_accounts table)
+    // 🌟 6. រក្សាទុកចូល Supabase Database (ដោយលុប user_id ចោលសិន ដើម្បីកុំឱ្យជាប់ Foreign Key Constraint)
     const { error: dbError } = await supabaseAdmin
       .from('facebook_accounts')
       .upsert({
-        user_id: currentUserId,
         facebook_user_id: String(facebookUserId),
         access_token: pageAccessToken,
         page_id: pageId ? String(pageId) : null,
@@ -90,7 +87,6 @@ export async function GET(request: Request) {
 
   } catch (error: any) {
     console.error("Critical Facebook Callback Error:", error);
-    // 🌟 បើមានបញ្ហាអ្វីកើតឡើង វាគ្មិនបង្ហាញសារ Error ច្បាស់ៗនៅលើអكرង់ប្រូស៊ោន (Browser) ផ្ទាល់តែម្ដង មិនបាច់ស្មានទៀតទេ
     return NextResponse.json({ 
       success: false, 
       error: error.message || "Unknown server error during facebook callback" 
