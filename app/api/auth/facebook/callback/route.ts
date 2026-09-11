@@ -1,24 +1,22 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@supabase/supabase-js';
 
 export async function GET(request: Request) {
+  const url = new URL(request.url);
+  const origin = url.origin;
+
   try {
-    const url = new URL(request.url);
     const code = url.searchParams.get('code');
-    const origin = url.origin;
 
     if (!code) {
       throw new Error("Missing authorization code from Facebook");
     }
 
-    const currentUserId = 1;
-
     const clientId = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID;
     const clientSecret = process.env.FACEBOOK_APP_SECRET;
-    
-    // 🌟 ការពារករណីភ្លេចដាក់ Key ក្នុង Vercel
+
     if (!clientId || !clientSecret) {
-      throw new Error("Server Error: Missing FACEBOOK_APP_ID or FACEBOOK_APP_SECRET in Vercel.");
+      throw new Error("Missing Facebook App ID or Secret in environment variables");
     }
 
     const redirectUri = `${origin}/api/auth/facebook/callback`;
@@ -30,20 +28,20 @@ export async function GET(request: Request) {
     const tokenData = await tokenRes.json();
 
     if (tokenData.error) {
-      throw new Error(`FB Token Error: ${tokenData.error.message}`);
+      throw new Error(`Facebook OAuth Error: ${tokenData.error.message}`);
     }
 
     const userAccessToken = tokenData.access_token;
 
-    // 2. ទាញយក Facebook User Profile (ID)
+    // 2. ទាញយក Profile Facebook User ID
     const meRes = await fetch(`https://graph.facebook.com/v18.0/me?access_token=${userAccessToken}`);
     const meData = await meRes.json();
     const facebookUserId = meData.id;
 
-    // 3. ទាញយកបញ្ជី Facebook Pages
+    // 3. ទាញយក Pages
     const pagesRes = await fetch(`https://graph.facebook.com/v18.0/me/accounts?access_token=${userAccessToken}`);
     const pagesData = await pagesRes.json();
-    
+
     const firstPage = pagesData.data && pagesData.data.length > 0 ? pagesData.data[0] : null;
     const pageId = firstPage ? firstPage.id : null;
     const pageName = firstPage ? firstPage.name : null;
@@ -55,59 +53,45 @@ export async function GET(request: Request) {
     const firstAdAccount = adAccountsData.data && adAccountsData.data.length > 0 ? adAccountsData.data[0] : null;
     const adAccountId = firstAdAccount ? firstAdAccount.id : null;
 
-    // 🌟 5. សរសេរកូដ Save ចូល Database បែបថ្មី (ការពារ Error OnConflict 100%)
-    
-    // ក. ឆែកមើលសិនថាតើមានទិន្នន័យឬຍັງ?
-    const { data: existingRecord } = await supabase
-      .from('facebook_accounts')
-      .select('id')
-      .eq('user_id', currentUserId)
-      .single();
+    // 5. បង្កើត Supabase Client ផ្ទាល់ (ទាញយកតាម Key ដែលមានក្នុង Vercel របស់បង)
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+    const supabaseKey = 
+      process.env.SUPABASE_SERVICE_ROLE_KEY || 
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!;
 
-    let dbError;
-    
-    // ខ. បើមានស្រាប់ ធ្វើការ Update. បើអត់ទាន់មាន ធ្វើការ Insert
-    if (existingRecord) {
-      const { error } = await supabase
-        .from('facebook_accounts')
-        .update({
-          facebook_user_id: facebookUserId,
-          access_token: pageAccessToken,
-          page_id: pageId,
-          page_name: pageName,
-          ad_account_id: adAccountId,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('user_id', currentUserId);
-      dbError = error;
-    } else {
-      const { error } = await supabase
-        .from('facebook_accounts')
-        .insert([{
-          user_id: currentUserId,
-          facebook_user_id: facebookUserId,
-          access_token: pageAccessToken,
-          page_id: pageId,
-          page_name: pageName,
-          ad_account_id: adAccountId,
-          updated_at: new Date().toISOString(),
-        }]);
-      dbError = error;
-    }
+    const supabaseAdmin = createClient(supabaseUrl, supabaseKey, {
+      auth: { persistSession: false }
+    });
+
+    const currentUserId = 1;
+
+    // 6. Save ចូល Database Table facebook_accounts
+    const { error: dbError } = await supabaseAdmin
+      .from('facebook_accounts')
+      .upsert({
+        user_id: currentUserId,
+        facebook_user_id: String(facebookUserId),
+        access_token: pageAccessToken,
+        page_id: pageId ? String(pageId) : null,
+        page_name: pageName,
+        ad_account_id: adAccountId ? String(adAccountId) : null,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'facebook_user_id' });
 
     if (dbError) {
-      throw new Error(`Supabase DB Error: ${dbError.message}`);
+      console.error("Database Insert Error:", dbError);
+      throw new Error(`Database Error: ${dbError.message}`);
     }
 
-    // 6. Redirect ត្រឡប់មក Dashboard វិញ ព្រមទាំងបញ្ជាក់ថា Connected ជោគជ័យ
-    return NextResponse.redirect(new URL(`/?connected=true`, origin));
-    
+    // 7. Redirect ត្រឡប់មក Dashboard ជាមួយ Token ក្នុង Param ដើម្បីឱ្យ Browser Sync ជាប់ភ្លាមៗ
+    return NextResponse.redirect(
+      new URL(`/?connected=true&token=${pageAccessToken}`, origin)
+    );
+
   } catch (error: any) {
-    console.error("Facebook OAuth Callback Error:", error.message);
-    
-    // 🌟 កូដថ្មី៖ បើមាន Error វានឹងបោះសារ Error នោះមកបង្ហាញលើ URL ឱ្យបងឃើញច្បាស់តែម្ដង!
-    const url = new URL(request.url);
-    const errorMessage = encodeURIComponent(error.message);
-    return NextResponse.redirect(new URL(`/?error=facebook_failed&reason=${errorMessage}`, url.origin));
+    console.error("Facebook Callback Failure:", error.message);
+    const reason = encodeURIComponent(error.message || "Unknown error");
+    return NextResponse.redirect(new URL(`/?error=facebook_failed&reason=${reason}`, origin));
   }
 }
