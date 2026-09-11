@@ -31,6 +31,7 @@ export async function GET(request: Request) {
       throw new Error(`Facebook Token Error: ${tokenData.error.message}`);
     }
 
+    // 🌟 ប្រើប្រាស់សោរមេ (Master Token) ធានាថាទាញយកបញ្ជី Page បានពេញលេញ
     const userAccessToken = tokenData.access_token;
 
     // 2. ទាញយក Facebook User Profile (ID)
@@ -38,14 +39,13 @@ export async function GET(request: Request) {
     const meData = await meRes.json();
     const facebookUserId = meData.id;
 
-    // 3. ទាញយក Facebook Pages របស់ User (ដើម្បីទាញយក Page Access Token ផ្ទាល់)
+    // 3. ទាញយក Facebook Pages របស់ User
     const pagesRes = await fetch(`https://graph.facebook.com/v18.0/me/accounts?access_token=${userAccessToken}`);
     const pagesData = await pagesRes.json();
     const firstPage = pagesData.data && pagesData.data.length > 0 ? pagesData.data[0] : null;
     
     const pageId = firstPage ? firstPage.id : null;
     const pageName = firstPage ? firstPage.name : null;
-    const pageAccessToken = firstPage && firstPage.access_token ? firstPage.access_token : userAccessToken; // 🌟 ប្រើ Page Token បើមាន
 
     // 4. ទាញយក Ad Account ID
     const adAccountsRes = await fetch(`https://graph.facebook.com/v18.0/me/adaccounts?access_token=${userAccessToken}`);
@@ -64,12 +64,12 @@ export async function GET(request: Request) {
       auth: { persistSession: false }
     });
 
-    // 6. 🌟 រក្សាទុក "Page Access Token" ចូល Supabase Database (ដើម្បីកុំឱ្យ Error ពេលទាញ Page ធំៗ)
+    // 6. 🌟 រក្សាទុក "សោរមេ (userAccessToken)" ចូល Supabase Database
     const { error: dbError } = await supabaseAdmin
       .from('facebook_accounts')
       .upsert({
         facebook_user_id: String(facebookUserId),
-        access_token: pageAccessToken, // 👈 ប្រើ Page Token នៅទីនេះ
+        access_token: userAccessToken, // 👈 ប្រើសោរមេនៅទីនេះ
         page_id: pageId ? String(pageId) : null,
         page_name: pageName,
         ad_account_id: adAccountId ? String(adAccountId) : null,
@@ -80,9 +80,9 @@ export async function GET(request: Request) {
       throw new Error(`Supabase DB Error: ${dbError.message}`);
     }
 
-    // 7. 🌟 Redirect បញ្ជូន Page Token ទៅកាន់ Website ដើម្បីឱ្យវា Sync គ្រប់ Devices ទាំងអស់
+    // 7. 🌟 Redirect បញ្ជូនសោរមេទៅកាន់ Website ដើម្បីឱ្យវា Sync គ្រប់ Devices ទាំងអស់
     return NextResponse.redirect(
-      new URL(`/?connected=true&token=${pageAccessToken}`, origin) // 👈 បញ្ជូន Page Token
+      new URL(`/?connected=true&token=${userAccessToken}`, origin)
     );
 
   } catch (error: any) {
