@@ -305,6 +305,66 @@ export default function Home() {
       .catch(err => console.log("Error fetching ad accounts:", err));
   }, [isFbConnected]);
 
+  // 🌟 1. វិធីសាស្ត្រថ្មី៖ ទាញយកទិន្នន័យ Pages ពី Facebook ផ្ទាល់ (Bypass API Route)
+  useEffect(() => {
+    const token = localStorage.getItem('fb_user_token');
+    if (!token) return;
+
+    fetch(`https://graph.facebook.com/v18.0/me/accounts?fields=id,name,access_token,picture{url}&access_token=${token}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.data && data.data.length > 0) {
+          setPages(data.data);
+          
+          // បង្ហាញឈ្មោះ Page ទី១ នៅលើប៊ូតុងពណ៌បៃតង
+          setFbPageName(data.data[0].name);
+
+          // ឆែកមើលក្នុង localStorage ក្រែងធ្លាប់រើស Page ទុក
+          const savedPage = localStorage.getItem("selectedPage");
+          if (savedPage && data.data.find((p: any) => p.id === savedPage)) {
+            setSelectedPage(savedPage);
+          } else {
+            setSelectedPage(data.data[0].id);
+            localStorage.setItem("selectedPage", data.data[0].id);
+          }
+        } else {
+          console.log("No Pages found in this Facebook account.");
+        }
+      })
+      .catch(err => console.error("Error fetching pages directly:", err));
+  }, [isFbConnected]);
+
+  // 🌟 2. វិធីសាស្ត្រថ្មី៖ ទាញយកទិន្នន័យ Ad Accounts ពី Facebook ផ្ទាល់ (Bypass API Route)
+  useEffect(() => {
+    const token = localStorage.getItem('fb_user_token');
+    if (!token) return;
+
+    fetch(`https://graph.facebook.com/v18.0/me/adaccounts?fields=account_id,name&access_token=${token}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.data && data.data.length > 0) {
+          // រៀបចំឈ្មោះ Ad Account ឱ្យងាយស្រួលមើល
+          const accList = data.data.map((acc: any) => ({
+            account_id: acc.account_id || acc.id.replace('act_', ''),
+            name: acc.name || `Ad Account (${acc.account_id || acc.id})`
+          }));
+          
+          setAdAccountsList(accList);
+
+          const savedAccount = localStorage.getItem("selectedAdAccount");
+          if (savedAccount && accList.find((acc: any) => acc.account_id === savedAccount)) {
+            setSelectedAdAccount(savedAccount);
+          } else {
+            setSelectedAdAccount(accList[0].account_id);
+            localStorage.setItem("selectedAdAccount", accList[0].account_id);
+          }
+        } else {
+          console.log("No Ad Accounts found.");
+        }
+      })
+      .catch(err => console.error("Error fetching ad accounts directly:", err));
+  }, [isFbConnected]);
+  
   // 🌟 ឱ្យប្រអប់ Search ចាំ និងរក្សាទុកពាក្យចុងក្រោយជាប់ជានិច្ច ទោះ Refresh ក៏មិនបាត់
   const [interestQuery, setInterestQuery] = useState(() => {
     if (typeof window !== "undefined") {
