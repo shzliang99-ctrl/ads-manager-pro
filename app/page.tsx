@@ -1251,6 +1251,7 @@ export default function Home() {
         </div>
 
         {/* ផ្នែកទី២៖ Connect Button / Connected Badge & Logout */}
+        {/* ផ្នែកប៊ូតុង Connect Facebook */}
         <div className="flex items-center gap-2">
           {isFbConnected ? (
             <div className="flex items-center gap-2">
@@ -1258,7 +1259,6 @@ export default function Home() {
                 <span>✅</span> <span className="hidden md:inline">{fbPageName || "Connected"}</span>
               </div>
               
-              {/* ប៊ូតុង Log Out ពី Facebook */}
               <button 
                 onClick={() => {
                   localStorage.removeItem('fb_user_token');
@@ -1273,22 +1273,25 @@ export default function Home() {
                     ? 'bg-red-950/40 border-red-900/50 text-red-400 hover:bg-red-900/40' 
                     : 'bg-white border-red-200 text-red-600 hover:bg-red-50'
                 }`}
-                title="Log Out from Facebook"
               >
-                <span>🚪</span> <span>Disconnect Facebook</span>
+                <span>🚪</span> <span>Disconnect</span>
               </button>
             </div>
           ) : (
-            /* 🌟 ប៊ូតុង Connect Facebook (ចុចដើម្បីភ្ជាប់ជាមួយ Facebook ផ្ទាល់តែម្ដង) */
+            /* 🌟 កូដបង្ការ៖ ពេលចុច វានឹងហៅតំណភ្ជាប់ទៅកាន់ Facebook Login API ផ្ទាល់តែម្ដង */
             <button 
+              type="button"
               onClick={() => {
                 const appId = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID;
+                if (!appId) {
+                  alert("❌ រកមិនឃើញ Facebook App ID ទេ (សូមពិនិត្យ env.local)!");
+                  return;
+                }
                 const redirectUri = encodeURIComponent(`${window.location.origin}/api/auth/facebook/callback`);
                 const scope = 'public_profile,ads_management,ads_read,pages_read_engagement,pages_show_list,pages_manage_ads';
                 window.location.href = `https://www.facebook.com/v18.0/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code`;
               }}
               className="px-3.5 py-1.5 bg-[#1877F2] text-white font-bold rounded-lg hover:bg-blue-600 transition flex items-center gap-1.5 text-xs shadow-sm shrink-0 cursor-pointer"
-              title="Connect with Facebook"
             >
               <span>🔄</span> <span>Connect Facebook</span>
             </button>
