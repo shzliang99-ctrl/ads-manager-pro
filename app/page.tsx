@@ -1890,26 +1890,27 @@ export default function Home() {
             <button 
                 onClick={async () => {
                   try {
-                    // ១. លុបទិន្នន័យក្នុង Browser ក្នុងស្រុក
+                    // ១. លុបទិន្នន័យក្នុង Browser (LocalStorage)
                     localStorage.removeItem('fb_user_token');
                     localStorage.removeItem('selectedPage');
                     localStorage.removeItem('selectedAdAccount');
                     setIsFbConnected(false);
                     setFbPageName("");
 
-                    // ២. 🌟 លុបទិន្នន័យចេញពី Supabase Cloud ផង ដើម្បីកុំឱ្យវា Auto-Connect មកវិញ
+                    // ២. 🌟 លុប Account ទាំងអស់ចេញពី Supabase Database ផ្ទាល់តែម្ដង
                     const { error } = await supabase
                       .from('facebook_accounts')
                       .delete()
-                      .not('id', 'is', null); // ឬលុບតាម điều kiện account របស់អ្នក
+                      .neq('id', 0); // លុបទិន្នន័យក្នុង Table ចោលទាំងអស់ដើម្បីឱ្យដាច់ស្រឡះ
 
                     if (error) {
-                      console.error("Error clearing cloud account:", error);
+                      console.error("Error clearing cloud database:", error);
                     } else {
                       console.log("✅ Disconnected ពី Cloud ជោគជ័យ!");
                     }
 
-                    window.location.reload();
+                    // ៣. Reload ទំព័រដើម្បីសម្អាត State ទាំងស្រុង
+                    window.location.href = window.location.origin;
                   } catch (err) {
                     console.error("Disconnect error:", err);
                     window.location.reload();
