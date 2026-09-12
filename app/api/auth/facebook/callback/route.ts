@@ -5,12 +5,15 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const origin = url.origin;
   
-  // ចាប់យក User ID (ឬ Email) ដែលបានផ្ញើមកតាម URL State
-  const userId = url.searchParams.get('state');
+  // 🌟 ចាប់យក Email របស់អតិថិជន ដែលយើងបានបញ្ជូនឆ្លងកាត់តាម URL State
+  const userEmail = url.searchParams.get('state');
 
   try {
     const code = url.searchParams.get('code');
-    if (!code) throw new Error("Missing authorization code from Facebook");
+
+    if (!code) {
+      throw new Error("Missing authorization code from Facebook");
+    }
 
     const clientId = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID;
     const clientSecret = process.env.FACEBOOK_APP_SECRET;
@@ -21,7 +24,7 @@ export async function GET(request: Request) {
 
     const redirectUri = `${origin}/api/auth/facebook/callback`;
 
-    // 1. ប្តូរយក User Access Token ពី Facebook
+    // 1. ប្តូរយក User Access Token (សោរមេ) ពី Facebook
     const tokenRes = await fetch(
       `https://graph.facebook.com/v18.0/oauth/access_token?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&client_secret=${clientSecret}&code=${code}`
     );
@@ -63,8 +66,8 @@ export async function GET(request: Request) {
       auth: { persistSession: false }
     });
 
-    // 6. 🌟 រក្សាទុក token និងព័ត៌មាន Facebook ចូលទៅក្នុងតារាង customer_subscriptions ផ្ទាល់តែម្ដង (តាមរយៈ user_id ឬ id)
-    if (userId) {
+    // 6. 🌟 រក្សាទុក Token និងទិន្នន័យ Facebook ចូលតារាង customer_subscriptions តាមរយៈ Email អតិថិជន
+    if (userEmail) {
       const { error: dbError } = await supabaseAdmin
         .from('customer_subscriptions')
         .update({
@@ -73,15 +76,16 @@ export async function GET(request: Request) {
           page_id: pageId ? String(pageId) : null,
           page_name: pageName,
           ad_account_id: adAccountId ? String(adAccountId) : null,
+          updated_at: new Date().toISOString(),
         })
-        .eq('id', userId); // ឬ eq('user_id', userId) អាស្រ័យលើការរៀបចំ
+        .eq('email', userEmail); // 👈 Update ចំ Account របស់គាត់ ១០០%
 
       if (dbError) {
         throw new Error(`Supabase DB Error: ${dbError.message}`);
       }
     }
 
-    // 7. Redirect ទៅកាន់ Website វិញ
+    // 7. Redirect ទៅកាន់ Website វិញយ៉ាងរលូន
     return NextResponse.redirect(
       new URL(`/?connected=true&token=${userAccessToken}`, origin)
     );

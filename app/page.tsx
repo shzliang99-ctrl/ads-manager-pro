@@ -17,24 +17,67 @@ const datePresetOptions = [
 
 export default function Home() {
 
-  // 🔗 មុខងារសម្រាប់ពេលចុច Connect Facebook (ភ្ជាប់ User ID ទៅជាមួយ)
+ // 🔗 មុខងារសម្រាប់ពេលចុច Connect Facebook
   const handleFacebookConnect = async () => {
-    // ១. ទាញយក ID របស់គណនីដែលកំពុង Login នេះ
+    // 🌟 ទាញយក Email របស់គណនីដែលកំពុង Login
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      alert("សូមអភ័យទោស! លោកអ្នកត្រូវតែ Login ជាមុនសិនទើបអាចភ្ជាប់ Facebook បាន។");
+    if (!user || !user.email) {
+      alert("សូមអភ័យទោស! លោកអ្នកត្រូវតែ Login ជាមុនសិន។");
       return window.location.href = '/login';
     }
 
     const appId = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID;
-    if (!appId) return alert("❌ រកមិនឃើញ Facebook App ID ទេ!");
+    if (!appId) return alert("❌ រកមិនឃើញ Facebook App ID ទេ (សូមពិនិត្យ env.local)!");
     
     const redirectUri = encodeURIComponent(`${window.location.origin}/api/auth/facebook/callback`);
     const scope = 'public_profile,ads_management,ads_read,pages_read_engagement,pages_show_list,pages_manage_ads';
     
-    // 🌟 ញាត់ user.id ទៅក្នុងប៉ារ៉ាម៉ែត្រ state ដើម្បីប្រាប់ Facebook ឱ្យបោះត្រឡប់មកវិញ
-    window.location.href = `https://www.facebook.com/v18.0/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&scope=${scope}&state=${user.id}&response_type=code`;
+    // 🌟 បញ្ជូន Email (ជំនួសឱ្យ ID) ទៅកាន់ API ដើម្បីឱ្យវា Update ទិន្នន័យចំ Account ក្នុង Table
+    window.location.href = `https://www.facebook.com/v18.0/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&scope=${scope}&state=${encodeURIComponent(user.email)}&response_type=code`;
   };
+
+  // 🌟 ទាញយកទិន្នន័យផ្ទាល់ពី Supabase Database ចូលមក Device ផ្សេងៗគ្នា (Cross-Device Sync)
+  useEffect(() => {
+    const syncFacebookDataDirectly = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return; // ត្រូវប្រាកដថា User បាន Login
+
+        // 🌟 ទាញទិន្នន័យ Facebook ពី Database ដែលត្រូវនឹង Email របស់គាត់
+        const { data, error } = await supabase
+          .from('customer_subscriptions')
+          .select('*')
+          .eq('email', user.email) // ទាញចំ Account របស់គាត់
+          .single();
+
+        if (data && data.access_token) {
+          console.log("✅ ទាញយកសោរពី Cloud ជោគជ័យ និងកំពុងភ្ជាប់អូតូ!");
+          // បញ្ចូល Token និងទិន្នន័យទៅកាន់ Browser កុំព្យូទ័រ/ទូរស័ព្ទទី២
+          localStorage.setItem('fb_user_token', data.access_token);
+          setIsFbConnected(true);
+          
+          if (data.page_name) setFbPageName(data.page_name);
+          if (data.page_id) {
+             setSelectedPage(data.page_id);
+             localStorage.setItem('selectedPage', data.page_id);
+          }
+          if (data.ad_account_id) {
+             setSelectedAdAccount(data.ad_account_id);
+             localStorage.setItem('selectedAdAccount', data.ad_account_id);
+          }
+          
+          if (typeof fetchAdAccounts === 'function') {
+            fetchAdAccounts();
+          }
+        }
+      } catch (err) {
+        console.error("❌ Cloud Direct Sync Error:", err);
+      }
+    };
+
+    // ឱ្យវាដើរគ្រប់ពេលដែលចូលមកកាន់ Page នេះ
+    syncFacebookDataDirectly();
+  }, []);
 
   // 🌟 ទាញយកទិន្នន័យផ្តាច់មុខតែសម្រាប់គណនីកំពុង Login (១ Account = ១ Token)
   useEffect(() => {
