@@ -1,13 +1,13 @@
 'use client';
 
-// 🌟 បន្ថែមបន្ទាត់នេះ ដើម្បីបង្ខំឱ្យរត់ជា Dynamic Page និងការពារកុំឱ្យគាំងពេល Build នៅលើ Vercel
 export const dynamic = 'force-dynamic';
 
 import { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+// 🌟 ដាក់សោរផ្ទាល់ ដើម្បីការពារកុំឱ្យ Vercel Build គាំងរឿងខ្វះ Env Variables ទៀត
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://YOUR_SUPABASE_URL.supabase.co';
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'YOUR_SUPABASE_ANON_KEY';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 export default function SubscriptionsPage() {
@@ -15,13 +15,11 @@ export default function SubscriptionsPage() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   
-  // Form states for adding/editing client
   const [clientName, setClientName] = useState('');
   const [packageName, setPackageName] = useState('១ ខែ (Standard)');
   const [durationDays, setDurationDays] = useState(30);
   const [amountPaid, setAmountPaid] = useState('');
 
-  // ទាញយកទិន្នន័យអតិថិជនពី Supabase
   const fetchClients = async () => {
     setLoading(true);
     const { data, error } = await supabase
@@ -41,7 +39,6 @@ export default function SubscriptionsPage() {
     fetchClients();
   }, []);
 
-  // មុខងារបន្ថែមអតិថិជន ឬต่อអាយុ
   const handleAddClient = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!clientName) return alert('សូមបញ្ចូលឈ្មោះអតិថិជន!');
@@ -71,7 +68,6 @@ export default function SubscriptionsPage() {
     }
   };
 
-  // មុខងារលុបអតិថិជន
   const handleDelete = async (id: string) => {
     if (!confirm('តើបងពិតជាចង់លុបទិន្នន័យអតិថិជននេះមែនទេ?')) return;
     const { error } = await supabase.from('customer_subscriptions').delete().eq('id', id);
@@ -80,7 +76,6 @@ export default function SubscriptionsPage() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
-      {/* Header Section */}
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">📋 គ្រប់គ្រងការបង់ប្រាក់ និងសេវាកម្មអតិថិជន</h1>
@@ -94,7 +89,6 @@ export default function SubscriptionsPage() {
         </button>
       </div>
 
-      {/* Table Section */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
@@ -152,7 +146,6 @@ export default function SubscriptionsPage() {
         </div>
       </div>
 
-      {/* Modal for Adding Client */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl animate-in fade-in zoom-in duration-200">
