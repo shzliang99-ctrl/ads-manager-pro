@@ -4,24 +4,24 @@ import { createClient } from '@supabase/supabase-js';
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const origin = url.origin;
-  
-  // 🌟 ចាប់យក Supabase Access Token ដែលបញ្ជូនមកពីទំព័រមុខ
-  const supabaseToken = url.searchParams.get('state');
 
   try {
     const code = url.searchParams.get('code');
+    const stateStr = url.searchParams.get('state'); // 🌟 នេះគឺជា Email ដែលបាន Encode
 
     if (!code) {
       throw new Error("Missing authorization code from Facebook");
     }
 
-    const clientId = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID;
-    const clientSecret = process.env.FACEBOOK_APP_SECRET;
+    // 🌟 បំប្លែង Email ត្រឡប់មកទម្រង់ដើមវិញដោយសុវត្ថិភាពបំផុត
+    const userEmail = stateStr ? decodeURIComponent(stateStr) : null;
 
-    if (!clientId || !clientSecret) {
-      throw new Error("Missing Facebook App ID or Secret in environment variables");
+    if (!userEmail) {
+       throw new Error("មិនអាចកំណត់អត្តសញ្ញាណគណនីរបស់អ្នកបានទេ សូម Login ម្តងទៀត។");
     }
 
+    const clientId = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID;
+    const clientSecret = process.env.FACEBOOK_APP_SECRET;
     const redirectUri = `${origin}/api/auth/facebook/callback`;
 
     // 1. ប្តូរយក Access Token ពី Facebook
@@ -36,12 +36,12 @@ export async function GET(request: Request) {
 
     const fbAccessToken = tokenData.access_token;
 
-    // 2. ទាញយក Facebook User Profile
+    // 2. ទាញយក Facebook User Profile (ID)
     const meRes = await fetch(`https://graph.facebook.com/v18.0/me?access_token=${fbAccessToken}`);
     const meData = await meRes.json();
     const facebookUserId = meData.id;
 
-    // 3. ទាញយក Facebook Pages 
+    // 3. ទាញយក Facebook Pages របស់ User
     const pagesRes = await fetch(`https://graph.facebook.com/v18.0/me/accounts?access_token=${fbAccessToken}`);
     const pagesData = await pagesRes.json();
     const firstPage = pagesData.data && pagesData.data.length > 0 ? pagesData.data[0] : null;
@@ -52,49 +52,30 @@ export async function GET(request: Request) {
     const firstAdAccount = adAccountsData.data && adAccountsData.data.length > 0 ? adAccountsData.data[0] : null;
 
     // 5. តភ្ជាប់ Supabase Admin Client
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+    const supabaseAdmin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      { auth: { persistSession: false } }
+    );
 
-    const supabaseAdmin = createClient(supabaseUrl, supabaseKey, {
-      auth: { persistSession: false }
-    });
-
-    // 6. ស្វែងរក Email របស់អតិថិជនពិតប្រាកដ
-    let userEmail = null;
-    if (supabaseToken) {
-       const userClient = createClient(supabaseUrl, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
-         global: { headers: { Authorization: `Bearer ${supabaseToken}` } }
-       });
-       const { data: { user } } = await userClient.auth.getUser();
-       if (user && user.email) {
-          userEmail = user.email;
-       }
-    }
-
-    if (!userEmail) {
-       throw new Error("មិនអាចកំណត់អត្តសញ្ញាណគណនីរបស់អ្នកបានទេ។");
-    }
-
-    // 7. 🌟 ធ្វើការ Update Token ចូលទៅក្នុងតារាង customer_subscriptions
+    // 6. 🌟 ធ្វើការ Update Token ចូលទៅក្នុងតារាង customer_subscriptions
     const { error: dbError } = await supabaseAdmin
       .from('customer_subscriptions')
       .update({
         facebook_user_id: String(facebookUserId),
         access_token: fbAccessToken, 
         page_id: firstPage ? String(firstPage.id) : null,
-        page_name: firstPage ? firstPage.name : null,
+        page_name: firstPage ? String(firstPage.name) : null,
         ad_account_id: firstAdAccount ? String(firstAdAccount.id) : null
       })
-      .eq('email', userEmail); // Update ចំ Email ដែលកំពុង Login
+      .eq('email', userEmail); // 👈 Update ចំ Email អតិថិជនពិតប្រាកដ
 
     if (dbError) {
       throw new Error(`Supabase DB Update Error: ${dbError.message}`);
     }
 
-    // 8. Redirect ត្រឡប់ទៅវិញដោយជោគជ័យ
-    return NextResponse.redirect(
-      new URL(`/?connected=true&token=${fbAccessToken}`, origin)
-    );
+    // 7. Redirect ត្រឡប់ទៅ Website វិញដោយជោគជ័យ
+    return NextResponse.redirect(new URL(`/?connected=true&token=${fbAccessToken}`, origin));
 
   } catch (error: any) {
     console.error("Facebook Callback Error:", error);

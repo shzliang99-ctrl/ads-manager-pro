@@ -31,8 +31,8 @@ export default function Home() {
     const redirectUri = encodeURIComponent(`${window.location.origin}/api/auth/facebook/callback`);
     const scope = 'public_profile,ads_management,ads_read,pages_read_engagement,pages_show_list,pages_manage_ads';
     
-    // 🌟 បំប្លែង Email ទៅជាកូដ Base64 ខ្លីមួយ ដើម្បីការពារកុំឱ្យ Facebook កាត់ផ្តាច់ URL
-    const safeState = btoa(user.email); 
+    // 🌟 ប្រើមុខងារស្តង់ដារ encodeURIComponent ដើម្បីការពារ Email កុំឱ្យ Error URL
+    const safeState = encodeURIComponent(user.email); 
     
     window.location.href = `https://www.facebook.com/v18.0/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&scope=${scope}&state=${safeState}&response_type=code`;
   };
