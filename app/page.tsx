@@ -17,6 +17,59 @@ const datePresetOptions = [
 
 export default function Home() {
 
+  // 🌟 States សម្រាប់ AI Audit Modal
+  const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
+  const [auditLoading, setAuditLoading] = useState(false);
+  const [auditResult, setAuditResult] = useState<any>(null);
+
+  const handleAiAudit = async (adItem: any) => {
+    setIsAuditModalOpen(true);
+    setAuditLoading(true);
+    setAuditResult(null);
+
+    const ins = adItem.insights && adItem.insights.data && adItem.insights.data.length > 0 ? adItem.insights.data[0] : null;
+    const spend = ins?.spend || 0;
+    const impressions = ins?.impressions || 0;
+    const reach = ins?.reach || 0;
+    
+    let results = 0;
+    if (ins && ins.actions) {
+      const actionObj = ins.actions.find((a: any) => 
+        a.action_type === 'onsite_conversion.messaging_conversation_started_7d' || 
+        a.action_type === 'messaging_conversation_started_7d' ||
+        a.action_type === 'link_click'
+      );
+      if (actionObj) results = Number(actionObj.value);
+    }
+
+    const ctr = impressions > 0 ? ((results / impressions) * 100).toFixed(2) : "0";
+    const cpa = results > 0 ? (Number(spend) / results).toFixed(2) : "0";
+
+    try {
+      const res = await fetch('/api/ai-audit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          adName: adItem.name,
+          spend,
+          results,
+          impressions,
+          ctr,
+          cpa
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setAuditResult(data.audit);
+      } else {
+        alert("❌ AI Audit Error: " + data.error);
+      }
+    } catch (err) {
+      alert("❌ មានបញ្ហាតភ្ជាប់ទៅកាន់ AI Server!");
+    }
+    setAuditLoading(false);
+  };
+
  // 🔗 មុខងារសម្រាប់ពេលចុច Connect Facebook
   const handleFacebookConnect = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -3512,7 +3565,7 @@ export default function Home() {
                           <tr className="text-[12px]">
                             <th className={`p-3 border-r w-10 text-center ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}><input type="checkbox" className="w-3.5 h-3.5 accent-[#1877F2]" /></th>
                             <th className={`p-3 border-r w-16 text-center font-bold ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Off / On</th>
-                            <th className={`p-3 border-r min-w-[280px] font-bold ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Ad name</th>
+                            <th className={`p-3 border-r min-w-[300px] font-bold ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Ad name</th>
                             <th className={`p-3 border-r min-w-[120px] font-bold ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Delivery</th>
                             <th className={`p-3 border-r min-w-[140px] font-bold text-right ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Results</th>
                             <th className={`p-3 border-r min-w-[120px] font-bold text-right ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Cost per result</th>
@@ -3561,14 +3614,28 @@ export default function Home() {
                                     </div>
                                   </td>
 
-                                  <td className={`p-3 border-r font-semibold text-[#1877F2] hover:underline cursor-pointer align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-                                    <div className="flex items-center gap-2.5">
-                                      <div className="w-9 h-9 rounded bg-slate-800 flex items-center justify-center text-white text-xs overflow-hidden shrink-0 shadow-xs">
-                                        {ad.creative?.thumbnail_url ? <img src={ad.creative.thumbnail_url} className="w-full h-full object-cover" /> : '👟'}
+                                  {/* 🌟 ទីតាំងដាក់ប៊ូតុង AI Audit ស្ថិតនៅកន្លែង Ad name នេះឯង */}
+                                  <td className={`p-3 border-r align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                                    <div className="flex items-center justify-between gap-3">
+                                      <div className="flex items-center gap-2.5 min-w-0">
+                                        <div className="w-9 h-9 rounded bg-slate-800 flex items-center justify-center text-white text-xs overflow-hidden shrink-0 shadow-xs">
+                                          {ad.creative?.thumbnail_url ? <img src={ad.creative.thumbnail_url} className="w-full h-full object-cover" /> : '👟'}
+                                        </div>
+                                        <span className="font-semibold text-[#1877F2] hover:underline cursor-pointer truncate max-w-[180px]">{ad.name}</span>
                                       </div>
-                                      <span className="truncate max-w-[220px]">{ad.name}</span>
+
+                                      {/* 🚀 ប៊ូតុង AI Audit ស្ថិតនៅទីនេះ */}
+                                      <button 
+                                        type="button"
+                                        onClick={() => handleAiAudit(ad)}
+                                        className="px-2.5 py-1 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold rounded-lg text-[11px] flex items-center gap-1 shadow-sm hover:opacity-90 cursor-pointer shrink-0"
+                                        title="វិភាគ Ad នេះជាមួយ AI"
+                                      >
+                                        <span>✨</span> <span>AI Audit</span>
+                                      </button>
                                     </div>
                                   </td>
+
                                   <td className={`p-3 border-r align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
                                     <span className="flex items-center gap-1.5"><span className={`w-2 h-2 rounded-full ${ad.effective_status === 'ACTIVE' ? 'bg-[#31A24C]' : 'bg-slate-400'}`}></span> {ad.effective_status || ad.status}</span>
                                   </td>
