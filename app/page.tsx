@@ -838,6 +838,66 @@ export default function Home() {
     }
   };
 
+  // 🌟 States & Functions សម្រាប់គ្រប់គ្រងអតិថិជន (Subscriptions)
+  const [clients, setClients] = useState<any[]>([]);
+  const [loadingClients, setLoadingClients] = useState(false);
+  const [showSubModal, setShowSubModal] = useState(false);
+  const [clientName, setClientName] = useState('');
+  const [packageName, setPackageName] = useState('១ ខែ (Standard)');
+  const [durationDays, setDurationDays] = useState(30);
+  const [amountPaid, setAmountPaid] = useState('');
+
+  const fetchClients = async () => {
+    setLoadingClients(true);
+    const { data, error } = await supabase
+      .from('customer_subscriptions')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (!error) setClients(data || []);
+    setLoadingClients(false);
+  };
+
+  // ឱ្យវាទាញយកទិន្នន័យអូតូ ពេលចុចចូល Tab គ្រប់គ្រងអតិថិជន
+  useEffect(() => {
+    if (activeTab === 'SUBSCRIPTIONS') {
+      fetchClients();
+    }
+  }, [activeTab]);
+
+  const handleAddClient = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!clientName) return alert('សូមបញ្ចូលឈ្មោះអតិថិជន!');
+
+    const startDate = new Date();
+    const expiryDate = new Date();
+    expiryDate.setDate(startDate.getDate() + Number(durationDays));
+
+    const { error } = await supabase.from('customer_subscriptions').insert([
+      {
+        client_name: clientName,
+        package_name: packageName,
+        start_date: startDate.toISOString(),
+        expiry_date: expiryDate.toISOString(),
+        amount: Number(amountPaid) || 0,
+        status: 'active',
+      },
+    ]);
+
+    if (error) alert(`Error: ${error.message}`);
+    else {
+      setClientName('');
+      setAmountPaid('');
+      setShowSubModal(false);
+      fetchClients();
+    }
+  };
+
+  const handleDeleteClient = async (id: string) => {
+    if (!confirm('តើបងពិតជាចង់លុបទិន្នន័យអតិថិជននេះមែនទេ?')) return;
+    const { error } = await supabase.from('customer_subscriptions').delete().eq('id', id);
+    if (!error) fetchClients();
+  };
+
   const toggleAccordion = (section: string) => {
     setExpandedPlacements(prev => ({ ...prev, [section]: !(prev as any)[section] }));
   };
@@ -1593,12 +1653,12 @@ export default function Home() {
             </button>
 
             {/* 🌟 បន្ថែម Tab គ្រប់គ្រងអតិថិជននៅទីនេះ */}
-            <a 
-              href="/subscriptions"
-              className={`w-full text-left px-4 py-3.5 rounded-xl font-bold transition-all flex items-center gap-3 no-underline cursor-pointer ${theme === 'dark' ? 'text-slate-300 hover:bg-[#3A3B3C] hover:text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'}`}
+            <button 
+              onClick={() => handleTabChange("SUBSCRIPTIONS")}
+              className={`w-full text-left px-4 py-3.5 rounded-xl font-bold transition-all flex items-center gap-3 cursor-pointer ${activeTab === "SUBSCRIPTIONS" ? "bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md" : (theme === 'dark' ? 'text-slate-300 hover:bg-[#3A3B3C] hover:text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900')}`}
             >
               <span className="text-lg leading-none">📋</span> <span className="text-[13.5px]">គ្រប់គ្រងអតិថិជន</span>
-            </a>
+            </button>
         </div>
       </aside>
 
@@ -1730,6 +1790,105 @@ export default function Home() {
                   </div>
                 )}
 
+              </div>
+            )}
+
+            {/* ========================================================= */}
+            {/* ផ្ទាំងគ្រប់គ្រងអតិថិជន (SUBSCRIPTIONS) */}
+            {/* ========================================================= */}
+            {activeTab === "SUBSCRIPTIONS" && (
+              <div className={`p-6 rounded-xl shadow-sm border w-full max-w-6xl mx-auto my-6 animate-in fade-in duration-300 transition-colors ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-900'}`}>
+                
+                {/* Header */}
+                <div className="flex justify-between items-center mb-6">
+                  <div>
+                    <h1 className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>📋 គ្រប់គ្រងអតិថិជនបង់ប្រាក់</h1>
+                    <p className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>តាមដានថ្ងៃផុតកំណត់ និងគណនី</p>
+                  </div>
+                  <button onClick={() => setShowSubModal(true)} className="px-4 py-2 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition shadow-sm cursor-pointer flex items-center gap-2">
+                    <span>➕</span> <span className="hidden sm:inline">បន្ថែមអតិថិជនថ្មី</span>
+                  </button>
+                </div>
+
+                {/* Table */}
+                <div className={`rounded-2xl shadow-sm border overflow-hidden ${theme === 'dark' ? 'bg-[#18191A] border-slate-700' : 'bg-white border-gray-100'}`}>
+                  <div className="overflow-x-auto custom-scrollbar">
+                    <table className="w-full text-left border-collapse min-w-[800px]">
+                      <thead>
+                        <tr className={`text-xs uppercase tracking-wider border-b ${theme === 'dark' ? 'bg-[#3A3B3C] text-slate-300 border-slate-700' : 'bg-gray-50 text-gray-600 border-gray-100'}`}>
+                          <th className="py-3.5 px-4 font-bold">ឈ្មោះអតិថិជន / ហាង</th>
+                          <th className="py-3.5 px-4 font-bold">កញ្ចប់សេវា</th>
+                          <th className="py-3.5 px-4 font-bold">ថ្ងៃចាប់ផ្ដើម</th>
+                          <th className="py-3.5 px-4 font-bold">ថ្ងៃផុតកំណត់</th>
+                          <th className="py-3.5 px-4 font-bold">ទឹកប្រាក់</th>
+                          <th className="py-3.5 px-4 font-bold">ស្ថានភាព</th>
+                          <th className="py-3.5 px-4 font-bold text-center">សកម្មភាព</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200 dark:divide-slate-700 text-sm">
+                        {loadingClients ? (
+                          <tr><td colSpan={7} className="text-center py-8 text-gray-400">កំពុងទាញយកទិន្នន័យ...</td></tr>
+                        ) : clients.length === 0 ? (
+                          <tr><td colSpan={7} className="text-center py-8 text-gray-400">គ្មានទិន្នន័យអតិថិជននៅឡើយទេ។</td></tr>
+                        ) : (
+                          clients.map((item) => {
+                            const isExpired = new Date(item.expiry_date) < new Date();
+                            return (
+                              <tr key={item.id} className={`transition ${theme === 'dark' ? 'hover:bg-[#3A3B3C]' : 'hover:bg-gray-50'}`}>
+                                <td className={`py-3.5 px-4 font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>{item.client_name}</td>
+                                <td className={`py-3.5 px-4 ${theme === 'dark' ? 'text-slate-300' : 'text-gray-600'}`}>{item.package_name}</td>
+                                <td className={`py-3.5 px-4 ${theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>{new Date(item.start_date).toLocaleDateString('km-KH')}</td>
+                                <td className={`py-3.5 px-4 font-medium ${theme === 'dark' ? 'text-slate-200' : 'text-gray-700'}`}>{new Date(item.expiry_date).toLocaleDateString('km-KH')}</td>
+                                <td className="py-3.5 px-4 text-emerald-500 font-bold">${item.amount}</td>
+                                <td className="py-3.5 px-4">
+                                  {isExpired ? (
+                                    <span className="px-2.5 py-1 bg-red-500/20 text-red-500 rounded-full text-xs font-bold">🔴 ផុតកំណត់</span>
+                                  ) : (
+                                    <span className="px-2.5 py-1 bg-emerald-500/20 text-emerald-500 rounded-full text-xs font-bold">🟢 ដំណើរការ</span>
+                                  )}
+                                </td>
+                                <td className="py-3.5 px-4 text-center">
+                                  <button onClick={() => handleDeleteClient(item.id)} className="px-2.5 py-1.5 bg-red-500/10 text-red-500 hover:bg-red-500/20 rounded-lg text-xs font-bold transition cursor-pointer">លុប</button>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Pop-up បន្ថែមអតិថិជន */}
+                {showSubModal && (
+                  <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className={`rounded-2xl max-w-md w-full p-6 shadow-xl animate-in fade-in zoom-in duration-200 ${theme === 'dark' ? 'bg-[#242526] border border-slate-700' : 'bg-white'}`}>
+                      <h2 className={`text-xl font-bold mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>✨ បន្ថែមអតិថិជនថ្មី</h2>
+                      <form onSubmit={handleAddClient} className="space-y-4">
+                        <div>
+                          <label className={`block text-xs font-bold mb-1 ${theme === 'dark' ? 'text-slate-300' : 'text-gray-600'}`}>ឈ្មោះអតិថិជន ឬហាង</label>
+                          <input type="text" value={clientName} onChange={(e) => setClientName(e.target.value)} required className={`w-full px-3.5 py-2.5 border rounded-xl text-sm outline-none focus:border-blue-500 ${theme === 'dark' ? 'bg-[#18191A] border-slate-600 text-white' : 'bg-slate-50 border-slate-200 text-gray-900'}`} placeholder="ឧ. ហាងស្បែកជើង វៀរ" />
+                        </div>
+                        <div>
+                          <label className={`block text-xs font-bold mb-1 ${theme === 'dark' ? 'text-slate-300' : 'text-gray-600'}`}>កញ្ចប់សេវា</label>
+                          <select value={packageName} onChange={(e) => { setPackageName(e.target.value); setDurationDays(e.target.value.includes('១ ខែ') ? 30 : e.target.value.includes('៣ ខែ') ? 90 : 365); }} className={`w-full px-3.5 py-2.5 border rounded-xl text-sm outline-none cursor-pointer ${theme === 'dark' ? 'bg-[#18191A] border-slate-600 text-white' : 'bg-slate-50 border-slate-200 text-gray-900'}`}>
+                            <option value="១ ខែ (Standard)">កញ្ចប់ ១ ខែ (៣០ ថ្ងៃ)</option>
+                            <option value="៣ ខែ (Pro)">កញ្ចប់ ៣ ខែ (៩០ ថ្ងៃ)</option>
+                            <option value="១ ឆ្នាំ (VIP)">កញ្ចប់ ១ ឆ្នាំ (៣៦៥ ថ្ងៃ)</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className={`block text-xs font-bold mb-1 ${theme === 'dark' ? 'text-slate-300' : 'text-gray-600'}`}>ទឹកប្រាក់ ($)</label>
+                          <input type="number" value={amountPaid} onChange={(e) => setAmountPaid(e.target.value)} className={`w-full px-3.5 py-2.5 border rounded-xl text-sm outline-none focus:border-blue-500 ${theme === 'dark' ? 'bg-[#18191A] border-slate-600 text-white' : 'bg-slate-50 border-slate-200 text-gray-900'}`} placeholder="ឧ. 20" />
+                        </div>
+                        <div className="flex justify-end gap-2 pt-4">
+                          <button type="button" onClick={() => setShowSubModal(false)} className={`px-4 py-2 font-bold rounded-xl text-sm transition cursor-pointer ${theme === 'dark' ? 'bg-[#3A3B3C] text-slate-200 hover:bg-[#4E4F50]' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>បោះបង់</button>
+                          <button type="submit" className="px-6 py-2 bg-blue-600 text-white font-bold rounded-xl text-sm hover:bg-blue-700 transition cursor-pointer shadow-sm">រក្សាទុក</button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
