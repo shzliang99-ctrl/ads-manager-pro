@@ -17,20 +17,21 @@ const datePresetOptions = [
 
 export default function Home() {
 
-  // 🌟 States សម្រាប់ AI Audit Modal
+  // 🌟 State និង Function សម្រាប់ AI Audit ព្រមទាំង Speaker (Text-to-Speech)
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
   const [auditLoading, setAuditLoading] = useState(false);
   const [auditResult, setAuditResult] = useState<any>(null);
+  const [isSpeaking, setIsSpeaking] = useState(false);
 
   const handleAiAudit = async (adItem: any) => {
     setIsAuditModalOpen(true);
     setAuditLoading(true);
     setAuditResult(null);
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel(); // បញ្ឈប់សំឡេងចាស់បើមាន
 
     const ins = adItem.insights && adItem.insights.data && adItem.insights.data.length > 0 ? adItem.insights.data[0] : null;
     const spend = ins?.spend || 0;
     const impressions = ins?.impressions || 0;
-    const reach = ins?.reach || 0;
     
     let results = 0;
     if (ins && ins.actions) {
@@ -63,11 +64,44 @@ export default function Home() {
         setAuditResult(data.audit);
       } else {
         alert("❌ AI Audit Error: " + data.error);
+        setIsAuditModalOpen(false);
       }
     } catch (err) {
       alert("❌ មានបញ្ហាតភ្ជាប់ទៅកាន់ AI Server!");
+      setIsAuditModalOpen(false);
     }
     setAuditLoading(false);
+  };
+
+  // 🔊 មុខងារសម្រាប់អានអត្ថបទជាសំឡេងខ្មែរ (Text-to-Speech)
+  const speakKhmerText = (text: string) => {
+    if (!('speechSynthesis' in window)) {
+      return alert("browser របស់អ្នកមិនគាំទ្រមុខងារអានសំឡេងទេ។");
+    }
+
+    const synth = window.speechSynthesis;
+    if (isSpeaking) {
+      synth.cancel();
+      setIsSpeaking(false);
+      return;
+    }
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'km-KH'; // កំណត់ភាសាខ្មែរ
+    utterance.rate = 0.9;
+    utterance.pitch = 1.3; // សំឡេងស្រីក្មេង
+
+    const voices = synth.getVoices();
+    const khmerVoice = voices.find(voice => voice.lang.includes('km'));
+    if (khmerVoice) {
+        utterance.voice = khmerVoice;
+    }
+
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = () => setIsSpeaking(false);
+
+    setIsSpeaking(true);
+    synth.speak(utterance);
   };
 
  // 🔗 មុខងារសម្រាប់ពេលចុច Connect Facebook
@@ -3627,11 +3661,20 @@ export default function Home() {
                                       {/* 🚀 ប៊ូតុង AI Audit ស្ថិតនៅទីនេះ */}
                                       <button 
                                         type="button"
+                                        disabled={auditLoading}
                                         onClick={() => handleAiAudit(ad)}
-                                        className="px-2.5 py-1 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold rounded-lg text-[11px] flex items-center gap-1 shadow-sm hover:opacity-90 cursor-pointer shrink-0"
-                                        title="វិភាគ Ad នេះជាមួយ AI"
+                                        className="px-2.5 py-1 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold rounded-lg text-[11px] flex items-center gap-1.5 shadow-sm hover:opacity-90 cursor-pointer shrink-0 disabled:opacity-50"
                                       >
-                                        <span>✨</span> <span>AI Audit</span>
+                                        {auditLoading ? (
+                                          <>
+                                            <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                            <span>កំពុងវិភាគ...</span>
+                                          </>
+                                        ) : (
+                                          <>
+                                            <span>✨</span> <span>AI Audit</span>
+                                          </>
+                                        )}
                                       </button>
                                     </div>
                                   </td>
@@ -4421,7 +4464,75 @@ export default function Home() {
          </button>
 
       </nav>
+      {/* 🚀 AI Audit Modal */}
+      {isAuditModalOpen && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className={`rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col p-6 ${theme === 'dark' ? 'bg-[#242526] text-white border border-slate-700' : 'bg-white text-slate-900'}`}>
+            
+            <div className="flex justify-between items-center border-b pb-3 mb-4">
+              <div className="flex items-center gap-3">
+                <h3 className="font-bold text-lg flex items-center gap-2">
+                  <span>🤖</span> វិភាគការផ្សាយពាណិជ្ជកម្ម (AI Audit)
+                </h3>
+                {auditResult && !auditLoading && (
+                  <button 
+                    type="button"
+                    onClick={() => speakKhmerText(`${auditResult.title}។ ${auditResult.analysis}។ ${auditResult.recommendation}`)}
+                    className={`p-2 rounded-full border transition cursor-pointer flex items-center gap-1 text-xs font-bold ${
+                      isSpeaking ? 'bg-red-500 text-white border-red-600 animate-pulse' : 'bg-purple-100 text-purple-700 border-purple-200 hover:bg-purple-200'
+                    }`}
+                  >
+                    <span>🔊</span> <span>{isSpeaking ? "ឈប់អាន" : "ស្តាប់សំឡេង"}</span>
+                  </button>
+                )}
+              </div>
+              <button onClick={() => { if ('speechSynthesis' in window) window.speechSynthesis.cancel(); setIsAuditModalOpen(false); }} className="text-xl font-bold text-slate-400 hover:text-red-500 cursor-pointer">&times;</button>
+            </div>
 
+            {auditLoading ? (
+              <div className="py-16 flex flex-col items-center justify-center gap-4">
+                <div className="w-10 h-10 border-4 border-purple-500/20 border-t-purple-600 rounded-full animate-spin"></div>
+                <p className="text-sm font-bold text-purple-600 dark:text-purple-400">🤖 AI កំពុងវិភាគទិន្នន័យ Ad នេះជូនបង សូមរង់ចាំបន្តិច...</p>
+              </div>
+            ) : auditResult ? (
+              <div className="flex flex-col gap-4">
+                <div className={`p-4 rounded-xl flex items-center gap-3 border ${
+                  auditResult.statusColor === 'green' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-500' :
+                  auditResult.statusColor === 'yellow' ? 'bg-amber-500/10 border-amber-500/30 text-amber-500' :
+                  'bg-red-500/10 border-red-500/30 text-red-500'
+                }`}>
+                  <div className="text-3xl">
+                    {auditResult.statusColor === 'green' ? '🟢' : auditResult.statusColor === 'yellow' ? '🟡' : '🔴'}
+                  </div>
+                  <div>
+                    <div className="text-xs uppercase font-bold tracking-wider opacity-80">ចំណាត់ថ្នាក់ពាណិជ្ជកម្ម</div>
+                    <div className="font-bold text-base">{auditResult.title}</div>
+                  </div>
+                </div>
+
+                <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-[#18191A] border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
+                  <div className="text-xs font-bold text-slate-400 uppercase mb-1">📊 ការវិភាគស៊ីជម្រៅ៖</div>
+                  <p className="text-sm leading-relaxed whitespace-pre-wrap">{auditResult.analysis}</p>
+                </div>
+
+                <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-blue-950/20 border-blue-900/50 text-blue-300' : 'bg-blue-50 border-blue-200 text-blue-800'}`}>
+                  <div className="text-xs font-bold uppercase mb-1">💡 យោបល់ណែនាំសម្រាប់អ្នកគ្រប់គ្រង៖</div>
+                  <p className="text-sm font-semibold">{auditResult.recommendation}</p>
+                </div>
+              </div>
+            ) : (
+              <div className="py-10 text-center text-red-500 font-medium">បរាជ័យក្នុងការទាញយកលទ្ធផលវិភាគ។</div>
+            )}
+
+            <div className="mt-6 flex justify-end">
+              <button onClick={() => { if ('speechSynthesis' in window) window.speechSynthesis.cancel(); setIsAuditModalOpen(false); }} className="px-6 py-2.5 bg-slate-600 hover:bg-slate-700 text-white font-bold rounded-xl text-sm transition cursor-pointer">
+                បិទ (Close)
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
     </div>
   );
 }
