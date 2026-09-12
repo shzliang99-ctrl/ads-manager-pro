@@ -838,11 +838,17 @@ export default function Home() {
     }
   };
 
-  // 🌟 States & Functions សម្រាប់គ្រប់គ្រងអតិថិជន (Subscriptions)
+  // 🌟 States & Functions សម្រាប់គ្រប់គ្រងអតិថិជន (Subscriptions / CRM)
   const [clients, setClients] = useState<any[]>([]);
   const [loadingClients, setLoadingClients] = useState(false);
   const [showSubModal, setShowSubModal] = useState(false);
+  
+  // States ថ្មីសម្រាប់ Profile និង Account អតិថិជន (មាន Password)
   const [clientName, setClientName] = useState('');
+  const [clientEmail, setClientEmail] = useState('');
+  const [clientPassword, setClientPassword] = useState(''); // 👈 ថែម Password
+  const [clientPhone, setClientPhone] = useState('');
+  const [linkedFbPage, setLinkedFbPage] = useState('');
   const [packageName, setPackageName] = useState('១ ខែ (Standard)');
   const [durationDays, setDurationDays] = useState(30);
   const [amountPaid, setAmountPaid] = useState('');
@@ -857,7 +863,6 @@ export default function Home() {
     setLoadingClients(false);
   };
 
-  // ឱ្យវាទាញយកទិន្នន័យអូតូ ពេលចុចចូល Tab គ្រប់គ្រងអតិថិជន
   useEffect(() => {
     if (activeTab === 'SUBSCRIPTIONS') {
       fetchClients();
@@ -866,7 +871,9 @@ export default function Home() {
 
   const handleAddClient = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!clientName) return alert('សូមបញ្ចូលឈ្មោះអតិថិជន!');
+    if (!clientName || !clientEmail || !clientPassword) {
+      return alert('សូមបញ្ចូលឈ្មោះ អ៊ីមែល និងលេខសម្ងាត់អតិថិជនឱ្យបានគ្រប់គ្រាន់!');
+    }
 
     const startDate = new Date();
     const expiryDate = new Date();
@@ -875,6 +882,10 @@ export default function Home() {
     const { error } = await supabase.from('customer_subscriptions').insert([
       {
         client_name: clientName,
+        email: clientEmail,
+        password: clientPassword, // 👈 បញ្ចូល Password ទៅកាន់ Database
+        phone: clientPhone,
+        linked_fb_page: linkedFbPage,
         package_name: packageName,
         start_date: startDate.toISOString(),
         expiry_date: expiryDate.toISOString(),
@@ -885,9 +896,9 @@ export default function Home() {
 
     if (error) alert(`Error: ${error.message}`);
     else {
-      setClientName('');
-      setAmountPaid('');
-      setShowSubModal(false);
+      // ជម្រះទិន្នន័យចោលវិញក្រោយ Save រួច
+      setClientName(''); setClientEmail(''); setClientPassword(''); setClientPhone(''); 
+      setLinkedFbPage(''); setAmountPaid(''); setShowSubModal(false);
       fetchClients();
     }
   };
@@ -1794,61 +1805,110 @@ export default function Home() {
             )}
 
             {/* ========================================================= */}
-            {/* ផ្ទាំងគ្រប់គ្រងអតិថិជន (SUBSCRIPTIONS) */}
+            {/* ផ្ទាំងគ្រប់គ្រងអតិថិជន (CRM & SUBSCRIPTIONS) */}
             {/* ========================================================= */}
             {activeTab === "SUBSCRIPTIONS" && (
-              <div className={`p-6 rounded-xl shadow-sm border w-full max-w-6xl mx-auto my-6 animate-in fade-in duration-300 transition-colors ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-900'}`}>
+              <div className={`p-6 rounded-xl shadow-sm border w-full max-w-7xl mx-auto my-6 animate-in fade-in duration-300 transition-colors ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-900'}`}>
                 
                 {/* Header */}
                 <div className="flex justify-between items-center mb-6">
                   <div>
-                    <h1 className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>📋 គ្រប់គ្រងអតិថិជនបង់ប្រាក់</h1>
-                    <p className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>តាមដានថ្ងៃផុតកំណត់ និងគណនី</p>
+                    <h1 className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>👥 គ្រប់គ្រងគណនី និងកញ្ចប់សេវាអតិថិជន</h1>
+                    <p className={`text-sm mt-1 ${theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>បង្កើតគណនីភ្ជាប់ជាមួយ Facebook Page និងកំណត់ថ្ងៃផុតកំណត់</p>
                   </div>
-                  <button onClick={() => setShowSubModal(true)} className="px-4 py-2 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition shadow-sm cursor-pointer flex items-center gap-2">
-                    <span>➕</span> <span className="hidden sm:inline">បន្ថែមអតិថិជនថ្មី</span>
+                  <button onClick={() => setShowSubModal(true)} className="px-5 py-2.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition shadow-md cursor-pointer flex items-center gap-2">
+                    <span className="text-lg leading-none">+</span> <span className="hidden sm:inline">បង្កើតគណនីថ្មីអោយអតិថិជន</span>
                   </button>
                 </div>
 
-                {/* Table */}
+                {/* Table CRM */}
                 <div className={`rounded-2xl shadow-sm border overflow-hidden ${theme === 'dark' ? 'bg-[#18191A] border-slate-700' : 'bg-white border-gray-100'}`}>
                   <div className="overflow-x-auto custom-scrollbar">
-                    <table className="w-full text-left border-collapse min-w-[800px]">
+                    <table className="w-full text-left border-collapse min-w-[1000px]">
                       <thead>
                         <tr className={`text-xs uppercase tracking-wider border-b ${theme === 'dark' ? 'bg-[#3A3B3C] text-slate-300 border-slate-700' : 'bg-gray-50 text-gray-600 border-gray-100'}`}>
-                          <th className="py-3.5 px-4 font-bold">ឈ្មោះអតិថិជន / ហាង</th>
-                          <th className="py-3.5 px-4 font-bold">កញ្ចប់សេវា</th>
-                          <th className="py-3.5 px-4 font-bold">ថ្ងៃចាប់ផ្ដើម</th>
-                          <th className="py-3.5 px-4 font-bold">ថ្ងៃផុតកំណត់</th>
-                          <th className="py-3.5 px-4 font-bold">ទឹកប្រាក់</th>
-                          <th className="py-3.5 px-4 font-bold">ស្ថានភាព</th>
-                          <th className="py-3.5 px-4 font-bold text-center">សកម្មភាព</th>
+                          <th className="py-4 px-4 font-bold">ព័ត៌មានអតិថិជន</th>
+                          <th className="py-4 px-4 font-bold">គណនី (Email & Password)</th>
+                          <th className="py-4 px-4 font-bold">គណនីភ្ជាប់ (Linked FB)</th>
+                          <th className="py-4 px-4 font-bold">កញ្ចប់សេវា & តម្លៃ</th>
+                          <th className="py-4 px-4 font-bold">សុពលភាពសេវាកម្ម</th>
+                          <th className="py-4 px-4 font-bold text-center">សកម្មភាព</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-200 dark:divide-slate-700 text-sm">
                         {loadingClients ? (
-                          <tr><td colSpan={7} className="text-center py-8 text-gray-400">កំពុងទាញយកទិន្នន័យ...</td></tr>
+                          <tr><td colSpan={6} className="text-center py-10 text-gray-400">កំពុងទាញយកទិន្នន័យអតិថិជន...</td></tr>
                         ) : clients.length === 0 ? (
-                          <tr><td colSpan={7} className="text-center py-8 text-gray-400">គ្មានទិន្នន័យអតិថិជននៅឡើយទេ។</td></tr>
+                          <tr><td colSpan={6} className="text-center py-10 text-gray-400">មិនទាន់មានទិន្នន័យអតិថិជននៅឡើយទេ។</td></tr>
                         ) : (
                           clients.map((item) => {
                             const isExpired = new Date(item.expiry_date) < new Date();
+                            const linkedPageObj = pages.find(p => p.id === item.linked_fb_page);
+
                             return (
                               <tr key={item.id} className={`transition ${theme === 'dark' ? 'hover:bg-[#3A3B3C]' : 'hover:bg-gray-50'}`}>
-                                <td className={`py-3.5 px-4 font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>{item.client_name}</td>
-                                <td className={`py-3.5 px-4 ${theme === 'dark' ? 'text-slate-300' : 'text-gray-600'}`}>{item.package_name}</td>
-                                <td className={`py-3.5 px-4 ${theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>{new Date(item.start_date).toLocaleDateString('km-KH')}</td>
-                                <td className={`py-3.5 px-4 font-medium ${theme === 'dark' ? 'text-slate-200' : 'text-gray-700'}`}>{new Date(item.expiry_date).toLocaleDateString('km-KH')}</td>
-                                <td className="py-3.5 px-4 text-emerald-500 font-bold">${item.amount}</td>
+                                {/* Customer Info */}
                                 <td className="py-3.5 px-4">
-                                  {isExpired ? (
-                                    <span className="px-2.5 py-1 bg-red-500/20 text-red-500 rounded-full text-xs font-bold">🔴 ផុតកំណត់</span>
+                                  <div className={`font-bold text-[14.5px] ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>{item.client_name}</div>
+                                  <div className={`text-[12px] flex items-center gap-1.5 mt-1 ${theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>
+                                    <span>📞</span> {item.phone || 'គ្មានលេខទូរស័ព្ទ'}
+                                  </div>
+                                </td>
+                                
+                                {/* Account Login Info (Email & Password) */}
+                                <td className="py-3.5 px-4">
+                                  <div className={`text-[12px] flex items-center gap-1.5 ${theme === 'dark' ? 'text-slate-300' : 'text-gray-700'} font-medium`}>
+                                    <span>✉️</span> {item.email || '-'}
+                                  </div>
+                                  <div className="text-[12px] flex items-center gap-1.5 mt-1 font-mono font-bold text-blue-500 bg-blue-50 dark:bg-blue-900/30 w-fit px-2 py-0.5 rounded cursor-pointer hover:bg-blue-100" title="លេខសម្ងាត់" onClick={() => { navigator.clipboard.writeText(item.password); alert("បាន Copy លេខសម្ងាត់!"); }}>
+                                    <span>🔑</span> {item.password || 'គ្មានលេខសម្ងាត់'}
+                                  </div>
+                                </td>
+
+                                {/* Linked Facebook */}
+                                <td className="py-3.5 px-4">
+                                  {item.linked_fb_page ? (
+                                    <div className="flex items-center gap-2">
+                                      {linkedPageObj?.picture?.data?.url ? (
+                                        <img src={linkedPageObj.picture.data.url} className="w-6 h-6 rounded-full border border-gray-200" alt="FB" />
+                                      ) : (
+                                        <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-[10px]">f</div>
+                                      )}
+                                      <span className={`text-[12px] font-bold ${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'}`}>
+                                        {linkedPageObj?.name || 'FB Page'}
+                                      </span>
+                                    </div>
                                   ) : (
-                                    <span className="px-2.5 py-1 bg-emerald-500/20 text-emerald-500 rounded-full text-xs font-bold">🟢 ដំណើរការ</span>
+                                    <span className="text-[12px] text-gray-400 italic">មិនបានភ្ជាប់</span>
                                   )}
                                 </td>
+
+                                {/* Package & Price */}
+                                <td className="py-3.5 px-4">
+                                  <div className={`font-bold text-[13px] ${theme === 'dark' ? 'text-slate-200' : 'text-gray-700'}`}>{item.package_name}</div>
+                                  <div className="text-emerald-500 font-bold text-[12px] mt-0.5">បង់ប្រាក់៖ ${item.amount}</div>
+                                </td>
+
+                                {/* Dates & Status */}
+                                <td className="py-3.5 px-4">
+                                  <div className={`text-[12px] ${theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>ចាប់ផ្តើម៖ {new Date(item.start_date).toLocaleDateString('km-KH')}</div>
+                                  <div className={`text-[12px] font-bold mt-0.5 ${isExpired ? 'text-red-500' : (theme === 'dark' ? 'text-slate-200' : 'text-gray-700')}`}>
+                                    ផុតកំណត់៖ {new Date(item.expiry_date).toLocaleDateString('km-KH')}
+                                  </div>
+                                  <div className="mt-1.5">
+                                    {isExpired ? (
+                                      <span className="px-2 py-0.5 bg-red-500/10 text-red-500 rounded text-[10px] font-bold border border-red-500/20">ផុតកំណត់សេវា</span>
+                                    ) : (
+                                      <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-500 rounded text-[10px] font-bold border border-emerald-500/20">កំពុងដំណើរការ</span>
+                                    )}
+                                  </div>
+                                </td>
+
+                                {/* Actions */}
                                 <td className="py-3.5 px-4 text-center">
-                                  <button onClick={() => handleDeleteClient(item.id)} className="px-2.5 py-1.5 bg-red-500/10 text-red-500 hover:bg-red-500/20 rounded-lg text-xs font-bold transition cursor-pointer">លុប</button>
+                                  <button onClick={() => handleDeleteClient(item.id)} className="px-3 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 rounded-lg text-xs font-bold transition cursor-pointer dark:bg-red-950/40 dark:hover:bg-red-900/60 dark:text-red-400">
+                                    លុប
+                                  </button>
                                 </td>
                               </tr>
                             );
@@ -1859,32 +1919,90 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* Pop-up បន្ថែមអតិថិជន */}
+                {/* Pop-up បង្កើតគណនីអតិថិជន */}
                 {showSubModal && (
                   <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className={`rounded-2xl max-w-md w-full p-6 shadow-xl animate-in fade-in zoom-in duration-200 ${theme === 'dark' ? 'bg-[#242526] border border-slate-700' : 'bg-white'}`}>
-                      <h2 className={`text-xl font-bold mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>✨ បន្ថែមអតិថិជនថ្មី</h2>
-                      <form onSubmit={handleAddClient} className="space-y-4">
-                        <div>
-                          <label className={`block text-xs font-bold mb-1 ${theme === 'dark' ? 'text-slate-300' : 'text-gray-600'}`}>ឈ្មោះអតិថិជន ឬហាង</label>
-                          <input type="text" value={clientName} onChange={(e) => setClientName(e.target.value)} required className={`w-full px-3.5 py-2.5 border rounded-xl text-sm outline-none focus:border-blue-500 ${theme === 'dark' ? 'bg-[#18191A] border-slate-600 text-white' : 'bg-slate-50 border-slate-200 text-gray-900'}`} placeholder="ឧ. ហាងស្បែកជើង វៀរ" />
+                    <div className={`rounded-2xl max-w-2xl w-full p-6 shadow-2xl animate-in fade-in zoom-in duration-200 ${theme === 'dark' ? 'bg-[#242526] border border-slate-700' : 'bg-white'}`}>
+                      <div className="flex justify-between items-center mb-5 border-b pb-3 dark:border-slate-700">
+                        <h2 className={`text-lg font-bold flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
+                          <span className="bg-blue-100 text-blue-600 p-1.5 rounded-lg text-sm">🔑</span> បង្កើតគណនីអតិថិជនថ្មី
+                        </h2>
+                        <button onClick={() => setShowSubModal(false)} className="text-gray-400 hover:text-red-500 text-xl font-bold cursor-pointer">&times;</button>
+                      </div>
+
+                      <form onSubmit={handleAddClient} className="space-y-5">
+                        
+                        {/* ផ្នែកទី១៖ គណនី Login (Account Credentials) */}
+                        <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-[#18191A] border-slate-700' : 'bg-blue-50/50 border-blue-100'}`}>
+                          <h3 className={`text-[13px] font-bold mb-3 uppercase tracking-wider flex items-center gap-1.5 ${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'}`}>
+                            1. គណនីសម្រាប់អតិថិជនប្រើប្រាស់
+                          </h3>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <label className={`block text-xs font-bold mb-1.5 ${theme === 'dark' ? 'text-slate-300' : 'text-gray-700'}`}>អ៊ីមែល (Gmail) <span className="text-red-500">*</span></label>
+                              <input type="email" required value={clientEmail} onChange={(e) => setClientEmail(e.target.value)} className={`w-full px-3.5 py-2.5 border rounded-xl text-sm outline-none focus:border-blue-500 font-medium ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-gray-900'}`} placeholder="customer@gmail.com" />
+                            </div>
+                            <div>
+                              <label className={`block text-xs font-bold mb-1.5 ${theme === 'dark' ? 'text-slate-300' : 'text-gray-700'}`}>លេខសម្ងាត់ (Password) <span className="text-red-500">*</span></label>
+                              <input type="text" required value={clientPassword} onChange={(e) => setClientPassword(e.target.value)} className={`w-full px-3.5 py-2.5 border rounded-xl text-sm outline-none focus:border-blue-500 font-bold tracking-wide ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-blue-400' : 'bg-white border-slate-300 text-blue-600'}`} placeholder="បង្កើតលេខសម្ងាត់..." />
+                            </div>
+                          </div>
                         </div>
-                        <div>
-                          <label className={`block text-xs font-bold mb-1 ${theme === 'dark' ? 'text-slate-300' : 'text-gray-600'}`}>កញ្ចប់សេវា</label>
-                          <select value={packageName} onChange={(e) => { setPackageName(e.target.value); setDurationDays(e.target.value.includes('១ ខែ') ? 30 : e.target.value.includes('៣ ខែ') ? 90 : 365); }} className={`w-full px-3.5 py-2.5 border rounded-xl text-sm outline-none cursor-pointer ${theme === 'dark' ? 'bg-[#18191A] border-slate-600 text-white' : 'bg-slate-50 border-slate-200 text-gray-900'}`}>
-                            <option value="១ ខែ (Standard)">កញ្ចប់ ១ ខែ (៣០ ថ្ងៃ)</option>
-                            <option value="៣ ខែ (Pro)">កញ្ចប់ ៣ ខែ (៩០ ថ្ងៃ)</option>
-                            <option value="១ ឆ្នាំ (VIP)">កញ្ចប់ ១ ឆ្នាំ (៣៦៥ ថ្ងៃ)</option>
-                          </select>
+
+                        {/* ផ្នែកទី២៖ ព័ត៌មានផ្ទាល់ខ្លួន និង ហ្វេសប៊ុក */}
+                        <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-[#18191A] border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
+                          <h3 className={`text-[13px] font-bold mb-3 uppercase tracking-wider ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>2. ព័ត៌មានអតិថិជន & ការតភ្ជាប់</h3>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <label className={`block text-xs font-bold mb-1.5 ${theme === 'dark' ? 'text-slate-300' : 'text-gray-700'}`}>ឈ្មោះអតិថិជន / ហាង <span className="text-red-500">*</span></label>
+                              <input type="text" value={clientName} onChange={(e) => setClientName(e.target.value)} required className={`w-full px-3.5 py-2.5 border rounded-xl text-sm outline-none focus:border-blue-500 ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-gray-900'}`} placeholder="ឈ្មោះអតិថិជន..." />
+                            </div>
+                            <div>
+                              <label className={`block text-xs font-bold mb-1.5 ${theme === 'dark' ? 'text-slate-300' : 'text-gray-700'}`}>លេខទូរស័ព្ទ (Phone)</label>
+                              <input type="text" value={clientPhone} onChange={(e) => setClientPhone(e.target.value)} className={`w-full px-3.5 py-2.5 border rounded-xl text-sm outline-none focus:border-blue-500 ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-gray-900'}`} placeholder="012 345 678" />
+                            </div>
+                            <div className="md:col-span-2">
+                              <label className={`block text-xs font-bold mb-1.5 ${theme === 'dark' ? 'text-slate-300' : 'text-gray-700'}`}>ភ្ជាប់ទៅកាន់ Facebook Page</label>
+                              <select value={linkedFbPage} onChange={(e) => setLinkedFbPage(e.target.value)} className={`w-full px-3.5 py-2.5 border rounded-xl text-sm outline-none cursor-pointer focus:border-blue-500 ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-gray-900'}`}>
+                                <option value="">-- អត់ទាន់ចង់ភ្ជាប់ឥឡូវនេះទេ --</option>
+                                {pages.map(p => (
+                                  <option key={p.id} value={p.id}>{p.name}</option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
                         </div>
-                        <div>
-                          <label className={`block text-xs font-bold mb-1 ${theme === 'dark' ? 'text-slate-300' : 'text-gray-600'}`}>ទឹកប្រាក់ ($)</label>
-                          <input type="number" value={amountPaid} onChange={(e) => setAmountPaid(e.target.value)} className={`w-full px-3.5 py-2.5 border rounded-xl text-sm outline-none focus:border-blue-500 ${theme === 'dark' ? 'bg-[#18191A] border-slate-600 text-white' : 'bg-slate-50 border-slate-200 text-gray-900'}`} placeholder="ឧ. 20" />
+
+                        {/* ផ្នែកទី៣៖ កញ្ចប់ និងការបង់ប្រាក់ */}
+                        <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-[#18191A] border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
+                          <h3 className={`text-[13px] font-bold mb-3 uppercase tracking-wider ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>3. កញ្ចប់សេវាកម្ម & ការទូទាត់</h3>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <label className={`block text-xs font-bold mb-1.5 ${theme === 'dark' ? 'text-slate-300' : 'text-gray-700'}`}>ជ្រើសរើសកញ្ចប់សេវា <span className="text-red-500">*</span></label>
+                              <select value={packageName} onChange={(e) => { setPackageName(e.target.value); setDurationDays(e.target.value.includes('១ ខែ') ? 30 : e.target.value.includes('៣ ខែ') ? 90 : 365); }} className={`w-full px-3.5 py-2.5 border rounded-xl text-sm outline-none cursor-pointer focus:border-blue-500 ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-gray-900'}`}>
+                                <option value="១ ខែ (Standard)">កញ្ចប់ ១ ខែ (៣០ ថ្ងៃ)</option>
+                                <option value="៣ ខែ (Pro)">កញ្ចប់ ៣ ខែ (៩០ ថ្ងៃ)</option>
+                                <option value="១ ឆ្នាំ (VIP)">កញ្ចប់ ១ ឆ្នាំ (៣៦៥ ថ្ងៃ)</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className={`block text-xs font-bold mb-1.5 ${theme === 'dark' ? 'text-slate-300' : 'text-gray-700'}`}>ទឹកប្រាក់បានបង់ ($) <span className="text-red-500">*</span></label>
+                              <div className="relative">
+                                <span className="absolute left-3 top-2.5 text-gray-500 font-bold">$</span>
+                                <input type="number" required value={amountPaid} onChange={(e) => setAmountPaid(e.target.value)} className={`w-full pl-7 pr-3.5 py-2.5 border rounded-xl text-sm outline-none focus:border-blue-500 font-bold ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-gray-900'}`} placeholder="0.00" />
+                              </div>
+                            </div>
+                          </div>
                         </div>
-                        <div className="flex justify-end gap-2 pt-4">
-                          <button type="button" onClick={() => setShowSubModal(false)} className={`px-4 py-2 font-bold rounded-xl text-sm transition cursor-pointer ${theme === 'dark' ? 'bg-[#3A3B3C] text-slate-200 hover:bg-[#4E4F50]' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>បោះបង់</button>
-                          <button type="submit" className="px-6 py-2 bg-blue-600 text-white font-bold rounded-xl text-sm hover:bg-blue-700 transition cursor-pointer shadow-sm">រក្សាទុក</button>
+
+                        {/* Action Buttons */}
+                        <div className="flex justify-end gap-3 pt-2">
+                          <button type="button" onClick={() => setShowSubModal(false)} className={`px-5 py-2.5 font-bold rounded-xl text-sm transition cursor-pointer border ${theme === 'dark' ? 'bg-[#242526] border-slate-600 text-slate-300 hover:bg-[#3A3B3C]' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'}`}>បោះបង់</button>
+                          <button type="submit" className="px-8 py-2.5 bg-blue-600 text-white font-bold rounded-xl text-sm hover:bg-blue-700 transition cursor-pointer shadow-md flex items-center gap-2">
+                            ✓ រក្សាទុក និង បង្កើតគណនី
+                          </button>
                         </div>
+                        
                       </form>
                     </div>
                   </div>
