@@ -19,22 +19,22 @@ export default function Home() {
 
  // 🔗 មុខងារសម្រាប់ពេលចុច Connect Facebook
   const handleFacebookConnect = async () => {
-    // 🌟 ទាញយក Session ដើម្បីបញ្ជូន Token ទៅកាន់ API ធានាសុវត្ថិភាពនិងភាពត្រឹមត្រូវ
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user || !user.email) {
       alert("សូមអភ័យទោស! លោកអ្នកត្រូវតែ Login ជាមុនសិន។");
       return window.location.href = '/login';
     }
 
     const appId = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID;
-    if (!appId) return alert("❌ រកមិនឃើញ Facebook App ID ទេ (សូមពិនិត្យ env.local)!");
+    if (!appId) return alert("❌ រកមិនឃើញ Facebook App ID ទេ!");
     
     const redirectUri = encodeURIComponent(`${window.location.origin}/api/auth/facebook/callback`);
     const scope = 'public_profile,ads_management,ads_read,pages_read_engagement,pages_show_list,pages_manage_ads';
     
-    // 🌟 បញ្ជូន Access Token របស់ User ជា State ជំនួសឱ្យ Email
-    const stateStr = encodeURIComponent(session.access_token);
-    window.location.href = `https://www.facebook.com/v18.0/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&scope=${scope}&state=${stateStr}&response_type=code`;
+    // 🌟 បំប្លែង Email ទៅជាកូដ Base64 ខ្លីមួយ ដើម្បីការពារកុំឱ្យ Facebook កាត់ផ្តាច់ URL
+    const safeState = btoa(user.email); 
+    
+    window.location.href = `https://www.facebook.com/v18.0/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&scope=${scope}&state=${safeState}&response_type=code`;
   };
 
   // 🌟 ទាញយកទិន្នន័យ Facebook ដែលបានភ្ជាប់ជាមួយគណនីນີ້ (Cross-Device Sync)
