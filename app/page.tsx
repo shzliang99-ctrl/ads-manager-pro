@@ -40,9 +40,8 @@ export default function Home() {
   useEffect(() => {
     const syncFacebookDataDirectly = async () => {
       try {
-        // ១. ស្វែងរកថាគាត់ជានរណា (User ID)
         const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return; // បើមិនទាន់ Login កុំទាន់ទាញទិន្នន័យ
+        if (!user) return;
 
         const localToken = localStorage.getItem('fb_user_token');
         if (localToken) {
@@ -50,15 +49,15 @@ export default function Home() {
            return;
         }
 
-        // ២. ទាញទិន្នន័យតែរបស់គាត់ម្នាក់គត់ (.eq('user_id', user.id))
+        // 🌟 ទាញយកទិន្នន័យ Token ផ្ទាល់ពីតារាង customer_subscriptions តែម្ដង
         const { data, error } = await supabase
-          .from('facebook_accounts')
+          .from('customer_subscriptions')
           .select('*')
-          .eq('user_id', user.id) // 👈 ចំណុចកាត់គ្រោះ! ទាញយកតែ Token របស់ Account ហ្នឹងប៉ុណ្ណោះ
+          .eq('email', user.email) // ភ្ជាប់តាម Email របស់ Account ដែលកំពុង Login
           .single();
 
         if (data && data.access_token) {
-          console.log("✅ ទាញយកសោរឯកជនពី Cloud ជោគជ័យ!");
+          console.log("✅ ទាញយកសោរហ្វេសប៊ុកពី Profile ជោគជ័យ!");
           localStorage.setItem('fb_user_token', data.access_token);
           setIsFbConnected(true);
           if (data.page_name) setFbPageName(data.page_name);

@@ -5,15 +5,12 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const origin = url.origin;
   
-  // 🌟 ចាប់យក User ID របស់អតិថិជន ដែលយើងបានបញ្ជូនឆ្លងកាត់តាម URL State
+  // ចាប់យក User ID (ឬ Email) ដែលបានផ្ញើមកតាម URL State
   const userId = url.searchParams.get('state');
 
   try {
     const code = url.searchParams.get('code');
-
-    if (!code) {
-      throw new Error("Missing authorization code from Facebook");
-    }
+    if (!code) throw new Error("Missing authorization code from Facebook");
 
     const clientId = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID;
     const clientSecret = process.env.FACEBOOK_APP_SECRET;
@@ -24,7 +21,7 @@ export async function GET(request: Request) {
 
     const redirectUri = `${origin}/api/auth/facebook/callback`;
 
-    // 1. ប្តូរយក User Access Token (សោរមេ) ពី Facebook
+    // 1. ប្តូរយក User Access Token ពី Facebook
     const tokenRes = await fetch(
       `https://graph.facebook.com/v18.0/oauth/access_token?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&client_secret=${clientSecret}&code=${code}`
     );
@@ -66,29 +63,25 @@ export async function GET(request: Request) {
       auth: { persistSession: false }
     });
 
-    // 6. រក្សាទុកចូល Supabase ដោយចងភ្ជាប់ជាមួយ user_id របស់អតិថិជនម្នាក់ៗដាច់ដោយឡែក
+    // 6. 🌟 រក្សាទុក token និងព័ត៌មាន Facebook ចូលទៅក្នុងតារាង customer_subscriptions ផ្ទាល់តែម្ដង (តាមរយៈ user_id ឬ id)
     if (userId) {
-      // 🌟 លុបទិន្នន័យចាស់ដែលធ្លាប់ភ្ជាប់ជាមួយ User ID ນີ້ចោលមុន (ការពារការជាន់គ្នា)
-      await supabaseAdmin.from('facebook_accounts').delete().eq('user_id', userId);
+      const { error: dbError } = await supabaseAdmin
+        .from('customer_subscriptions')
+        .update({
+          facebook_user_id: String(facebookUserId),
+          access_token: userAccessToken,
+          page_id: pageId ? String(pageId) : null,
+          page_name: pageName,
+          ad_account_id: adAccountId ? String(adAccountId) : null,
+        })
+        .eq('id', userId); // ឬ eq('user_id', userId) អាស្រ័យលើការរៀបចំ
+
+      if (dbError) {
+        throw new Error(`Supabase DB Error: ${dbError.message}`);
+      }
     }
 
-    const { error: dbError } = await supabaseAdmin
-      .from('facebook_accounts')
-      .upsert({
-        user_id: userId ? String(userId) : null, // 👈 ចងភ្ជាប់ជាមួយ ID អតិថិជនពិតប្រាកដ
-        facebook_user_id: String(facebookUserId),
-        access_token: userAccessToken,
-        page_id: pageId ? String(pageId) : null,
-        page_name: pageName,
-        ad_account_id: adAccountId ? String(adAccountId) : null,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: 'facebook_user_id' });
-
-    if (dbError) {
-      throw new Error(`Supabase DB Error: ${dbError.message}`);
-    }
-
-    // 7. Redirect ទៅកាន់ Website វិញយ៉ាងរលូន
+    // 7. Redirect ទៅកាន់ Website វិញ
     return NextResponse.redirect(
       new URL(`/?connected=true&token=${userAccessToken}`, origin)
     );
