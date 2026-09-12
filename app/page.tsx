@@ -4518,8 +4518,8 @@ export default function Home() {
       {isAuditModalOpen && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-200">
           <div className={`rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col p-6 ${theme === 'dark' ? 'bg-[#242526] text-white border border-slate-700' : 'bg-white text-slate-900'}`}>
-            
-            <div className="flex justify-between items-center border-b pb-3 mb-4">
+
+            <div className="flex justify-between items-center border-b pb-3 mb-3">
               <div className="flex items-center gap-3">
                 <h3 className="font-bold text-lg flex items-center gap-2">
                   <span>🤖</span> វិភាគការផ្សាយពាណិជ្ជកម្ម (AI Audit)
@@ -4538,6 +4538,13 @@ export default function Home() {
               </div>
               <button onClick={() => { if ('speechSynthesis' in window) window.speechSynthesis.cancel(); setIsAuditModalOpen(false); }} className="text-xl font-bold text-slate-400 hover:text-red-500 cursor-pointer">&times;</button>
             </div>
+
+            {/* 🏷️ Source Badge: បង្ហាញច្បាស់ៗថាតើហៅចំ Gmail Key ទីប៉ុន្មាន */}
+            {auditResult && !auditLoading && auditResult.source && (
+              <div className="mb-4 px-3 py-1.5 bg-blue-500/10 border border-blue-500/30 text-blue-600 dark:text-blue-400 rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-xs">
+                <span>📌</span> <span>{auditResult.source}</span>
+              </div>
+            )}
 
             {auditLoading ? (
               <div className="py-16 flex flex-col items-center justify-center gap-4">

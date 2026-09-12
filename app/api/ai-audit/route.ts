@@ -1,11 +1,21 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-
 export async function POST(request: Request) {
   try {
     const { adName, spend, results, impressions, reach, ctr, cpa } = await request.json();
+
+    // 🔑 ប្រមូលបញ្ជី API Keys ទាំងអស់
+    const apiKeys = [
+      { name: 'Gmail Key #1 (shzliang99)', key: process.env.GEMINI_API_KEY_1 || process.env.GEMINI_API_KEY },
+      { name: 'Gmail Key #2 (jangpheara)', key: process.env.GEMINI_API_KEY_2 },
+      { name: 'Gmail Key #3', key: process.env.GEMINI_API_KEY_3 },
+      { name: 'Gmail Key #4', key: process.env.GEMINI_API_KEY_4 },
+    ].filter(item => item.key && item.key.length > 10 && !item.key.includes("xxxx"));
+
+    if (apiKeys.length === 0) {
+      return NextResponse.json({ success: false, error: "រកមិនឃើញ API Key ត្រឹមត្រូវក្នុង .env.local ទេ។" }, { status: 500 });
+    }
 
     const prompt = `
       អ្នកគឺជាអ្នកជំនាញខាង Meta Ads Marketing អាជីព។ សូមវិភាគទិន្នន័យ Facebook Ad នេះជាភាសាខ្មែរឱ្យបានច្បាស់លាស់៖
@@ -13,6 +23,7 @@ export async function POST(request: Request) {
       - ប្រាក់ចំណាយ (Spend): $${spend || 0}
       - លទ្ធផលឆាត (Results): ${results || 0}
       - ការមើល (Impressions): ${impressions || 0}
+      - ការទៅដល់ (Reach): ${reach || 0}
       - CTR: ${ctr || 0}%
       - Cost Per Result (CPA): $${cpa || 0}
 
@@ -30,18 +41,43 @@ export async function POST(request: Request) {
       }
     `;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.5-flash', // 👈 ដូរមកប្រើ gemini-3.5-flash តាមការណែនាំរបស់ Google API
-      contents: prompt,
-    });
+    let jsonResult = null;
+    let usedSource = "";
 
-    let textResponse = response.text || "{}";
-    // សម្អាត Markdown formatting ចេញធានាថាបាន JSON ស្អាត
-    textResponse = textResponse.replace(/```json/g, '').replace(/```/g, '').trim();
+    // 🔄 វដ្តប្តូរវេនហៅ API Key នីមួយៗ
+    for (let i = 0; i < apiKeys.length; i++) {
+      const item = apiKeys[i];
+      try {
+        console.log(`➡️ កំពុងព្យាយាមហៅ ${item.name}...`);
+        
+        const ai = new GoogleGenAI({ apiKey: item.key });
+        const response = await ai.models.generateContent({
+          model: 'gemini-2.5-flash',
+          contents: prompt,
+        });
 
-    const jsonResult = JSON.parse(textResponse);
+        let textResponse = response.text || "{}";
+        textResponse = textResponse.replace(/```json/g, '').replace(/```/g, '').trim();
 
-    return NextResponse.json({ success: true, audit: jsonResult });
+        if (textResponse) {
+          jsonResult = JSON.parse(textResponse);
+          usedSource = `✨ ដំណើរការដោយ៖ ${item.name}`; // 👈 បញ្ជាក់ច្បាស់ៗថាប្រើ Key ទីប៉ុន្មាន
+          console.log(`✅ ជោគជ័យជាមួយ ${item.name}`);
+          break;
+        }
+      } catch (err: any) {
+        console.warn(`⚠️ ${item.name} Error: ${err.message} -> កំពុងប្តូរទៅ Key បន្ទាប់...`);
+        continue;
+      }
+    }
+
+    if (!jsonResult) {
+      return NextResponse.json({ success: false, error: "API Keys ទាំងអស់កំពុងជាប់ Limit ឬមានបញ្ហា។" }, { status: 500 });
+    }
+
+    // 📤 បញ្ជូន dataSource ទៅកាន់ Frontend ឱ្យបង្ហាញលើ Pop-up
+    return NextResponse.json({ success: true, audit: jsonResult, source: usedSource });
+
   } catch (error: any) {
     console.error("AI Audit Error:", error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
