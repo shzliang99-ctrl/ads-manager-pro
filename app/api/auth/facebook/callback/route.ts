@@ -4,6 +4,9 @@ import { createClient } from '@supabase/supabase-js';
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const origin = url.origin;
+  
+  // 🌟 ចាប់យក User ID របស់អតិថិជន ដែលយើងបានបញ្ជូនឆ្លងកាត់តាម URL State
+  const userId = url.searchParams.get('state');
 
   try {
     const code = url.searchParams.get('code');
@@ -63,10 +66,16 @@ export async function GET(request: Request) {
       auth: { persistSession: false }
     });
 
-    // 6. រក្សាទុកចូល Supabase
+    // 6. រក្សាទុកចូល Supabase ដោយចងភ្ជាប់ជាមួយ user_id របស់អតិថិជនម្នាក់ៗដាច់ដោយឡែក
+    if (userId) {
+      // 🌟 លុបទិន្នន័យចាស់ដែលធ្លាប់ភ្ជាប់ជាមួយ User ID ນີ້ចោលមុន (ការពារការជាន់គ្នា)
+      await supabaseAdmin.from('facebook_accounts').delete().eq('user_id', userId);
+    }
+
     const { error: dbError } = await supabaseAdmin
       .from('facebook_accounts')
       .upsert({
+        user_id: userId ? String(userId) : null, // 👈 ចងភ្ជាប់ជាមួយ ID អតិថិជនពិតប្រាកដ
         facebook_user_id: String(facebookUserId),
         access_token: userAccessToken,
         page_id: pageId ? String(pageId) : null,
@@ -79,7 +88,7 @@ export async function GET(request: Request) {
       throw new Error(`Supabase DB Error: ${dbError.message}`);
     }
 
-    // 7. Redirect ទៅកាន់ Website
+    // 7. Redirect ទៅកាន់ Website វិញយ៉ាងរលូន
     return NextResponse.redirect(
       new URL(`/?connected=true&token=${userAccessToken}`, origin)
     );
