@@ -1,5 +1,8 @@
 'use client';
 
+// 🌟 បន្ថែមបន្ទាត់នេះ ដើម្បីបង្ខំឱ្យរត់ជា Dynamic Page និងការពារកុំឱ្យគាំងពេល Build នៅលើ Vercel
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
@@ -135,7 +138,7 @@ export default function SubscriptionsPage() {
                       <td className="py-3.5 px-4 text-center">
                         <button
                           onClick={() => handleDelete(item.id)}
-                          className="px-2.5 py-1 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg text-xs font-bold transition"
+                          className="px-2.5 py-1 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg text-xs font-bold transition cursor-pointer"
                         >
                           លុប
                         </button>
@@ -177,7 +180,7 @@ export default function SubscriptionsPage() {
                     else if (e.target.value.includes('៣ ខែ')) setDurationDays(90);
                     else if (e.target.value.includes('១ ឆ្នាំ')) setDurationDays(365);
                   }}
-                  className="w-full px-3.5 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  className="w-full px-3.5 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white cursor-pointer"
                 >
                   <option value="១ ខែ (Standard)">កញ្ចប់ ១ ខែ (៣០ ថ្ងៃ)</option>
                   <option value="៣ ខែ (Pro)">កញ្ចប់ ៣ ខែ (៩០ ថ្ងៃ)</option>
@@ -200,13 +203,13 @@ export default function SubscriptionsPage() {
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="px-4 py-2 bg-gray-100 text-gray-600 font-bold rounded-xl text-xs hover:bg-gray-200 transition"
+                  className="px-4 py-2 bg-gray-100 text-gray-600 font-bold rounded-xl text-xs hover:bg-gray-200 transition cursor-pointer"
                 >
                   បោះបង់
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white font-bold rounded-xl text-xs hover:bg-blue-700 transition"
+                  className="px-4 py-2 bg-blue-600 text-white font-bold rounded-xl text-xs hover:bg-blue-700 transition cursor-pointer"
                 >
                   រក្សាទុក
                 </button>
