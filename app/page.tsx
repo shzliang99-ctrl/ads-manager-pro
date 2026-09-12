@@ -76,10 +76,12 @@ export default function Home() {
   // 🔊 មុខងារសម្រាប់អានអត្ថបទជាសំឡេងខ្មែរ (Text-to-Speech)
   const speakKhmerText = (text: string) => {
     if (!('speechSynthesis' in window)) {
-      return alert("browser របស់អ្នកមិនគាំទ្រមុខងារអានសំឡេងទេ។");
+      return alert("Browser របស់អ្នកមិនគាំទ្រមុខងារអានសំឡេងទេ។");
     }
 
     const synth = window.speechSynthesis;
+    
+    // បើកំពុងនិយាយ គឺចុចម្តងទៀតដើម្បីឈប់
     if (isSpeaking) {
       synth.cancel();
       setIsSpeaking(false);
@@ -87,14 +89,19 @@ export default function Home() {
     }
 
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'km-KH'; // កំណត់ភាសាខ្មែរ
-    utterance.rate = 0.9;
-    utterance.pitch = 1.3; // សំឡេងស្រីក្មេង
+    utterance.lang = 'km-KH'; // កំណត់ឱ្យអានជាភាសាខ្មែរ
+    utterance.rate = 0.9;     // ល្បឿនអាន
+    utterance.pitch = 1.2;    // សំឡេងតូច (ស្រដៀងមនុស្សស្រី)
 
+    // ស្វែងរកសំឡេងភាសាខ្មែរដែលមានស្រាប់ក្នុងម៉ាស៊ីន
     const voices = synth.getVoices();
-    const khmerVoice = voices.find(voice => voice.lang.includes('km'));
+    const khmerVoice = voices.find(voice => voice.lang.includes('km') || voice.name.toLowerCase().includes('khmer'));
+
     if (khmerVoice) {
         utterance.voice = khmerVoice;
+    } else {
+        // បើកុំព្យូទ័រអត់មានសំឡេងខ្មែរទេ វាលោតប្រាប់សិន
+        alert("⚠️ កុំព្យូទ័រនេះមិនទាន់មានដំឡើងសំឡេងភាសាខ្មែរទេ! វានឹងប្រើសំឡេងបរទេសជំនួស ដែលអាចស្តាប់មិនច្បាស់។ សូមសាកល្បងបើកវែបសាយនេះលើទូរស័ព្ទដៃ (Phone) វិញ!");
     }
 
     utterance.onend = () => setIsSpeaking(false);
