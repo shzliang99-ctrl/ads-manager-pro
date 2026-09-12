@@ -23,11 +23,20 @@ export default function Home() {
   const [auditResult, setAuditResult] = useState<any>(null);
   const [isSpeaking, setIsSpeaking] = useState(false);
 
+  // 🌟 State សម្រាប់ទប់ស្កាត់ការចុចញាប់ពេក (Cooldown / Throttling)
+  const [isAuditCoolingDown, setIsAuditCoolingDown] = useState(false);
+
   const handleAiAudit = async (adItem: any) => {
+    // បើកំពុងติด Lock មិនទាន់គ្រប់ពេល ឱ្យវាប្រាប់សិនដើម្បីការពារ Error 429
+    if (isAuditCoolingDown) {
+      alert("⏳ សូមស្ងប់ចិត្តបន្តិច! ប្រព័ន្ធកំពុងសម្រាករំពេចដើម្បីការពារការកកស្ទះ AI (Rate Limit)។ សូមរង់ចាំប្រហែល ១០ វិនាទីសិន។");
+      return;
+    }
+
     setIsAuditModalOpen(true);
     setAuditLoading(true);
     setAuditResult(null);
-    if ('speechSynthesis' in window) window.speechSynthesis.cancel(); // បញ្ឈប់សំឡេងចាស់បើមាន
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
 
     const ins = adItem.insights && adItem.insights.data && adItem.insights.data.length > 0 ? adItem.insights.data[0] : null;
     const spend = ins?.spend || 0;
@@ -60,56 +69,80 @@ export default function Home() {
         })
       });
       const data = await res.json();
+      
       if (data.success) {
         setAuditResult(data.audit);
       } else {
-        alert("❌ AI Audit Error: " + data.error);
+        // បើជួប Error 429 ឱ្យវាដាស់តឿនប្រាប់ថាកំណត់ពេលរួចរាល់
+        if (data.error && data.error.includes("429")) {
+          alert("⚠️ AI ជាប់ដែនកំណត់ Free Tier មួយភ្លែត (Rate Limit)! សូមរង់ចាំ ១០ វិនាទីរួចចុចមើលម្ដងទៀត។");
+        } else {
+          alert("❌ AI Audit Error: " + data.error);
+        }
         setIsAuditModalOpen(false);
       }
     } catch (err) {
       alert("❌ មានបញ្ហាតភ្ជាប់ទៅកាន់ AI Server!");
       setIsAuditModalOpen(false);
     }
-    setAuditLoading(false);
-  };
-
-  // 🔊 មុខងារសម្រាប់អានអត្ថបទជាសំឡេងខ្មែរ (Text-to-Speech)
-  const speakKhmerText = (text: string) => {
-    if (!('speechSynthesis' in window)) {
-      return alert("Browser របស់អ្នកមិនគាំទ្រមុខងារអានសំឡេងទេ។");
-    }
-
-    const synth = window.speechSynthesis;
     
-    // បើកំពុងនិយាយ គឺចុចម្តងទៀតដើម្បីឈប់
+    setAuditLoading(false);
+
+    // 🌟 បង្កើត Cool-down ផ្អាករយៈពេល ១០ វិនាទី មិនឱ្យចុចញាប់ពេក
+    setIsAuditCoolingDown(true);
+    setTimeout(() => {
+      setIsAuditCoolingDown(false);
+    }, 10000); // 10 វិនាទី
+  };
+  
+
+  // 🔊 មុខងារ AI Voice និយាយភាសាខ្មែរពិតប្រាកដ (ប្រើ Google TTS Cloud Engine)
+  const speakKhmerText = (text: string) => {
+    if (!text) return;
+    
+    // បើកំពុងនិយាយ ឱ្យវា stop សិន
     if (isSpeaking) {
-      synth.cancel();
       setIsSpeaking(false);
       return;
     }
 
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'km-KH'; // កំណត់ឱ្យអានជាភាសាខ្មែរ
-    utterance.rate = 0.9;     // ល្បឿនអាន
-    utterance.pitch = 1.2;    // សំឡេងតូច (ស្រដៀងមនុស្សស្រី)
+    try {
+      setIsSpeaking(true);
+      // ប្រើប្រាស់ Google Translate TTS Engine សម្រាប់แปลงអត្ថបទខ្មែរទៅជាសំឡេងនិយាយខ្មែរពិតៗ
+      const encodedText = encodeURIComponent(text);
+      const audioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodedText}&tl=km&client=tw-ob`;
+      
+      const audio = new Audio(audioUrl);
+      
+      audio.onended = () => setIsSpeaking(false);
+      audio.onerror = () => {
+        setIsSpeaking(false);
+        console.error("Audio playback error");
+      };
 
-    // ស្វែងរកសំឡេងភាសាខ្មែរដែលមានស្រាប់ក្នុងម៉ាស៊ីន
-    const voices = synth.getVoices();
-    const khmerVoice = voices.find(voice => voice.lang.includes('km') || voice.name.toLowerCase().includes('khmer'));
-
-    if (khmerVoice) {
-        utterance.voice = khmerVoice;
-    } else {
-        // បើកុំព្យូទ័រអត់មានសំឡេងខ្មែរទេ វាលោតប្រាប់សិន
-        alert("⚠️ កុំព្យូទ័រនេះមិនទាន់មានដំឡើងសំឡេងភាសាខ្មែរទេ! វានឹងប្រើសំឡេងបរទេសជំនួស ដែលអាចស្តាប់មិនច្បាស់។ សូមសាកល្បងបើកវែបសាយនេះលើទូរស័ព្ទដៃ (Phone) វិញ!");
+      audio.play().catch(err => {
+        setIsSpeaking(false);
+        console.log("Auto-play blocked by browser, user interaction needed.");
+      });
+    } catch (e) {
+      setIsSpeaking(false);
     }
-
-    utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = () => setIsSpeaking(false);
-
-    setIsSpeaking(true);
-    synth.speak(utterance);
   };
+
+  // 🔊 មុខងារ Auto-Play ពេល Pop-up ផ្ទាំងលោតមកដល់និយាយភ្លាមៗជាខ្មែរ
+  useEffect(() => {
+    if (auditResult && isAuditModalOpen) {
+      const fullText = `ចំណាត់ថ្នាក់ពាណិជ្ជកម្ម៖ ${auditResult.title}។ ការវិភាគស៊ីជម្រៅ៖ ${auditResult.analysis}។ យោបល់ណែនាំ៖ ${auditResult.recommendation}`;
+      
+      setTimeout(() => {
+         speakKhmerText(fullText);
+      }, 400);
+    }
+    
+    return () => {
+      // Clean up ពេលបិទ
+    };
+  }, [auditResult, isAuditModalOpen]);
 
  // 🔗 មុខងារសម្រាប់ពេលចុច Connect Facebook
   const handleFacebookConnect = async () => {
@@ -3251,9 +3284,11 @@ export default function Home() {
 
                 </div>
 
-                {/* 🌟 ផ្ទាំង Tabs ៣ និងប៊ូតុង Columns/Breakdown */}
+                {/* 🌟 ផ្ទាំង Tabs ៣, ប៊ូតុង AI Audit និង Columns/Breakdown ក្នុងកម្រិតស្តង់ដារ ១០០% គ្មាន Error */}
                 <div className={`px-3 pt-2 border-b flex flex-col sm:flex-row justify-between items-start sm:items-end text-[13px] select-none gap-2 transition-colors ${theme === 'dark' ? 'bg-[#18191A] border-slate-700 text-slate-300' : 'bg-[#F5F6F8] border-slate-200 text-slate-700'}`}>
-                  <div className="flex items-center gap-1 overflow-x-auto w-full sm:w-auto pb-1 custom-scrollbar">
+                  
+                  {/* ផ្នែកខាងឆ្វេង៖ Tabs និងប៊ូតុង AI Audit */}
+                  <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto pb-1 custom-scrollbar">
                     
                     {/* 1. Tab: Campaigns */}
                     <div className={`flex items-center gap-1.5 px-3 py-2 border-t border-l border-r rounded-t-md transition cursor-pointer shrink-0 ${activeManageTab === 'CAMPAIGNS' ? (theme === 'dark' ? 'bg-[#242526] border-slate-700 border-b-[#242526] font-bold text-white -mb-[1px] shadow-sm' : 'bg-white border-slate-300 border-b-white font-bold text-slate-900 -mb-[1px] shadow-sm') : (theme === 'dark' ? 'border-transparent hover:bg-[#3A3B3C]' : 'border-transparent hover:bg-slate-200/60')}`}>
@@ -3282,13 +3317,22 @@ export default function Home() {
                       </button>
                     </div>
 
+                    {/* 🌟 ប៊ូតុង AI Audit ដាក់ជាប់ Tab Ads ពេលចុចនឹងនាំមក Tab Ads ភ្លាម */}
+                    <button 
+                      onClick={() => setActiveManageTab('ADS')}
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold rounded-lg text-[11px] shadow-sm animate-pulse shrink-0 cursor-pointer transition mb-1"
+                    >
+                      <span>✨</span> <span>AI Audit</span>
+                    </button>
+
                   </div>
 
-                  {/* 🌟 ដាក់ថ្នាក់ hidden sm:flex ត្រង់នេះ ដើម្បីឱ្យវាលាក់លើទូរសព្ទ និងបង្ហាញតែលើកុំព្យូទ័រ (Web) */}
+                  {/* ផ្នែកខាងស្តាំ៖ ប៊ូតុង Columns និង Breakdown (បង្ហាញលើកុំព្យូទ័រ) */}
                   <div className="hidden sm:flex gap-2 pb-1.5 w-full sm:w-auto justify-end">
                     <button className={`flex items-center gap-1.5 border px-2.5 py-1 rounded text-[12px] font-semibold shadow-xs cursor-pointer ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-slate-200 hover:bg-[#4E4F50]' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'}`}>Columns: Performance ▼</button>
                     <button className={`flex items-center gap-1.5 border px-2.5 py-1 rounded text-[12px] font-semibold shadow-xs cursor-pointer ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-slate-200 hover:bg-[#4E4F50]' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'}`}>Breakdown ▼</button>
                   </div>
+
                 </div>
 
                 {/* 🌟 តារាងទិន្នន័យ (មានរុំដោយ overflow-x-auto ធានាមិនបែកប្លង់ទូរសព្ទ) */}
@@ -3299,197 +3343,196 @@ export default function Home() {
                       <p className={`font-bold text-[13px] ${theme === 'dark' ? 'text-slate-300' : 'text-slate-600'}`}>Loading data...</p>
                     </div>
                   )}
-
                 {/* ========================================================= */}
-{/* 1. TABLE: CAMPAIGNS */}
-{/* ========================================================= */}
-{activeManageTab === 'CAMPAIGNS' && (
-  <div className="w-full h-full flex flex-col justify-between min-w-full">
-    <div className="w-full overflow-x-auto flex-1 custom-scrollbar">
-      <table className="w-full text-left border-collapse min-w-[1500px]">
-        <thead className={`sticky top-0 z-20 shadow-[0_1px_0_0_rgba(0,0,0,0.1)] ${theme === 'dark' ? 'bg-[#18191A] text-slate-400' : 'bg-[#F5F6F8] text-[#65676B]'}`}>
-          <tr className="text-[12px]">
-            <th className={`p-3 border-r w-10 text-center ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-              <input 
-                type="checkbox" 
-                onChange={(e) => {
-                  if (e.target.checked) setSelectedCampaigns(campaignsList.map(c => c.id));
-                  else setSelectedCampaigns([]);
-                }}
-                checked={campaignsList.length > 0 && selectedCampaigns.length === campaignsList.length}
-                className={`w-3.5 h-3.5 rounded cursor-pointer accent-[#1877F2] ${theme === 'dark' ? 'border-slate-600' : 'border-slate-300'}`} 
-              />
-            </th>
-            <th className={`p-3 border-r w-16 text-center font-bold ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Off / On</th>
-            <th onClick={() => handleSort('name')} className={`p-3 border-r min-w-[280px] font-bold cursor-pointer transition select-none ${theme === 'dark' ? 'border-slate-700 bg-[#3A3B3C] hover:bg-[#4E4F50] text-slate-200' : 'border-slate-200 bg-[#ECEEF2] hover:bg-[#DEE1E6] text-slate-800'}`}>
-              <div className="flex items-center justify-between"><span>Campaign</span><span>{sortField === 'name' ? (sortDirection === 'asc' ? '↑' : '↓') : '↕'}</span></div>
-            </th>
-            <th onClick={() => handleSort('status')} className={`p-3 border-r min-w-[120px] font-bold cursor-pointer select-none ${theme === 'dark' ? 'border-slate-700 hover:bg-[#3A3B3C]' : 'border-slate-200 hover:bg-slate-200'}`}>
-              <div className="flex items-center justify-between"><span>Delivery</span><span>{sortField === 'status' ? (sortDirection === 'asc' ? '↑' : '↓') : '↕'}</span></div>
-            </th>
-            <th className={`p-3 border-r min-w-[140px] font-bold ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Actions</th>
-            <th onClick={() => handleSort('results')} className={`p-3 border-r min-w-[150px] font-bold cursor-pointer select-none ${theme === 'dark' ? 'border-slate-700 hover:bg-[#3A3B3C]' : 'border-slate-200 hover:bg-slate-200'}`}>
-              <div className="flex items-center justify-between"><span>Results</span><span>{sortField === 'results' ? (sortDirection === 'asc' ? '↑' : '↓') : '↕'}</span></div>
-            </th>
-            <th className={`p-3 border-r min-w-[120px] font-bold ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Cost per result</th>
-            <th onClick={() => handleSort('budget')} className={`p-3 border-r min-w-[100px] font-bold cursor-pointer select-none ${theme === 'dark' ? 'border-slate-700 hover:bg-[#3A3B3C]' : 'border-slate-200 hover:bg-slate-200'}`}>
-              <div className="flex items-center justify-between"><span>Budget</span><span>{sortField === 'budget' ? (sortDirection === 'asc' ? '↑' : '↓') : '↕'}</span></div>
-            </th>
-            <th onClick={() => handleSort('spend')} className={`p-3 border-r min-w-[120px] font-bold cursor-pointer transition ${theme === 'dark' ? 'border-slate-700 bg-[#3A3B3C] hover:bg-[#4E4F50] text-slate-200' : 'border-slate-200 bg-slate-100 hover:bg-slate-200 text-slate-900'}`}>
-              <div className="flex items-center justify-between"><span>Amount spent</span><span>{sortField === 'spend' ? (sortDirection === 'asc' ? '↑' : '↓') : '↕'}</span></div>
-            </th>
-            <th onClick={() => handleSort('impressions')} className={`p-3 border-r min-w-[100px] font-bold cursor-pointer select-none ${theme === 'dark' ? 'border-slate-700 hover:bg-[#3A3B3C]' : 'border-slate-200 hover:bg-slate-200'}`}>
-              <div className="flex items-center justify-between"><span>Impressions</span><span>{sortField === 'impressions' ? (sortDirection === 'asc' ? '↑' : '↓') : '↕'}</span></div>
-            </th>
-            <th onClick={() => handleSort('reach')} className={`p-3 border-r min-w-[100px] font-bold cursor-pointer select-none ${theme === 'dark' ? 'border-slate-700 hover:bg-[#3A3B3C]' : 'border-slate-200 hover:bg-slate-200'}`}>
-              <div className="flex items-center justify-between"><span>Reach</span><span>{sortField === 'reach' ? (sortDirection === 'asc' ? '↑' : '↓') : '↕'}</span></div>
-            </th>
-            <th className="p-3 min-w-[100px] font-bold">Ends</th>
-          </tr>
-        </thead>
-        <tbody className={`text-[13px] ${theme === 'dark' ? 'text-slate-300' : 'text-[#050505]'}`}>
-          {campaignsList.length === 0 && !loadingCampaigns ? (
-            <tr>
-              <td colSpan={12} className={`p-10 text-center font-medium ${theme === 'dark' ? 'bg-[#242526] text-slate-500' : 'bg-slate-50 text-slate-500'}`}>No campaigns found.</td>
-            </tr>
-          ) : (
-            campaignsList.map((c) => {
-              const ins = getInsights(c);
-              const results = getResults(ins, c.objective); 
-              const spend = ins ? ins.spend : null;
-              const cpa = (results !== "-" && spend && Number(results) > 0) ? (Number(spend) / Number(results)) : null;
-              const isSelected = selectedCampaigns.includes(c.id);
+                {/* 1. TABLE: CAMPAIGNS */}
+                {/* ========================================================= */}
+                {activeManageTab === 'CAMPAIGNS' && (
+                  <div className="w-full h-full flex flex-col justify-between min-w-full">
+                    <div className="w-full overflow-x-auto flex-1 custom-scrollbar">
+                      <table className="w-full text-left border-collapse min-w-[1500px]">
+                        <thead className={`sticky top-0 z-20 shadow-[0_1px_0_0_rgba(0,0,0,0.1)] ${theme === 'dark' ? 'bg-[#18191A] text-slate-400' : 'bg-[#F5F6F8] text-[#65676B]'}`}>
+                          <tr className="text-[12px]">
+                            <th className={`p-3 border-r w-10 text-center ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                              <input 
+                                type="checkbox" 
+                                onChange={(e) => {
+                                  if (e.target.checked) setSelectedCampaigns(campaignsList.map(c => c.id));
+                                  else setSelectedCampaigns([]);
+                                }}
+                                checked={campaignsList.length > 0 && selectedCampaigns.length === campaignsList.length}
+                                className={`w-3.5 h-3.5 rounded cursor-pointer accent-[#1877F2] ${theme === 'dark' ? 'border-slate-600' : 'border-slate-300'}`} 
+                              />
+                            </th>
+                            <th className={`p-3 border-r w-16 text-center font-bold ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Off / On</th>
+                            <th onClick={() => handleSort('name')} className={`p-3 border-r min-w-[280px] font-bold cursor-pointer transition select-none ${theme === 'dark' ? 'border-slate-700 bg-[#3A3B3C] hover:bg-[#4E4F50] text-slate-200' : 'border-slate-200 bg-[#ECEEF2] hover:bg-[#DEE1E6] text-slate-800'}`}>
+                              <div className="flex items-center justify-between"><span>Campaign</span><span>{sortField === 'name' ? (sortDirection === 'asc' ? '↑' : '↓') : '↕'}</span></div>
+                            </th>
+                            <th onClick={() => handleSort('status')} className={`p-3 border-r min-w-[120px] font-bold cursor-pointer select-none ${theme === 'dark' ? 'border-slate-700 hover:bg-[#3A3B3C]' : 'border-slate-200 hover:bg-slate-200'}`}>
+                              <div className="flex items-center justify-between"><span>Delivery</span><span>{sortField === 'status' ? (sortDirection === 'asc' ? '↑' : '↓') : '↕'}</span></div>
+                            </th>
+                            <th className={`p-3 border-r min-w-[140px] font-bold ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Actions</th>
+                            <th onClick={() => handleSort('results')} className={`p-3 border-r min-w-[150px] font-bold cursor-pointer select-none ${theme === 'dark' ? 'border-slate-700 hover:bg-[#3A3B3C]' : 'border-slate-200 hover:bg-slate-200'}`}>
+                              <div className="flex items-center justify-between"><span>Results</span><span>{sortField === 'results' ? (sortDirection === 'asc' ? '↑' : '↓') : '↕'}</span></div>
+                            </th>
+                            <th className={`p-3 border-r min-w-[120px] font-bold ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Cost per result</th>
+                            <th onClick={() => handleSort('budget')} className={`p-3 border-r min-w-[100px] font-bold cursor-pointer select-none ${theme === 'dark' ? 'border-slate-700 hover:bg-[#3A3B3C]' : 'border-slate-200 hover:bg-slate-200'}`}>
+                              <div className="flex items-center justify-between"><span>Budget</span><span>{sortField === 'budget' ? (sortDirection === 'asc' ? '↑' : '↓') : '↕'}</span></div>
+                            </th>
+                            <th onClick={() => handleSort('spend')} className={`p-3 border-r min-w-[120px] font-bold cursor-pointer transition ${theme === 'dark' ? 'border-slate-700 bg-[#3A3B3C] hover:bg-[#4E4F50] text-slate-200' : 'border-slate-200 bg-slate-100 hover:bg-slate-200 text-slate-900'}`}>
+                              <div className="flex items-center justify-between"><span>Amount spent</span><span>{sortField === 'spend' ? (sortDirection === 'asc' ? '↑' : '↓') : '↕'}</span></div>
+                            </th>
+                            <th onClick={() => handleSort('impressions')} className={`p-3 border-r min-w-[100px] font-bold cursor-pointer select-none ${theme === 'dark' ? 'border-slate-700 hover:bg-[#3A3B3C]' : 'border-slate-200 hover:bg-slate-200'}`}>
+                              <div className="flex items-center justify-between"><span>Impressions</span><span>{sortField === 'impressions' ? (sortDirection === 'asc' ? '↑' : '↓') : '↕'}</span></div>
+                            </th>
+                            <th onClick={() => handleSort('reach')} className={`p-3 border-r min-w-[100px] font-bold cursor-pointer select-none ${theme === 'dark' ? 'border-slate-700 hover:bg-[#3A3B3C]' : 'border-slate-200 hover:bg-slate-200'}`}>
+                              <div className="flex items-center justify-between"><span>Reach</span><span>{sortField === 'reach' ? (sortDirection === 'asc' ? '↑' : '↓') : '↕'}</span></div>
+                            </th>
+                            <th className="p-3 min-w-[100px] font-bold">Ends</th>
+                          </tr>
+                        </thead>
+                        <tbody className={`text-[13px] ${theme === 'dark' ? 'text-slate-300' : 'text-[#050505]'}`}>
+                          {campaignsList.length === 0 && !loadingCampaigns ? (
+                            <tr>
+                              <td colSpan={12} className={`p-10 text-center font-medium ${theme === 'dark' ? 'bg-[#242526] text-slate-500' : 'bg-slate-50 text-slate-500'}`}>No campaigns found.</td>
+                            </tr>
+                          ) : (
+                            campaignsList.map((c) => {
+                              const ins = getInsights(c);
+                              const results = getResults(ins, c.objective); 
+                              const spend = ins ? ins.spend : null;
+                              const cpa = (results !== "-" && spend && Number(results) > 0) ? (Number(spend) / Number(results)) : null;
+                              const isSelected = selectedCampaigns.includes(c.id);
 
-              return (
-                <tr key={c.id} className={`border-b transition duration-150 group min-h-[48px] ${theme === 'dark' ? (isSelected ? 'bg-blue-900/30 border-slate-700' : 'border-slate-700 hover:bg-[#3A3B3C]') : (isSelected ? 'bg-[#EBF5FF] border-slate-200' : 'border-slate-200 hover:bg-[#F0F2F5]')}`}>
-                  <td className={`p-3 border-r text-center align-middle w-10 ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-                    <input 
-                      type="checkbox" 
-                      checked={selectedCampaigns.includes(c.id)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setSelectedCampaigns([...selectedCampaigns, c.id]);
-                        } else {
-                          setSelectedCampaigns(selectedCampaigns.filter(id => id !== c.id));
-                        }
-                      }}
-                      className="w-3.5 h-3.5 rounded border-slate-300 cursor-pointer accent-[#1877F2]" 
-                    />
-                  </td>
-                  
-                  <td className={`p-3 border-r text-center align-middle w-16 ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-                    <div onClick={() => handleToggleStatus(c.id, c.status)} className={`w-8 h-4 rounded-full mx-auto relative cursor-pointer ${c.status === 'ACTIVE' ? 'bg-[#1877F2]' : 'bg-[#BCC0C4]'}`}>
-                      <div className={`w-3.5 h-3.5 bg-white rounded-full absolute top-[1px] shadow-xs transition-all ${c.status === 'ACTIVE' ? 'right-[2px]' : 'left-[2px]'}`}></div>
+                              return (
+                                <tr key={c.id} className={`border-b transition duration-150 group min-h-[48px] ${theme === 'dark' ? (isSelected ? 'bg-blue-900/30 border-slate-700' : 'border-slate-700 hover:bg-[#3A3B3C]') : (isSelected ? 'bg-[#EBF5FF] border-slate-200' : 'border-slate-200 hover:bg-[#F0F2F5]')}`}>
+                                  <td className={`p-3 border-r text-center align-middle w-10 ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                                    <input 
+                                      type="checkbox" 
+                                      checked={selectedCampaigns.includes(c.id)}
+                                      onChange={(e) => {
+                                        if (e.target.checked) {
+                                          setSelectedCampaigns([...selectedCampaigns, c.id]);
+                                        } else {
+                                          setSelectedCampaigns(selectedCampaigns.filter(id => id !== c.id));
+                                        }
+                                      }}
+                                      className="w-3.5 h-3.5 rounded border-slate-300 cursor-pointer accent-[#1877F2]" 
+                                    />
+                                  </td>
+                                  
+                                  <td className={`p-3 border-r text-center align-middle w-16 ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                                    <div onClick={() => handleToggleStatus(c.id, c.status)} className={`w-8 h-4 rounded-full mx-auto relative cursor-pointer ${c.status === 'ACTIVE' ? 'bg-[#1877F2]' : 'bg-[#BCC0C4]'}`}>
+                                      <div className={`w-3.5 h-3.5 bg-white rounded-full absolute top-[1px] shadow-xs transition-all ${c.status === 'ACTIVE' ? 'right-[2px]' : 'left-[2px]'}`}></div>
+                                    </div>
+                                  </td>
+
+                                  <td className={`p-3 border-r align-middle min-w-[280px] ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                                    <div className="flex items-center justify-between group/name relative">
+                                      <span 
+                                        onClick={() => {
+                                          setSelectedCampaigns([c.id]);
+                                          setActiveManageTab('ADSETS');
+                                        }} 
+                                        className="text-[#1877F2] font-semibold cursor-pointer hover:underline truncate max-w-[260px] block"
+                                      >
+                                        {c.name}
+                                      </span>
+                                      <div className={`hidden group-hover/name:flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded shadow-xs border absolute right-0 z-10 ${theme === 'dark' ? 'bg-[#18191A] text-slate-300 border-slate-600' : 'bg-[#E7F3FF] text-slate-700 border-blue-200'}`}>
+                                          <span className="hover:text-blue-500 cursor-pointer">Charts</span> | 
+                                          <span onClick={() => handleInlineEdit(c.id)} className="hover:text-blue-500 cursor-pointer">Edit</span> | 
+                                          <span onClick={() => handleDeleteSingleCampaign(c.id, c.name)} className="text-red-500 hover:text-red-400 cursor-pointer">Delete</span>
+                                      </div>
+                                    </div>
+                                  </td>
+
+                                  <td className={`p-3 border-r align-middle min-w-[120px] ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                                    {c.effective_status === 'ACTIVE' ? (
+                                      <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[#31A24C]"></span> Active</span>
+                                    ) : c.effective_status === 'PAUSED' ? (
+                                      <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[#BCC0C4]"></span> Off</span>
+                                    ) : (
+                                      <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-slate-400"></span> {c.effective_status || c.status}</span>
+                                    )}
+                                  </td>
+
+                                  <td className={`p-3 border-r align-middle min-w-[140px] ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                                    <span className={`text-[11px] border px-2 py-0.5 rounded-full font-medium ${theme === 'dark' ? 'bg-[#18191A] text-slate-400 border-slate-600' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>2 recommendations</span>
+                                  </td>
+
+                                  <td className={`p-3 border-r text-right align-middle min-w-[150px] ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                                    <div className="font-semibold">{results === "-" ? "-" : formatNumber(results)}</div>
+                                    <div className="text-[10px] text-slate-500 uppercase mt-0.5">{c.objective === 'OUTCOME_ENGAGEMENT' ? 'Messaging Conversations' : 'Results'}</div>
+                                  </td>
+
+                                  <td className={`p-3 border-r text-right align-middle min-w-[120px] ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                                    <div className="font-semibold">{cpa ? "$" + cpa.toFixed(2) : "-"}</div>
+                                    <div className="text-[10px] text-slate-500 uppercase mt-0.5">Per Conversation</div>
+                                  </td>
+
+                                  <td className={`p-3 border-r text-right align-middle min-w-[100px] ${theme === 'dark' ? 'border-slate-700 text-slate-400' : 'border-slate-200 text-slate-600'}`}>
+                                    {c.daily_budget ? (
+                                      <><div>{formatCurrency(c.daily_budget)}</div><div className="text-[10px] uppercase">Daily</div></>
+                                    ) : c.lifetime_budget ? (
+                                      <><div>{formatCurrency(c.lifetime_budget)}</div><div className="text-[10px] uppercase">Lifetime</div></>
+                                    ) : (
+                                      <div className="text-[11px] text-slate-500">Using ad set budget</div>
+                                    )}
+                                  </td>
+
+                                  <td className={`p-3 border-r text-right font-bold align-middle min-w-[120px] ${theme === 'dark' ? 'border-slate-700 bg-[#3A3B3C] text-white' : 'border-slate-200 bg-slate-50 text-slate-900'}`}>
+                                    {spend ? "$" + Number(spend).toFixed(2) : "$0.00"}
+                                  </td>
+
+                                  <td className={`p-3 border-r text-right align-middle min-w-[100px] ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>{formatNumber(ins?.impressions)}</td>
+                                  <td className={`p-3 border-r text-right align-middle min-w-[100px] ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>{formatNumber(ins?.reach)}</td>
+                                  <td className={`p-3 text-[12px] align-middle min-w-[100px] ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Ongoing</td>
+                                </tr>
+                              );
+                            })
+                          )}
+                        </tbody>
+
+                        {/* 🌟 ដាក់បញ្ជូល Summary Footer Row ក្នុង Tag <tfoot> ខាងក្នុង Table តែមួយ */}
+                        <tfoot className={`sticky bottom-0 z-20 font-bold text-[13px] border-t-2 ${theme === 'dark' ? 'bg-[#18191A] border-slate-600 text-white' : 'bg-[#F5F6F8] border-slate-300 text-slate-900'}`}>
+                          <tr>
+                            <td colSpan={5} className="p-3 border-r border-slate-300 dark:border-slate-700">
+                              <div className="flex items-center gap-2">
+                                <span className="bg-blue-600 text-white text-[11px] px-2 py-0.5 rounded">Results</span>
+                                <span>From {campaignsList.length} campaigns</span>
+                              </div>
+                            </td>
+                            <td className="p-3 border-r text-right border-slate-300 dark:border-slate-700">
+                              {formatNumber(campaignsList.reduce((acc, c) => {
+                                const res = getResults(getInsights(c), c.objective);
+                                return acc + (res !== "-" ? Number(res) : 0);
+                              }, 0))}
+                            </td>
+                            <td className="p-3 border-r text-right border-slate-300 dark:border-slate-700">-</td>
+                            <td className="p-3 border-r text-right border-slate-300 dark:border-slate-700">
+                              {formatCurrency(campaignsList.reduce((acc, c) => {
+                                const bgt = c.daily_budget || c.lifetime_budget || 0;
+                                return acc + Number(bgt);
+                              }, 0))}
+                            </td>
+                            <td className="p-3 border-r text-right font-black text-blue-600 dark:text-blue-400 border-slate-300 dark:border-slate-700">
+                              {formatCurrency(campaignsList.reduce((acc, c) => {
+                                const ins = getInsights(c);
+                                return acc + (ins?.spend ? Number(ins.spend) : 0);
+                              }, 0) * 100)}
+                            </td>
+                            <td className="p-3 border-r text-right border-slate-300 dark:border-slate-700">
+                              {formatNumber(campaignsList.reduce((acc, c) => acc + Number(getInsights(c)?.impressions || 0), 0))}
+                            </td>
+                            <td className="p-3 border-r text-right border-slate-300 dark:border-slate-700">
+                              {formatNumber(campaignsList.reduce((acc, c) => acc + Number(getInsights(c)?.reach || 0), 0))}
+                            </td>
+                            <td className="p-3">-</td>
+                          </tr>
+                        </tfoot>
+                      </table>
                     </div>
-                  </td>
-
-                  <td className={`p-3 border-r align-middle min-w-[280px] ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-                    <div className="flex items-center justify-between group/name relative">
-                      <span 
-                        onClick={() => {
-                          setSelectedCampaigns([c.id]);
-                          setActiveManageTab('ADSETS');
-                        }} 
-                        className="text-[#1877F2] font-semibold cursor-pointer hover:underline truncate max-w-[260px] block"
-                      >
-                        {c.name}
-                      </span>
-                      <div className={`hidden group-hover/name:flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded shadow-xs border absolute right-0 z-10 ${theme === 'dark' ? 'bg-[#18191A] text-slate-300 border-slate-600' : 'bg-[#E7F3FF] text-slate-700 border-blue-200'}`}>
-                          <span className="hover:text-blue-500 cursor-pointer">Charts</span> | 
-                          <span onClick={() => handleInlineEdit(c.id)} className="hover:text-blue-500 cursor-pointer">Edit</span> | 
-                          <span onClick={() => handleDeleteSingleCampaign(c.id, c.name)} className="text-red-500 hover:text-red-400 cursor-pointer">Delete</span>
-                      </div>
-                    </div>
-                  </td>
-
-                  <td className={`p-3 border-r align-middle min-w-[120px] ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-                    {c.effective_status === 'ACTIVE' ? (
-                      <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[#31A24C]"></span> Active</span>
-                    ) : c.effective_status === 'PAUSED' ? (
-                      <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[#BCC0C4]"></span> Off</span>
-                    ) : (
-                      <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-slate-400"></span> {c.effective_status || c.status}</span>
-                    )}
-                  </td>
-
-                  <td className={`p-3 border-r align-middle min-w-[140px] ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-                    <span className={`text-[11px] border px-2 py-0.5 rounded-full font-medium ${theme === 'dark' ? 'bg-[#18191A] text-slate-400 border-slate-600' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>2 recommendations</span>
-                  </td>
-
-                  <td className={`p-3 border-r text-right align-middle min-w-[150px] ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-                    <div className="font-semibold">{results === "-" ? "-" : formatNumber(results)}</div>
-                    <div className="text-[10px] text-slate-500 uppercase mt-0.5">{c.objective === 'OUTCOME_ENGAGEMENT' ? 'Messaging Conversations' : 'Results'}</div>
-                  </td>
-
-                  <td className={`p-3 border-r text-right align-middle min-w-[120px] ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-                    <div className="font-semibold">{cpa ? "$" + cpa.toFixed(2) : "-"}</div>
-                    <div className="text-[10px] text-slate-500 uppercase mt-0.5">Per Conversation</div>
-                  </td>
-
-                  <td className={`p-3 border-r text-right align-middle min-w-[100px] ${theme === 'dark' ? 'border-slate-700 text-slate-400' : 'border-slate-200 text-slate-600'}`}>
-                    {c.daily_budget ? (
-                      <><div>{formatCurrency(c.daily_budget)}</div><div className="text-[10px] uppercase">Daily</div></>
-                    ) : c.lifetime_budget ? (
-                      <><div>{formatCurrency(c.lifetime_budget)}</div><div className="text-[10px] uppercase">Lifetime</div></>
-                    ) : (
-                      <div className="text-[11px] text-slate-500">Using ad set budget</div>
-                    )}
-                  </td>
-
-                  <td className={`p-3 border-r text-right font-bold align-middle min-w-[120px] ${theme === 'dark' ? 'border-slate-700 bg-[#3A3B3C] text-white' : 'border-slate-200 bg-slate-50 text-slate-900'}`}>
-                    {spend ? "$" + Number(spend).toFixed(2) : "$0.00"}
-                  </td>
-
-                  <td className={`p-3 border-r text-right align-middle min-w-[100px] ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>{formatNumber(ins?.impressions)}</td>
-                  <td className={`p-3 border-r text-right align-middle min-w-[100px] ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>{formatNumber(ins?.reach)}</td>
-                  <td className={`p-3 text-[12px] align-middle min-w-[100px] ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Ongoing</td>
-                </tr>
-              );
-            })
-          )}
-        </tbody>
-
-        {/* 🌟 ដាក់បញ្ជូល Summary Footer Row ក្នុង Tag <tfoot> ខាងក្នុង Table តែមួយ */}
-        <tfoot className={`sticky bottom-0 z-20 font-bold text-[13px] border-t-2 ${theme === 'dark' ? 'bg-[#18191A] border-slate-600 text-white' : 'bg-[#F5F6F8] border-slate-300 text-slate-900'}`}>
-          <tr>
-            <td colSpan={5} className="p-3 border-r border-slate-300 dark:border-slate-700">
-              <div className="flex items-center gap-2">
-                <span className="bg-blue-600 text-white text-[11px] px-2 py-0.5 rounded">Results</span>
-                <span>From {campaignsList.length} campaigns</span>
-              </div>
-            </td>
-            <td className="p-3 border-r text-right border-slate-300 dark:border-slate-700">
-              {formatNumber(campaignsList.reduce((acc, c) => {
-                const res = getResults(getInsights(c), c.objective);
-                return acc + (res !== "-" ? Number(res) : 0);
-              }, 0))}
-            </td>
-            <td className="p-3 border-r text-right border-slate-300 dark:border-slate-700">-</td>
-            <td className="p-3 border-r text-right border-slate-300 dark:border-slate-700">
-              {formatCurrency(campaignsList.reduce((acc, c) => {
-                const bgt = c.daily_budget || c.lifetime_budget || 0;
-                return acc + Number(bgt);
-              }, 0))}
-            </td>
-            <td className="p-3 border-r text-right font-black text-blue-600 dark:text-blue-400 border-slate-300 dark:border-slate-700">
-              {formatCurrency(campaignsList.reduce((acc, c) => {
-                const ins = getInsights(c);
-                return acc + (ins?.spend ? Number(ins.spend) : 0);
-              }, 0) * 100)}
-            </td>
-            <td className="p-3 border-r text-right border-slate-300 dark:border-slate-700">
-              {formatNumber(campaignsList.reduce((acc, c) => acc + Number(getInsights(c)?.impressions || 0), 0))}
-            </td>
-            <td className="p-3 border-r text-right border-slate-300 dark:border-slate-700">
-              {formatNumber(campaignsList.reduce((acc, c) => acc + Number(getInsights(c)?.reach || 0), 0))}
-            </td>
-            <td className="p-3">-</td>
-          </tr>
-        </tfoot>
-      </table>
-    </div>
-  </div>
-)}
+                  </div>
+                )}
 
                   {/* ========================================================= */}
                   {/* 2. TABLE: AD SETS */}
