@@ -1581,7 +1581,7 @@ export default function Home() {
               <span className="text-lg leading-none">📊</span> <span className="text-[13.5px]">គ្រប់គ្រងយុទ្ធនាការ</span>
             </button>
             
-            {/* 🌟 ផ្នែក Tools: នៅសល់តែកន្លែង AI Copywriter */}
+            {/* 🌟 ផ្នែក Tools */}
             <div className={`border-t my-2 mt-4 ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}></div>
             <div className="text-[11px] font-bold text-slate-400 mb-2 px-3 uppercase tracking-widest">Tools</div>
             
@@ -1591,6 +1591,14 @@ export default function Home() {
             >
               <span className="text-lg leading-none">✨</span> <span className="text-[13.5px]">AI Copywriter</span>
             </button>
+
+            {/* 🌟 បន្ថែម Tab គ្រប់គ្រងអតិថិជននៅទីនេះ */}
+            <a 
+              href="/subscriptions"
+              className={`w-full text-left px-4 py-3.5 rounded-xl font-bold transition-all flex items-center gap-3 no-underline cursor-pointer ${theme === 'dark' ? 'text-slate-300 hover:bg-[#3A3B3C] hover:text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'}`}
+            >
+              <span className="text-lg leading-none">📋</span> <span className="text-[13.5px]">គ្រប់គ្រងអតិថិជន</span>
+            </a>
         </div>
       </aside>
 
