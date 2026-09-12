@@ -17,6 +17,22 @@ const datePresetOptions = [
 
 export default function Home() {
 
+  // 🌟 ឆែកមើលថាតើ User ដែលកំពុង Login ជា Admin ដែរឬត់? (ប្តូរ Email នេះជា Email ផ្ទាល់ខ្លួនរបស់បង)
+  const ADMIN_EMAIL = "sengsoveasna93@gmail.com"; 
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    const checkAdminRole = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user && user.email === ADMIN_EMAIL) {
+        setIsAdmin(true);
+      } else {
+        setIsAdmin(false);
+      }
+    };
+    checkAdminRole();
+  }, []);
+
   // 🌟 State និង Function សម្រាប់ AI Audit ព្រមទាំង Speaker (Text-to-Speech)
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
   const [auditLoading, setAuditLoading] = useState(false);
@@ -1812,9 +1828,9 @@ export default function Home() {
       <div className="flex flex-1 w-full items-stretch">
 
         <aside className={`hidden md:flex flex-col w-[260px] shrink-0 border-r h-[calc(100vh-64px)] sticky top-[64px] shadow-sm z-10 transition-colors ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'}`}>
-          
-          {/* ១. ផ្នែកមឺនុយខាងលើ (អូសចុះឡើងបានបើវែងពេក) */}
-          <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-2 pt-6 custom-scrollbar">
+         
+         {/* ១. ផ្នែកមឺនុយខាងលើ (អូសចុះឡើងបានបើវែងពេក) */}
+         <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-2 pt-6 custom-scrollbar">
             <div className="text-[11px] font-bold text-slate-400 mb-2 px-3 uppercase tracking-widest">{lang === 'kh' ? 'Main Menu' : 'Main Menu'}</div>
             
             <button 
@@ -1842,17 +1858,19 @@ export default function Home() {
               <span className="text-lg leading-none">✨</span> <span className="text-[13.5px]">AI Copywriter</span>
             </button>
 
-            {/* 🌟 បន្ថែម Tab គ្រប់គ្រងអតិថិជននៅទីនេះ */}
-            <button 
-              onClick={() => handleTabChange("SUBSCRIPTIONS")}
-              className={`w-full text-left px-4 py-3.5 rounded-xl font-bold transition-all flex items-center gap-3 cursor-pointer ${activeTab === "SUBSCRIPTIONS" ? "bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md" : (theme === 'dark' ? 'text-slate-300 hover:bg-[#3A3B3C] hover:text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900')}`}
-            >
-              <span className="text-lg leading-none">📋</span> <span className="text-[13.5px]">គ្រប់គ្រងអតិថិជន</span>
-            </button>
-          </div>
+            {/* 🌟 បង្ហាញ Tab គ្រប់គ្រងអតិថិជន เฉพาะ Admin តែប៉ុណ្ណោះ */}
+            {isAdmin && (
+              <button 
+                onClick={() => handleTabChange("SUBSCRIPTIONS")}
+                className={`w-full text-left px-4 py-3.5 rounded-xl font-bold transition-all flex items-center gap-3 cursor-pointer ${activeTab === "SUBSCRIPTIONS" ? "bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md" : (theme === 'dark' ? 'text-slate-300 hover:bg-[#3A3B3C] hover:text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900')}`}
+              >
+                <span className="text-lg leading-none">📋</span> <span className="text-[13.5px]">គ្រប់គ្រងអតិថិជន</span>
+              </button>
+            )}
+         </div>
 
-          {/* ២. ផ្នែកប៊ូតុង Logout ជាប់ស្អិតនៅបាតក្រោមสุดនៃ Sidebar ជានិច្ច (មិនបាច់អូសរកទេ ឃើញស្រឡះមុខម៉ៅហ្មង) */}
-          <div className={`p-4 border-t shrink-0 ${theme === 'dark' ? 'border-slate-700 bg-[#242526]' : 'border-slate-200 bg-white'}`}>
+         {/* ២. ផ្នែកប៊ូតុង Logout ជាប់ស្អិតនៅបាតក្រោមสุดនៃ Sidebar ជានិច្ច (មិនបាច់អូសរកទេ ឃើញស្រឡះមុខម៉ៅហ្មង) */}
+         <div className={`p-4 border-t shrink-0 ${theme === 'dark' ? 'border-slate-700 bg-[#242526]' : 'border-slate-200 bg-white'}`}>
             <button 
               type="button"
               onClick={handleLogout}
@@ -1865,7 +1883,7 @@ export default function Home() {
             >
               <span>🚪</span> <span className="text-[13.5px]">Logout ចេញពីប្រព័ន្ធ</span>
             </button>
-          </div>
+         </div>
 
         </aside>
 
