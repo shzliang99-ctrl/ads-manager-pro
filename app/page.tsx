@@ -869,14 +869,15 @@ export default function Home() {
     }
   }, [activeTab]);
 
+  // 🌟 កូដថ្មីដែលបញ្ជូនទិន្នន័យទៅឱ្យ API ធ្វើការងារទាំង ២ ខាងលើ
   const handleAddClient = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!clientName || !clientEmail || !clientPassword) {
       return alert('សូមបញ្ចូលឈ្មោះ អ៊ីមែល និងលេខសម្ងាត់អតិថិជនឱ្យបានគ្រប់គ្រាន់!');
     }
 
-    // ប្ដូរមកហៅ API ដែលយើងទើបបង្កើត ដើម្បីអោយវាបង្កើតទាំង Account និង Table ព្រមគ្នា
     try {
+      // ហៅ API ដែលយើងទើបបង្កើត
       const res = await fetch('/api/create-client', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -896,11 +897,12 @@ export default function Home() {
 
       if (data.success) {
         alert('✅ បង្កើតគណនីជោគជ័យ! អតិថិជនអាចយក Email និង Password នេះទៅ Login បានឥឡូវនេះ។');
+        // សម្អាតប្រអប់ទិន្នន័យវិញ
         setClientName(''); setClientEmail(''); setClientPassword(''); setClientPhone(''); 
         setLinkedFbPage(''); setAmountPaid(''); setShowSubModal(false);
-        fetchClients(); // ទាញទិន្នន័យមកបង្ហាញក្នុងតារាងឡើងវិញ
+        fetchClients(); 
       } else {
-        alert('❌ បរាជ័យ: ' + data.error);
+        alert('❌ បរាជ័យក្នុងការបង្កើតគណនី: ' + data.error);
       }
     } catch (err) {
       alert('❌ មានបញ្ហាតភ្ជាប់ទៅកាន់ Server API!');

@@ -7,25 +7,23 @@ export async function POST(request: Request) {
     const { clientName, email, password, phone, linkedFbPage, packageName, durationDays, amountPaid } = body;
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    // 🌟 ប្រើ Service Role Key ដើម្បីមានសិទ្ធិបង្កើត Account អោយគេបានដោយមិនបាច់ Login
+    // 🌟 ប្រើ Admin Key ដើម្បីបង្កើត Account ឱ្យគេបាន
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
     
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
       auth: { persistSession: false }
     });
 
-    // ១. បង្កើតគណនីចូលប្រព័ន្ធ (Supabase Auth) ឱ្យអតិថិជនអាច Login បាន
+    // ១. បង្កើតគណនី Login (Authentication)
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: email,
       password: password,
-      email_confirm: true // ឱ្យ Login បានភ្លាមៗដោយមិនបាច់ Confirm Email
+      email_confirm: true // អនុញ្ញាតឱ្យ Login បានភ្លាមៗ
     });
 
-    if (authError) {
-      return NextResponse.json({ success: false, error: authError.message });
-    }
+    if (authError) return NextResponse.json({ success: false, error: authError.message });
 
-    // ២. រក្សាទុកប្រវត្តិចូលក្នុង Table CRM របស់យើង
+    // ២. បញ្ចូលប្រវត្តិអតិថិជនទៅក្នុង Table
     const startDate = new Date();
     const expiryDate = new Date();
     expiryDate.setDate(startDate.getDate() + Number(durationDays));
@@ -43,9 +41,7 @@ export async function POST(request: Request) {
       status: 'active',
     }]);
 
-    if (dbError) {
-      return NextResponse.json({ success: false, error: dbError.message });
-    }
+    if (dbError) return NextResponse.json({ success: false, error: dbError.message });
 
     return NextResponse.json({ success: true, message: 'គណនីត្រូវបានបង្កើតជោគជ័យ!' });
   } catch (error: any) {
