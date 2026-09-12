@@ -1687,20 +1687,6 @@ export default function Home() {
               <span>🔄</span> <span>Connect Facebook</span>
             </button>
           )}
-
-          {/* 🚪 ប៊ូតុង Logout ចេញពី Website ទាំងស្រុង */}
-          <button 
-            type="button"
-            onClick={handleLogout}
-            className={`px-3 py-1.5 font-bold rounded-lg border text-xs transition shadow-sm shrink-0 cursor-pointer flex items-center gap-1 ${
-              theme === 'dark' 
-                ? 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700' 
-                : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100'
-            }`}
-            title="ចាកចេញពីគណនី / Logout"
-          >
-            <span>🚪</span> <span>Logout</span>
-          </button>
         </div>
 
         {/* ផ្នែកទី៣៖ Controls (Language, Theme, Ad Account, Reporting) */}
@@ -4539,7 +4525,7 @@ export default function Home() {
               <button onClick={() => { if ('speechSynthesis' in window) window.speechSynthesis.cancel(); setIsAuditModalOpen(false); }} className="text-xl font-bold text-slate-400 hover:text-red-500 cursor-pointer">&times;</button>
             </div>
 
-            {/* 🏷️ Source Badge: បង្ហាញច្បាស់ៗថាតើហៅចំ Gmail Key ទីប៉ុន្មាន */}
+            {/* 🏷️ Source Badge: បង្ហាញច្បាស់ៗថាប្រើ Gemini Key ទីប៉ុន្មាន */}
             {auditResult && !auditLoading && auditResult.source && (
               <div className="mb-4 px-3 py-1.5 bg-blue-500/10 border border-blue-500/30 text-blue-600 dark:text-blue-400 rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-xs">
                 <span>📌</span> <span>{auditResult.source}</span>

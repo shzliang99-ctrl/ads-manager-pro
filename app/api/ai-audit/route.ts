@@ -7,10 +7,10 @@ export async function POST(request: Request) {
 
     // 🔑 ប្រមូលបញ្ជី API Keys ទាំងអស់
     const apiKeys = [
-      { name: 'Gmail Key #1 (shzliang99)', key: process.env.GEMINI_API_KEY_1 || process.env.GEMINI_API_KEY },
-      { name: 'Gmail Key #2 (jangpheara)', key: process.env.GEMINI_API_KEY_2 },
-      { name: 'Gmail Key #3', key: process.env.GEMINI_API_KEY_3 },
-      { name: 'Gmail Key #4', key: process.env.GEMINI_API_KEY_4 },
+      { name: 'Gemini Key #1', key: process.env.GEMINI_API_KEY_1 || process.env.GEMINI_API_KEY },
+      { name: 'Gemini Key #2', key: process.env.GEMINI_API_KEY_2 },
+      { name: 'Gemini Key #3', key: process.env.GEMINI_API_KEY_3 },
+      { name: 'Gemini Key #4', key: process.env.GEMINI_API_KEY_4 },
     ].filter(item => item.key && item.key.length > 10 && !item.key.includes("xxxx"));
 
     if (apiKeys.length === 0) {
@@ -61,7 +61,7 @@ export async function POST(request: Request) {
 
         if (textResponse) {
           jsonResult = JSON.parse(textResponse);
-          usedSource = `✨ ដំណើរការដោយ៖ ${item.name}`; // 👈 បញ្ជាក់ច្បាស់ៗថាប្រើ Key ទីប៉ុន្មាន
+          usedSource = `✨ ដំណើរការដោយ៖ ${item.name}`; // 👈 ចេញមកជា Gemini Key #1, #2, #3, #4
           console.log(`✅ ជោគជ័យជាមួយ ${item.name}`);
           break;
         }
@@ -75,8 +75,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: "API Keys ទាំងអស់កំពុងជាប់ Limit ឬមានបញ្ហា។" }, { status: 500 });
     }
 
-    // 📤 បញ្ជូន dataSource ទៅកាន់ Frontend ឱ្យបង្ហាញលើ Pop-up
-    return NextResponse.json({ success: true, audit: jsonResult, source: usedSource });
+    // 📤 បញ្ជូនលទ្ធផលរួមជាមួយ source ទៅកាន់ Frontend
+    return NextResponse.json({ 
+      success: true, 
+      audit: { 
+        ...jsonResult, 
+        source: usedSource 
+      } 
+    });
 
   } catch (error: any) {
     console.error("AI Audit Error:", error);
