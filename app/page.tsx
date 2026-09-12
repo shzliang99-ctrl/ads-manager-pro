@@ -875,31 +875,35 @@ export default function Home() {
       return alert('សូមបញ្ចូលឈ្មោះ អ៊ីមែល និងលេខសម្ងាត់អតិថិជនឱ្យបានគ្រប់គ្រាន់!');
     }
 
-    const startDate = new Date();
-    const expiryDate = new Date();
-    expiryDate.setDate(startDate.getDate() + Number(durationDays));
+    // ប្ដូរមកហៅ API ដែលយើងទើបបង្កើត ដើម្បីអោយវាបង្កើតទាំង Account និង Table ព្រមគ្នា
+    try {
+      const res = await fetch('/api/create-client', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clientName,
+          email: clientEmail,
+          password: clientPassword,
+          phone: clientPhone,
+          linkedFbPage,
+          packageName,
+          durationDays,
+          amountPaid
+        })
+      });
 
-    const { error } = await supabase.from('customer_subscriptions').insert([
-      {
-        client_name: clientName,
-        email: clientEmail,
-        password: clientPassword, // 👈 បញ្ចូល Password ទៅកាន់ Database
-        phone: clientPhone,
-        linked_fb_page: linkedFbPage,
-        package_name: packageName,
-        start_date: startDate.toISOString(),
-        expiry_date: expiryDate.toISOString(),
-        amount: Number(amountPaid) || 0,
-        status: 'active',
-      },
-    ]);
+      const data = await res.json();
 
-    if (error) alert(`Error: ${error.message}`);
-    else {
-      // ជម្រះទិន្នន័យចោលវិញក្រោយ Save រួច
-      setClientName(''); setClientEmail(''); setClientPassword(''); setClientPhone(''); 
-      setLinkedFbPage(''); setAmountPaid(''); setShowSubModal(false);
-      fetchClients();
+      if (data.success) {
+        alert('✅ បង្កើតគណនីជោគជ័យ! អតិថិជនអាចយក Email និង Password នេះទៅ Login បានឥឡូវនេះ។');
+        setClientName(''); setClientEmail(''); setClientPassword(''); setClientPhone(''); 
+        setLinkedFbPage(''); setAmountPaid(''); setShowSubModal(false);
+        fetchClients(); // ទាញទិន្នន័យមកបង្ហាញក្នុងតារាងឡើងវិញ
+      } else {
+        alert('❌ បរាជ័យ: ' + data.error);
+      }
+    } catch (err) {
+      alert('❌ មានបញ្ហាតភ្ជាប់ទៅកាន់ Server API!');
     }
   };
 
