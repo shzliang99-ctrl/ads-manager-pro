@@ -1695,14 +1695,13 @@ export default function Home() {
         </div>
       </header>
 
-      {/* 🌟 Layout Main + Left Sidebar */}
+      {/* 🌟 Layout Main + Left Sidebar (ប៊ូតុង Logout ជាប់នឹងបាត Sidebar ឃើញជានិច្ច) */}
       <div className="flex flex-1 w-full items-stretch">
 
-        {/* 🌟 Layout Main + Left Sidebar (មានប៊ូតុង Logout ជាប់នៅបាតជានិច្ច) */}
-      <aside className={`hidden md:flex flex-col w-[260px] shrink-0 border-r min-h-[calc(100vh-64px)] shadow-sm z-10 transition-colors ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'}`}>
-        
-        {/* ១. ផ្នែកមឺនុយខាងលើ (Main Menu & Tools របស់បងដដែល) */}
-        <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-2 pt-6">
+        <aside className={`hidden md:flex flex-col w-[260px] shrink-0 border-r h-[calc(100vh-64px)] sticky top-[64px] shadow-sm z-10 transition-colors ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'}`}>
+          
+          {/* ១. ផ្នែកមឺនុយខាងលើ (អូសចុះឡើងបានបើវែងពេក) */}
+          <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-2 pt-6 custom-scrollbar">
             <div className="text-[11px] font-bold text-slate-400 mb-2 px-3 uppercase tracking-widest">{lang === 'kh' ? 'Main Menu' : 'Main Menu'}</div>
             
             <button 
@@ -1737,25 +1736,25 @@ export default function Home() {
             >
               <span className="text-lg leading-none">📋</span> <span className="text-[13.5px]">គ្រប់គ្រងអតិថិជន</span>
             </button>
-        </div>
+          </div>
 
-        {/* ២. ផ្នែកប៊ូតុង Logout ជាប់នៅបាតក្រោមสุดនៃ Sidebar ជានិច្ច */}
-        <div className={`p-4 border-t mt-auto ${theme === 'dark' ? 'border-slate-700 bg-[#242526]' : 'border-slate-200 bg-white'}`}>
-          <button 
-            type="button"
-            onClick={handleLogout}
-            className={`w-full px-4 py-3 font-bold rounded-xl border text-xs transition shadow-sm flex items-center justify-center gap-2 cursor-pointer ${
-              theme === 'dark' 
-                ? 'bg-red-950/40 border-red-900/50 text-red-400 hover:bg-red-900/40' 
-                : 'bg-white border-red-200 text-red-600 hover:bg-red-50'
-            }`}
-            title="ចាកចេញពីគណនី / Logout"
-          >
-            <span>🚪</span> <span className="text-[13.5px]">Logout ចេញពីប្រព័ន្ធ</span>
-          </button>
-        </div>
+          {/* ២. ផ្នែកប៊ូតុង Logout ជាប់ស្អិតនៅបាតក្រោមสุดនៃ Sidebar ជានិច្ច (មិនបាច់អូសរកទេ ឃើញស្រឡះមុខម៉ៅហ្មង) */}
+          <div className={`p-4 border-t shrink-0 ${theme === 'dark' ? 'border-slate-700 bg-[#242526]' : 'border-slate-200 bg-white'}`}>
+            <button 
+              type="button"
+              onClick={handleLogout}
+              className={`w-full px-4 py-3 font-bold rounded-xl border text-xs transition shadow-sm flex items-center justify-center gap-2 cursor-pointer ${
+                theme === 'dark' 
+                  ? 'bg-red-950/40 border-red-900/50 text-red-400 hover:bg-red-900/40' 
+                  : 'bg-white border-red-200 text-red-600 hover:bg-red-50'
+              }`}
+              title="ចាកចេញពីគណនី / Logout"
+            >
+              <span>🚪</span> <span className="text-[13.5px]">Logout ចេញពីប្រព័ន្ធ</span>
+            </button>
+          </div>
 
-      </aside>
+        </aside>
 
         {/* Main Content Area */}
         <main className="flex-1 w-full min-w-0 p-4 lg:p-8 relative">
