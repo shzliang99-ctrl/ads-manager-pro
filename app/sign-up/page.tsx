@@ -24,8 +24,8 @@ export default function SignUpPage() {
     try {
       const cleanEmail = email.trim().toLowerCase();
 
-      // 🌟 ជំហានទី ១៖ ឆែកមើលថាតើ Email នេះមានក្នុង Database ស្រាប់ហើយឬยัง?
-      const { data: existingUser, error: checkError } = await supabase
+      // ១. ឆែកមើលថាតើ Email នេះមានក្នុង Database ស្រាប់ហើយឬยัง?
+      const { data: existingUser } = await supabase
         .from('customer_subscriptions')
         .select('email')
         .eq('email', cleanEmail)
@@ -33,11 +33,11 @@ export default function SignUpPage() {
 
       if (existingUser) {
         setLoading(false);
-        setErrorMsg("⚠️ អ៊ីមែល (Gmail) នេះត្រូវបានគេប្រើប្រាស់រួចហើយ! សូមប្រើអ៊ីមែលផ្សេង។");
+        setErrorMsg("⚠️ អ៊ីមែល (Gmail) នេះត្រូវបានគេប្រើប្រាស់រួចហើយ!");
         return;
       }
 
-      // ជំហានទី ២៖ បង្កើត Account ក្នុង Supabase Auth
+      // ២. បង្កើត Account ក្នុង Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: cleanEmail,
         password,
@@ -45,7 +45,7 @@ export default function SignUpPage() {
 
       if (authError) throw authError;
 
-      // ជំហានទី ៣៖ បន្ថែមទិន្នន័យអតិថិជនចូលទៅក្នុងតារាង customer_subscriptions
+      // ៣. Insert ចូលតារាង customer_subscriptions ដោយផ្ទាល់ (បំពេញគ្រប់ Column ទាំងអស់កុំឱ្យติด Not-Null Error)
       const { error: dbError } = await supabase
         .from('customer_subscriptions')
         .insert([
@@ -62,7 +62,7 @@ export default function SignUpPage() {
         ]);
 
       if (dbError) {
-        console.error("Database insert warning:", dbError.message);
+        throw new Error("Database Error: " + dbError.message);
       }
 
       setLoading(false);
@@ -76,9 +76,8 @@ export default function SignUpPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-100 p-4 font-sans relative">
-      <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-xl w-full max-w-md border border-slate-200 animate-in fade-in zoom-in-95 duration-200">
+      <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-xl w-full max-w-md border border-slate-200">
         
-        {/* Header Logo */}
         <div className="flex flex-col items-center mb-6">
           <div className="w-12 h-12 bg-white rounded-[22.5%] overflow-hidden shadow-sm border border-slate-200 flex items-center justify-center mb-2">
             <img src="/logo.png" alt="Logo" className="w-[85%] h-[85%] object-contain" />
@@ -89,7 +88,7 @@ export default function SignUpPage() {
 
         {errorMsg && (
           <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 text-xs font-bold rounded-xl text-center">
-            {errorMsg}
+            ❌ {errorMsg}
           </div>
         )}
 
@@ -158,7 +157,7 @@ export default function SignUpPage() {
             {loading ? (
               <>
                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                <span>กำลังបង្កើតគណនី...</span>
+                <span>កំពុងបង្កើតគណនី...</span>
               </>
             ) : (
               "ចុះឈ្មោះ (Sign Up)"
@@ -175,34 +174,25 @@ export default function SignUpPage() {
 
       </div>
 
-      {/* Success Modal Popup */}
+      {/* Success Modal */}
       {(loading || isSuccessModal) && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm transition-opacity duration-300 p-4">
-          <div className="bg-white p-8 rounded-2xl shadow-2xl flex flex-col items-center max-w-sm w-full mx-4 transform transition-transform scale-100 animate-in fade-in zoom-in-95 duration-200 border border-slate-100">
-            
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+          <div className="bg-white p-8 rounded-2xl shadow-2xl flex flex-col items-center max-w-sm w-full mx-4 border border-slate-100">
             {loading ? (
               <>
                 <div className="relative w-16 h-16 mb-6">
                   <div className="absolute inset-0 rounded-full border-4 border-slate-100"></div>
                   <div className="absolute inset-0 rounded-full border-4 border-[#1877F2] border-t-transparent animate-spin"></div>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-[#1877F2] text-xl">⚡</span>
-                  </div>
+                  <div className="absolute inset-0 flex items-center justify-center text-xl">⚡</div>
                 </div>
                 <h3 className="text-[17px] font-bold text-slate-800 mb-1">កំពុងបង្កើតគណនី...</h3>
-                <p className="text-[12.5px] text-slate-500 text-center leading-relaxed">
-                  ប្រព័ន្ធកំពុងរៀបចំ Profile និង Database ជូនលោកអ្នក សូមមេត្តារង់ចាំបន្តិច...
-                </p>
+                <p className="text-[12.5px] text-slate-500 text-center">សូមរង់ចាំបន្តិច...</p>
               </>
             ) : (
               <>
-                <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-3xl font-bold mb-4 shadow-inner">
-                  ✓
-                </div>
+                <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-3xl font-bold mb-4 shadow-inner">✓</div>
                 <h3 className="text-[18px] font-bold text-slate-800 mb-2">ចុះឈ្មោះជោគជ័យ!</h3>
-                <p className="text-[13px] text-slate-500 text-center leading-relaxed mb-6">
-                  គណនីរបស់អ្នកត្រូវបានបង្កើតរួចរាល់ហើយ។ ឥឡូវនេះលោកអ្នកអាចចូលប្រើប្រាស់ប្រព័ន្ធបាន។
-                </p>
+                <p className="text-[13px] text-slate-500 text-center mb-6">គណនីរបស់អ្នកត្រូវបានបង្កើតរួចរាល់ហើយ។</p>
                 <button
                   type="button"
                   onClick={() => router.push('/login')}
@@ -212,7 +202,6 @@ export default function SignUpPage() {
                 </button>
               </>
             )}
-
           </div>
         </div>
       )}
