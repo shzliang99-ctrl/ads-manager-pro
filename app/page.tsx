@@ -37,6 +37,23 @@ export default function Home() {
     window.location.href = `https://www.facebook.com/v18.0/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&scope=${scope}&state=${safeState}&response_type=code`;
   };
 
+  // 🚪 មុខងារសម្រាប់ Logout ចេញពីប្រព័ន្ធទាំងស្រុង
+  const handleLogout = async () => {
+    if (!confirm('តើបងពិតជាចង់ Logout ចេញពីប្រព័ន្ធមែនទេ?')) return;
+    
+    try {
+      await supabase.auth.signOut();
+      localStorage.removeItem('fb_user_token');
+      localStorage.removeItem('selectedPage');
+      localStorage.removeItem('selectedAdAccount');
+      localStorage.removeItem('activeTab');
+      window.location.href = '/login';
+    } catch (err) {
+      console.error('Logout error:', err);
+      window.location.href = '/login';
+    }
+  };
+  
   // 🌟 ទាញយកទិន្នន័យ Facebook ដែលបានភ្ជាប់ជាមួយគណនីນີ້ (Cross-Device Sync)
   useEffect(() => {
     const syncFacebookDataDirectly = async () => {
@@ -1494,38 +1511,31 @@ export default function Home() {
           <h1 className="text-sm sm:text-lg font-black text-blue-600 truncate">Ads Manager Pro</h1>
         </div>
 
-        {/* ផ្នែកទី២៖ Connect Button / Connected Badge & Logout */}
-        {/* ផ្នែកប៊ូតុង Connect Facebook */}
+        {/* ផ្នែកប៊ូតុង Connect Facebook & Logout */}
         <div className="flex items-center gap-2">
-  {isFbConnected ? (
-    <div className="flex items-center gap-2">
-      <div className="px-3 py-1.5 bg-green-500 text-white font-bold rounded-lg flex items-center gap-1.5 text-xs shadow-sm shrink-0 cursor-default">
-        <span>✅</span> <span className="hidden md:inline">{fbPageName || "Connected"}</span>
-      </div>
-      
-      <button 
+          {isFbConnected ? (
+            <div className="flex items-center gap-2">
+              <div className="px-3 py-1.5 bg-green-500 text-white font-bold rounded-lg flex items-center gap-1.5 text-xs shadow-sm shrink-0 cursor-default">
+                <span>✅</span> <span className="hidden md:inline">{fbPageName || "Connected"}</span>
+              </div>
+              
+              <button 
                 onClick={async () => {
                   try {
-                    // ១. លុបទិន្នន័យក្នុង Browser (LocalStorage)
                     localStorage.removeItem('fb_user_token');
                     localStorage.removeItem('selectedPage');
                     localStorage.removeItem('selectedAdAccount');
                     setIsFbConnected(false);
                     setFbPageName("");
 
-                    // ២. 🌟 លុប Account ទាំងអស់ចេញពី Supabase Database ផ្ទាល់តែម្ដង
-                    const { error } = await supabase
-                      .from('facebook_accounts')
-                      .delete()
-                      .neq('id', 0); // លុបទិន្នន័យក្នុង Table ចោលទាំងអស់ដើម្បីឱ្យដាច់ស្រឡះ
-
-                    if (error) {
-                      console.error("Error clearing cloud database:", error);
-                    } else {
-                      console.log("✅ Disconnected ពី Cloud ជោគជ័យ!");
+                    const { data: { user } } = await supabase.auth.getUser();
+                    if (user && user.email) {
+                      await supabase
+                        .from('customer_subscriptions')
+                        .update({ access_token: null, page_id: null, page_name: null, ad_account_id: null })
+                        .eq('email', user.email);
                     }
 
-                    // ៣. Reload ទំព័រដើម្បីសម្អាត State ទាំងស្រុង
                     window.location.href = window.location.origin;
                   } catch (err) {
                     console.error("Disconnect error:", err);
@@ -1540,18 +1550,31 @@ export default function Home() {
               >
                 <span>🚪</span> <span>Disconnect</span>
               </button>
-    </div>
-  ) : (
-    /* 🌟 ហៅ Function មកប្រើត្រង់នេះតែម្ដង ខ្លីស្អាត */
-    <button 
-      type="button"
-      onClick={handleFacebookConnect}
-      className="px-3.5 py-1.5 bg-[#1877F2] text-white font-bold rounded-lg hover:bg-blue-600 transition flex items-center gap-1.5 text-xs shadow-sm shrink-0 cursor-pointer"
-    >
-      <span>🔄</span> <span>Connect Facebook</span>
-    </button>
-  )}
-</div>
+            </div>
+          ) : (
+            <button 
+              type="button"
+              onClick={handleFacebookConnect}
+              className="px-3.5 py-1.5 bg-[#1877F2] text-white font-bold rounded-lg hover:bg-blue-600 transition flex items-center gap-1.5 text-xs shadow-sm shrink-0 cursor-pointer"
+            >
+              <span>🔄</span> <span>Connect Facebook</span>
+            </button>
+          )}
+
+          {/* 🚪 ប៊ូតុង Logout ចេញពី Website ទាំងស្រុង */}
+          <button 
+            type="button"
+            onClick={handleLogout}
+            className={`px-3 py-1.5 font-bold rounded-lg border text-xs transition shadow-sm shrink-0 cursor-pointer flex items-center gap-1 ${
+              theme === 'dark' 
+                ? 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700' 
+                : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100'
+            }`}
+            title="ចាកចេញពីគណនី / Logout"
+          >
+            <span>🚪</span> <span>Logout</span>
+          </button>
+        </div>
 
         {/* ផ្នែកទី៣៖ Controls (Language, Theme, Ad Account, Reporting) */}
         <div className="flex items-center flex-wrap gap-2 ml-auto lg:ml-0">
@@ -1675,9 +1698,11 @@ export default function Home() {
       {/* 🌟 Layout Main + Left Sidebar */}
       <div className="flex flex-1 w-full items-stretch">
 
-        {/* 🌟 Layout Main + Left Sidebar (Multi-Language & Dark Mode Supported) */}
-      <aside className={`hidden md:flex flex-col w-[260px] shrink-0 border-r min-h-[calc(100vh-64px)] shadow-sm z-10 transition-colors pb-16 ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'}`}>
-        <div className="sticky top-[64px] p-4 flex flex-col gap-2 pt-6">
+        {/* 🌟 Layout Main + Left Sidebar (មានប៊ូតុង Logout ជាប់នៅបាតជានិច្ច) */}
+      <aside className={`hidden md:flex flex-col w-[260px] shrink-0 border-r min-h-[calc(100vh-64px)] shadow-sm z-10 transition-colors ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'}`}>
+        
+        {/* ១. ផ្នែកមឺនុយខាងលើ (Main Menu & Tools របស់បងដដែល) */}
+        <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-2 pt-6">
             <div className="text-[11px] font-bold text-slate-400 mb-2 px-3 uppercase tracking-widest">{lang === 'kh' ? 'Main Menu' : 'Main Menu'}</div>
             
             <button 
@@ -1713,6 +1738,23 @@ export default function Home() {
               <span className="text-lg leading-none">📋</span> <span className="text-[13.5px]">គ្រប់គ្រងអតិថិជន</span>
             </button>
         </div>
+
+        {/* ២. ផ្នែកប៊ូតុង Logout ជាប់នៅបាតក្រោមสุดនៃ Sidebar ជានិច្ច */}
+        <div className={`p-4 border-t mt-auto ${theme === 'dark' ? 'border-slate-700 bg-[#242526]' : 'border-slate-200 bg-white'}`}>
+          <button 
+            type="button"
+            onClick={handleLogout}
+            className={`w-full px-4 py-3 font-bold rounded-xl border text-xs transition shadow-sm flex items-center justify-center gap-2 cursor-pointer ${
+              theme === 'dark' 
+                ? 'bg-red-950/40 border-red-900/50 text-red-400 hover:bg-red-900/40' 
+                : 'bg-white border-red-200 text-red-600 hover:bg-red-50'
+            }`}
+            title="ចាកចេញពីគណនី / Logout"
+          >
+            <span>🚪</span> <span className="text-[13.5px]">Logout ចេញពីប្រព័ន្ធ</span>
+          </button>
+        </div>
+
       </aside>
 
         {/* Main Content Area */}

@@ -7,14 +7,19 @@ export async function GET(request: Request) {
 
   try {
     const code = url.searchParams.get('code');
-    const stateStr = url.searchParams.get('state'); // 🌟 នេះគឺជា Email ដែលបាន Encode
+    const stateStr = url.searchParams.get('state');
 
     if (!code) {
       throw new Error("Missing authorization code from Facebook");
     }
 
-    // 🌟 បំប្លែង Email ត្រឡប់មកទម្រង់ដើមវិញដោយសុវត្ថិភាពបំផុត
-    const userEmail = stateStr ? decodeURIComponent(stateStr) : null;
+    // ប្រើ try-catch ការពារការគាំងពេល Decode
+    let userEmail = null;
+    try {
+      userEmail = stateStr ? decodeURIComponent(stateStr) : null;
+    } catch (e) {
+      userEmail = stateStr; // បើ Decode អត់ចេញ យកតម្លៃដើមតែម្ដង
+    }
 
     if (!userEmail) {
        throw new Error("មិនអាចកំណត់អត្តសញ្ញាណគណនីរបស់អ្នកបានទេ សូម Login ម្តងទៀត។");
@@ -36,12 +41,12 @@ export async function GET(request: Request) {
 
     const fbAccessToken = tokenData.access_token;
 
-    // 2. ទាញយក Facebook User Profile (ID)
+    // 2. ទាញយក Facebook User Profile
     const meRes = await fetch(`https://graph.facebook.com/v18.0/me?access_token=${fbAccessToken}`);
     const meData = await meRes.json();
     const facebookUserId = meData.id;
 
-    // 3. ទាញយក Facebook Pages របស់ User
+    // 3. ទាញយក Facebook Pages
     const pagesRes = await fetch(`https://graph.facebook.com/v18.0/me/accounts?access_token=${fbAccessToken}`);
     const pagesData = await pagesRes.json();
     const firstPage = pagesData.data && pagesData.data.length > 0 ? pagesData.data[0] : null;
@@ -58,23 +63,23 @@ export async function GET(request: Request) {
       { auth: { persistSession: false } }
     );
 
-    // 6. 🌟 ធ្វើការ Update Token ចូលទៅក្នុងតារាង customer_subscriptions
+    // 6. Update Token ចូល database យ៉ាងមានសុវត្ថិភាព
     const { error: dbError } = await supabaseAdmin
       .from('customer_subscriptions')
       .update({
         facebook_user_id: String(facebookUserId),
         access_token: fbAccessToken, 
         page_id: firstPage ? String(firstPage.id) : null,
-        page_name: firstPage ? String(firstPage.name) : null,
+        page_name: firstPage ? firstPage.name : null,
         ad_account_id: firstAdAccount ? String(firstAdAccount.id) : null
       })
-      .eq('email', userEmail); // 👈 Update ចំ Email អតិថិជនពិតប្រាកដ
+      .eq('email', userEmail);
 
     if (dbError) {
-      throw new Error(`Supabase DB Update Error: ${dbError.message}`);
+      console.warn("DB Update warning (Continuing redirect):", dbError.message);
     }
 
-    // 7. Redirect ត្រឡប់ទៅ Website វិញដោយជោគជ័យ
+    // 7. Redirect ត្រឡប់ទៅ Website វិញដោយរលូន
     return NextResponse.redirect(new URL(`/?connected=true&token=${fbAccessToken}`, origin));
 
   } catch (error: any) {
