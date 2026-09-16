@@ -1829,7 +1829,7 @@ export default function Home() {
 
         <aside className={`hidden md:flex flex-col w-[260px] shrink-0 border-r h-[calc(100vh-64px)] sticky top-[64px] shadow-sm z-10 transition-colors ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'}`}>
          
-         {/* ១. ផ្នែកមឺនុយខាងលើ (អូសចុះឡើងបានបើវែងពេក) */}
+         {/* ១. ផ្នែកមឺនុយខាងលើ (Main Menu & Tools) */}
          <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-2 pt-6 custom-scrollbar">
             <div className="text-[11px] font-bold text-slate-400 mb-2 px-3 uppercase tracking-widest">{lang === 'kh' ? 'Main Menu' : 'Main Menu'}</div>
             
@@ -1869,8 +1869,22 @@ export default function Home() {
             )}
          </div>
 
-         {/* ២. ផ្នែកប៊ូតុង Logout ជាប់ស្អិតនៅបាតក្រោមสุดនៃ Sidebar ជានិច្ច (មិនបាច់អូសរកទេ ឃើញស្រឡះមុខម៉ៅហ្មង) */}
-         <div className={`p-4 border-t shrink-0 ${theme === 'dark' ? 'border-slate-700 bg-[#242526]' : 'border-slate-200 bg-white'}`}>
+         {/* ២. ផ្នែកបាតក្រោម៖ ប៊ូតុង Setting និង Logout ជាប់ស្អិតជាមួយគ្នា */}
+         <div className={`p-4 border-t shrink-0 flex flex-col gap-2 ${theme === 'dark' ? 'border-slate-700 bg-[#242526]' : 'border-slate-200 bg-white'}`}>
+            
+            {/* 🌟 ប៊ូតុង Settings ដាក់ជាប់លើ Logout ខាងក្រោម */}
+            <button 
+              onClick={() => handleTabChange("SETTINGS")}
+              className={`w-full text-left px-4 py-3 rounded-xl font-bold transition-all flex items-center gap-3 cursor-pointer ${
+                activeTab === "SETTINGS" 
+                  ? "bg-blue-600 text-white shadow-md" 
+                  : (theme === 'dark' ? 'text-slate-300 hover:bg-[#3A3B3C] hover:text-white' : 'text-slate-700 hover:bg-slate-100')
+              }`}
+            >
+              <span className="text-lg leading-none">⚙️</span> <span className="text-[13.5px]">ការកំណត់ (Settings)</span>
+            </button>
+
+            {/* ប៊ូតុង Logout */}
             <button 
               type="button"
               onClick={handleLogout}
@@ -1883,6 +1897,7 @@ export default function Home() {
             >
               <span>🚪</span> <span className="text-[13.5px]">Logout ចេញពីប្រព័ន្ធ</span>
             </button>
+
          </div>
 
         </aside>
@@ -2018,6 +2033,91 @@ export default function Home() {
               </div>
             )}
 
+            {activeTab === "SETTINGS" && (
+              <div className={`p-6 rounded-2xl shadow-sm border w-full max-w-xl mx-auto my-6 animate-in fade-in duration-300 transition-colors ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-900'}`}>
+                
+                <div className="flex items-center gap-3 mb-6 border-b pb-4 border-slate-100 dark:border-slate-700">
+                  <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400 flex items-center justify-center text-xl shadow-xs">
+                    ⚙️
+                  </div>
+                  <div>
+                    <h2 className={`text-lg font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>ការកំណត់គណនី (Settings)</h2>
+                    <p className={`text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>គ្រប់គ្រងព័ត៌មាន និងផ្លាស់ប្ដូរលេខសម្ងាត់របស់អ្នក</p>
+                  </div>
+                </div>
+
+                <div className="space-y-6">
+                  <div className={`p-5 rounded-xl border ${theme === 'dark' ? 'bg-[#18191A] border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
+                    <h3 className={`text-sm font-bold mb-3 flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>
+                      <span>🔒</span> ផ្លាស់ប្ដូរលេខសម្ងាត់ (Change Password)
+                    </h3>
+
+                    <form onSubmit={async (e) => {
+                      e.preventDefault();
+                      const form = e.currentTarget;
+                      const newPass = (form.elements.namedItem('newPass') as HTMLInputElement).value;
+                      const confirmPass = (form.elements.namedItem('confirmPass') as HTMLInputElement).value;
+
+                      if (newPass !== confirmPass) {
+                        alert("❌ លេខសម្ងាត់ថ្មី និងការបញ្ជាក់មិនដូចគ្នាទេ!");
+                        return;
+                      }
+                      if (newPass.length < 6) {
+                        alert("❌ លេខសម្ងាត់ថ្មីត្រូវមានយ៉ាងហោចណាស់ ៦ តួអក្សរ!");
+                        return;
+                      }
+
+                      try {
+                        const { error } = await supabase.auth.updateUser({ password: newPass });
+                        if (error) throw error;
+                        
+                        // Update ក្នុង Database ផងដែរ
+                        const { data: { user } } = await supabase.auth.getUser();
+                        if (user?.email) {
+                          await supabase.from('customer_subscriptions').update({ password: newPass }).eq('email', user.email);
+                        }
+
+                        alert("✅ បានផ្លាស់ប្ដូរលេខសម្ងាត់ថ្មីដោយជោគជ័យ!");
+                        form.reset();
+                      } catch (err: any) {
+                        alert("❌ បរាជ័យ: " + err.message);
+                      }
+                    }} className="space-y-4">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">លេខសម្ងាត់ថ្មី</label>
+                        <input 
+                          type="password" 
+                          name="newPass"
+                          required
+                          placeholder="••••••••" 
+                          className={`w-full px-3.5 py-2.5 border rounded-xl text-sm outline-none focus:border-blue-500 font-medium ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-900'}`}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">បញ្ជាក់លេខសម្ងាត់ថ្មី</label>
+                        <input 
+                          type="password" 
+                          name="confirmPass"
+                          required
+                          placeholder="••••••••" 
+                          className={`w-full px-3.5 py-2.5 border rounded-xl text-sm outline-none focus:border-blue-500 font-medium ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-900'}`}
+                        />
+                      </div>
+
+                      <button 
+                        type="submit"
+                        className="w-full py-3 bg-[#1877F2] hover:bg-blue-600 text-white font-bold rounded-xl text-sm transition shadow-md cursor-pointer"
+                      >
+                        ✓ រក្សាទុកការផ្លាស់ប្ដូរ
+                      </button>
+                    </form>
+                  </div>
+                </div>
+
+              </div>
+            )}
+            
             {/* ========================================================= */}
             {/* ផ្ទាំងគ្រប់គ្រងអតិថិជន (CRM & SUBSCRIPTIONS) */}
             {/* ========================================================= */}

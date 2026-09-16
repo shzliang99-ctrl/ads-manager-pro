@@ -14,7 +14,7 @@ export default function SignUpPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
-  const [isSuccessModal, setIsSuccessModal] = useState(false);
+  const [isSuccessModal, setIsSuccessModal] = useState(false); // 🌟 State សម្រាប់បង្ហាញ Pop-up ជោគជ័យទំនើប
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,36 +22,21 @@ export default function SignUpPage() {
     setErrorMsg("");
 
     try {
-      const cleanEmail = email.trim().toLowerCase();
-
-      // ១. ឆែកមើលថាតើ Email នេះមានក្នុង Database ស្រាប់ហើយឬยัง?
-      const { data: existingUser } = await supabase
-        .from('customer_subscriptions')
-        .select('email')
-        .eq('email', cleanEmail)
-        .maybeSingle();
-
-      if (existingUser) {
-        setLoading(false);
-        setErrorMsg("⚠️ អ៊ីមែល (Gmail) នេះត្រូវបានគេប្រើប្រាស់រួចហើយ!");
-        return;
-      }
-
-      // ២. បង្កើត Account ក្នុង Supabase Auth
+      // ១. បង្កើត Account ក្នុង Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: cleanEmail,
+        email,
         password,
       });
 
       if (authError) throw authError;
 
-      // ៣. Insert ចូលតារាង customer_subscriptions ដោយផ្ទាល់ (បំពេញគ្រប់ Column ទាំងអស់កុំឱ្យติด Not-Null Error)
+      // ២. បន្ថែមទិន្នន័យអតិថិជនចូលទៅក្នុងតារាង customer_subscriptions
       const { error: dbError } = await supabase
         .from('customer_subscriptions')
         .insert([
           {
             client_name: clientName,
-            email: cleanEmail,
+            email: email,
             password: password,
             phone: phone,
             package_name: '១ ខែ (Standard)',
@@ -62,22 +47,23 @@ export default function SignUpPage() {
         ]);
 
       if (dbError) {
-        throw new Error("Database Error: " + dbError.message);
+        console.error("Database insert warning:", dbError.message);
       }
 
       setLoading(false);
-      setIsSuccessModal(true);
+      setIsSuccessModal(true); // 🌟 បើកផ្ទាំង Pop-up ជោគជ័យជំនួសឱ្យ alert()
 
     } catch (err: any) {
       setLoading(false);
-      setErrorMsg(err.message || "មានបញ្ហាក្នុងการចុះឈ្មោះ សូមព្យាយាមម្ដងទៀត។");
+      setErrorMsg(err.message || "មានបញ្ហាក្នុងការចុះឈ្មោះ សូមព្យាយាមម្ដងទៀត។");
     }
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-100 p-4 font-sans relative">
-      <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-xl w-full max-w-md border border-slate-200">
+      <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-xl w-full max-w-md border border-slate-200 animate-in fade-in zoom-in-95 duration-200">
         
+        {/* Header Logo */}
         <div className="flex flex-col items-center mb-6">
           <div className="w-12 h-12 bg-white rounded-[22.5%] overflow-hidden shadow-sm border border-slate-200 flex items-center justify-center mb-2">
             <img src="/logo.png" alt="Logo" className="w-[85%] h-[85%] object-contain" />
@@ -143,6 +129,7 @@ export default function SignUpPage() {
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3 top-3 text-slate-500 hover:text-slate-700 text-sm font-bold cursor-pointer"
+                title={showPassword ? "លាក់ពាក្យសម្ងាត់" : "បង្ហាញពាក្យសម្ងាត់"}
               >
                 {showPassword ? "🙈" : "👁️"}
               </button>
@@ -174,34 +161,46 @@ export default function SignUpPage() {
 
       </div>
 
-      {/* Success Modal */}
+      {/* ========================================================= */}
+      {/* 🌟 LOADING & SUCCESS MODAL POPUP (ទំនើប និងស្អាត១០០%) */}
+      {/* ========================================================= */}
       {(loading || isSuccessModal) && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-          <div className="bg-white p-8 rounded-2xl shadow-2xl flex flex-col items-center max-w-sm w-full mx-4 border border-slate-100">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm transition-opacity duration-300 p-4">
+          <div className="bg-white p-8 rounded-2xl shadow-2xl flex flex-col items-center max-w-sm w-full mx-4 transform transition-transform scale-100 animate-in fade-in zoom-in-95 duration-200 border border-slate-100">
+            
             {loading ? (
               <>
                 <div className="relative w-16 h-16 mb-6">
                   <div className="absolute inset-0 rounded-full border-4 border-slate-100"></div>
                   <div className="absolute inset-0 rounded-full border-4 border-[#1877F2] border-t-transparent animate-spin"></div>
-                  <div className="absolute inset-0 flex items-center justify-center text-xl">⚡</div>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-[#1877F2] text-xl">⚡</span>
+                  </div>
                 </div>
                 <h3 className="text-[17px] font-bold text-slate-800 mb-1">កំពុងបង្កើតគណនី...</h3>
-                <p className="text-[12.5px] text-slate-500 text-center">សូមរង់ចាំបន្តិច...</p>
+                <p className="text-[12.5px] text-slate-500 text-center leading-relaxed">
+                  ប្រព័ន្ធកំពុងរៀបចំ Profile និង Database ជូនលោកអ្នក សូមមេត្តារង់ចាំបន្តិច...
+                </p>
               </>
             ) : (
               <>
-                <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-3xl font-bold mb-4 shadow-inner">✓</div>
+                <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-3xl font-bold mb-4 shadow-inner">
+                  ✓
+                </div>
                 <h3 className="text-[18px] font-bold text-slate-800 mb-2">ចុះឈ្មោះជោគជ័យ!</h3>
-                <p className="text-[13px] text-slate-500 text-center mb-6">គណនីរបស់អ្នកត្រូវបានបង្កើតរួចរាល់ហើយ។</p>
+                <p className="text-[13px] text-slate-500 text-center leading-relaxed mb-6">
+                  គណនីរបស់អ្នកត្រូវបានបង្កើតរួចរាល់ហើយ។ ឥឡូវនេះលោកអ្នកអាចចូលប្រើប្រាស់ប្រព័ន្ធបាន។
+                </p>
                 <button
                   type="button"
                   onClick={() => router.push('/login')}
-                  className="w-full py-3 rounded-xl bg-[#1877F2] hover:bg-blue-600 text-white font-bold text-[14.5px] transition shadow-md cursor-pointer"
+                  className="w-full py-3 rounded-xl bg-[#1877F2] hover:bg-blue-600 text-white font-bold text-[14px] transition shadow-md cursor-pointer"
                 >
                   ចូលគណនី (Login)
                 </button>
               </>
             )}
+
           </div>
         </div>
       )}
