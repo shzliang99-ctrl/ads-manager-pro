@@ -5,16 +5,16 @@ export async function POST(request: Request) {
   try {
     const { adName, spend, results, impressions, reach, ctr, cpa } = await request.json();
 
-    // 🔑 ប្រមូលបញ្ជី API Keys ទាំងអស់
+    // 🔑 ប្រមូលបញ្ជី API Keys ទាំងអស់ (តម្រូវឱ្យឡើងដើមដោយ AIzaSy...)
     const apiKeys = [
       { name: 'Gemini Key #1', key: process.env.GEMINI_API_KEY_1 || process.env.GEMINI_API_KEY },
       { name: 'Gemini Key #2', key: process.env.GEMINI_API_KEY_2 },
       { name: 'Gemini Key #3', key: process.env.GEMINI_API_KEY_3 },
       { name: 'Gemini Key #4', key: process.env.GEMINI_API_KEY_4 },
-    ].filter(item => item.key && item.key.length > 10 && !item.key.includes("xxxx"));
+    ].filter(item => item.key && item.key.startsWith("AIzaSy") && item.key.length > 20);
 
     if (apiKeys.length === 0) {
-      return NextResponse.json({ success: false, error: "រកមិនឃើញ API Key ត្រឹមត្រូវក្នុង .env.local ទេ។" }, { status: 500 });
+      return NextResponse.json({ success: false, error: "រកមិនឃើញ Gemini API Key ត្រឹមត្រូវ (ត្រូវขึ้นต้นด้วย AIzaSy) ក្នុង .env.local ទេ។" }, { status: 500 });
     }
 
     const prompt = `
@@ -52,7 +52,7 @@ export async function POST(request: Request) {
         
         const ai = new GoogleGenAI({ apiKey: item.key });
         const response = await ai.models.generateContent({
-          model: 'gemini-2.5-flash',
+          model: 'gemini-1.5-flash', // ប្រើ Model ស្តង់ដារដែលមានស្ថេរភាពខ្ពស់
           contents: prompt,
         });
 
@@ -61,7 +61,7 @@ export async function POST(request: Request) {
 
         if (textResponse) {
           jsonResult = JSON.parse(textResponse);
-          usedSource = `✨ ដំណើរការដោយ៖ ${item.name}`; // 👈 ចេញមកជា Gemini Key #1, #2, #3, #4
+          usedSource = `✨ ដំណើរការដោយ៖ ${item.name}`;
           console.log(`✅ ជោគជ័យជាមួយ ${item.name}`);
           break;
         }
@@ -72,10 +72,9 @@ export async function POST(request: Request) {
     }
 
     if (!jsonResult) {
-      return NextResponse.json({ success: false, error: "API Keys ទាំងអស់កំពុងជាប់ Limit ឬមានបញ្ហា។" }, { status: 500 });
+      return NextResponse.json({ success: false, error: "API Keys ទាំងអស់កំពុងជាប់ Limit ឬមិនមាន Key ត្រឹមត្រូវ។" }, { status: 500 });
     }
 
-    // 📤 បញ្ជូនលទ្ធផលរួមជាមួយ source ទៅកាន់ Frontend
     return NextResponse.json({ 
       success: true, 
       audit: { 
