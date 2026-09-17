@@ -33,6 +33,9 @@ export default function Home() {
     checkAdminRole();
   }, []);
 
+  const [presetModalOpen, setPresetModalOpen] = useState<'none' | 'photo' | 'video'>('none');
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+
   // 🌟 State និង Function សម្រាប់ AI Audit ព្រមទាំង Speaker (Text-to-Speech)
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
   const [auditLoading, setAuditLoading] = useState(false);
@@ -423,6 +426,7 @@ export default function Home() {
 
   // 🌟 States សម្រាប់មុខងារ Quick Edit (កែប្រែរហ័ស)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isRestartModalOpen, setIsRestartModalOpen] = useState(false);
   const [editCampaignId, setEditCampaignId] = useState("");
   const [editCampaignName, setEditCampaignName] = useState("");
   const [editBudget, setEditBudget] = useState("");
@@ -669,8 +673,18 @@ export default function Home() {
   const [budget, setBudget] = useState("5"); 
   const [duration, setDuration] = useState("5");
 
-  const [placementType, setPlacementType] = useState("ADVANTAGE");
-  const [deviceType, setDeviceType] = useState("ALL");
+  const [placementType, setPlacementType] = useState(() => {
+  if (typeof window !== "undefined") {
+    return localStorage.getItem("placementType") || "ADVANTAGE";
+  }
+  return "ADVANTAGE";
+  });
+  const [deviceType, setDeviceType] = useState(() => {
+  if (typeof window !== "undefined") {
+    return localStorage.getItem("deviceType") || "MOBILE"; // បើអត់ទាន់មាន ដាក់ Mobile ជា Default តែម្ដង
+  }
+  return "MOBILE";
+  });
   const [osType, setOsType] = useState("ALL");
   const [wifiOnly, setWifiOnly] = useState(false);
   
@@ -1231,6 +1245,67 @@ export default function Home() {
   }, [selectedPage, pages]);
 
   const isBudgetError = budgetType === "LIFETIME" && Number(budget) < Number(duration);
+
+  // 🌟 1. Function សម្រាប់កំណត់ស្តង់ដារ Boost រូបភាព (ដក Alert ចេញ)
+  const handleBoostPhotos = () => {
+    const newPlatforms = { facebook: true, instagram: false, audienceNetwork: false, messenger: true, whatsapp: false, threads: false };
+    const newDetailed = {
+      fb_feed: true, fb_profile: true, ig_feed: false, ig_profile: false, fb_marketplace: true, fb_right_col: false, ig_explore: false, fb_business: false, threads_feed: false, fb_notifications: false,
+      ig_stories: false, fb_stories: false, msg_stories: false, ig_reels: false, fb_reels: false, wa_status: false,
+      instream_reels: false, fb_reels_ads: false,
+      fb_search: false, ig_search: false,
+      wa_messages: false,
+      an_native: false, an_rewarded: false
+    };
+
+    setPlacementType("MANUAL"); localStorage.setItem("placementType", "MANUAL");
+    setDeviceType("MOBILE"); localStorage.setItem("deviceType", "MOBILE");
+    setPlatforms(newPlatforms); localStorage.setItem("platforms", JSON.stringify(newPlatforms));
+    setDetailedPlacements(newDetailed); localStorage.setItem("detailedPlacements", JSON.stringify(newDetailed));
+
+    setPresetModalOpen('none'); // បិទ Modal ពេលជោគជ័យ
+  };
+
+  // 🌟 2. Function សម្រាប់កំណត់ស្តង់ដារ Boost វីដេអូ (ដក Alert ចេញ)
+  const handleBoostVideos = () => {
+    const newPlatforms = { facebook: true, instagram: false, audienceNetwork: false, messenger: true, whatsapp: false, threads: false };
+    const newDetailed = {
+      fb_feed: true, fb_profile: true, ig_feed: false, ig_profile: false, fb_marketplace: true, fb_right_col: false, ig_explore: false, fb_business: false, threads_feed: false, fb_notifications: false,
+      ig_stories: false, fb_stories: true, msg_stories: true, ig_reels: false, fb_reels: true, wa_status: false,
+      instream_reels: false, fb_reels_ads: false,
+      fb_search: false, ig_search: false,
+      wa_messages: false,
+      an_native: false, an_rewarded: false
+    };
+
+    setPlacementType("MANUAL"); localStorage.setItem("placementType", "MANUAL");
+    setDeviceType("MOBILE"); localStorage.setItem("deviceType", "MOBILE");
+    setPlatforms(newPlatforms); localStorage.setItem("platforms", JSON.stringify(newPlatforms));
+    setDetailedPlacements(newDetailed); localStorage.setItem("detailedPlacements", JSON.stringify(newDetailed));
+
+    setPresetModalOpen('none'); // បិទ Modal ពេលជោគជ័យ
+  };
+
+  // 🌟 មុខងារ Restart Placements ឱ្យត្រឡប់ទៅទម្រង់ដើម
+  const handleResetPlacements = () => {
+    if (!confirm("តើបងពិតជាចង់ Restart ការកំណត់ Placements ទាំងអស់ឱ្យត្រឡប់ទៅដើមវិញមែនទេ?")) return;
+    
+    localStorage.removeItem("placementType");
+    localStorage.removeItem("platforms");
+    localStorage.removeItem("detailedPlacements");
+    localStorage.removeItem("deviceType");
+
+    setPlacementType("ADVANTAGE");
+    setDeviceType("MOBILE"); 
+    setPlatforms({ facebook: true, instagram: false, audienceNetwork: false, messenger: true, whatsapp: false, threads: false });
+    setDetailedPlacements({
+      fb_feed: true, fb_profile: true, ig_feed: true, ig_profile: true, fb_marketplace: true, fb_right_col: true, ig_explore: true, fb_business: true, threads_feed: true, fb_notifications: true,
+      ig_stories: true, fb_stories: true, msg_stories: true, ig_reels: true, fb_reels: true, wa_status: false,
+      instream_reels: true, fb_reels_ads: true, fb_search: true, ig_search: true, wa_messages: false, an_native: true, an_rewarded: true
+    });
+
+    alert("🔄 បាន Restart ការកំណត់ Placements ត្រឡប់ទៅទម្រង់ដើមវិញដោយជោគជ័យ!");
+  };
 
   const handleAutoBoost = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -2548,25 +2623,58 @@ export default function Home() {
 
         <div className={`border rounded-xl overflow-visible mt-2 flex-1 ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
           
-          {/* Placements Dropdown Toggle */}
-          <div 
-            onClick={() => setShowPlacementsSection(!showPlacementsSection)}
-            className={`p-3.5 border-b flex justify-between items-center cursor-pointer select-none transition-colors ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-700 text-white hover:bg-[#4E4F50]' : 'bg-slate-100 border-slate-200 text-slate-800 hover:bg-slate-200'}`}
-          >
-            <label className={`block text-sm font-bold cursor-pointer ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>
-              📍 Placements
-            </label>
-            <button type="button" className="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1 cursor-pointer">
-              {showPlacementsSection ? "▲ លាក់ការកំណត់" : "⚙️ បើកទម្លាក់មើលបន្ថែម"}
-            </button>
+          {/* Placements Dropdown Header ជាមួយនឹង Smart Presets ធំជាងមុន */}
+          <div className={`p-3.5 border-b flex flex-wrap justify-between items-center select-none transition-colors gap-3 ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-700 text-white' : 'bg-slate-100 border-slate-200 text-slate-800'}`}>
+            
+            <div onClick={() => setShowPlacementsSection(!showPlacementsSection)} className="flex items-center gap-2 cursor-pointer">
+              <label className="block text-[14px] font-extrabold cursor-pointer tracking-wide">
+                📍 Placements
+              </label>
+            </div>
+            
+            <div className="flex items-center gap-3">
+              
+              {/* 🌟 ប៊ូតុង Boost រូបភាព (ទំហំធំ) */}
+              <button 
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setPresetModalOpen('photo'); }}
+                className="px-5 py-2 min-w-[120px] justify-center rounded-xl text-[13px] font-bold text-white bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 transition-all shadow-md shadow-emerald-500/20 flex items-center gap-2 cursor-pointer transform hover:scale-[1.03] active:scale-95"
+              >
+                <span className="text-[15px] leading-none drop-shadow-sm">🖼️</span> 
+                <span className="tracking-wide">រូបភាព</span>
+              </button>
+
+              {/* 🌟 ប៊ូតុង Boost វីដេអូ (ទំហំធំ) */}
+              <button 
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setPresetModalOpen('video'); }}
+                className="px-5 py-2 min-w-[120px] justify-center rounded-xl text-[13px] font-bold text-white bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 transition-all shadow-md shadow-purple-500/20 flex items-center gap-2 cursor-pointer transform hover:scale-[1.03] active:scale-95"
+              >
+                <span className="text-[15px] leading-none drop-shadow-sm">🎬</span> 
+                <span className="tracking-wide">វីដេអូ</span>
+              </button>
+
+              <button 
+                type="button" 
+                onClick={() => setShowPlacementsSection(!showPlacementsSection)}
+                className="text-xs font-bold text-blue-600 hover:text-blue-700 hover:underline flex items-center gap-1 cursor-pointer ml-1 transition-colors"
+              >
+                {showPlacementsSection ? "▲ លាក់" : "⚙️ បើកមើល"}
+              </button>
+            </div>
+
           </div>
 
           {showPlacementsSection && (
             <div className={`p-4 flex flex-col gap-4 animate-in slide-in-from-top-2 duration-200 ${theme === 'dark' ? 'bg-[#242526]' : 'bg-white'}`}>
-              <select value={placementType} onChange={(e) => saveParam("placementType", e.target.value, setPlacementType)} className={`w-full border rounded-xl p-3 text-sm outline-none font-medium cursor-pointer ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'}`}>
+              <select 
+                value={placementType} 
+                onChange={(e) => saveParam("placementType", e.target.value, setPlacementType)} 
+                className="..."
+              >
                 <option value="ADVANTAGE">✨ Advantage+ placements</option>
                 <option value="MANUAL">⚙️ Manual placements</option>
-              </select>
+            </select>
 
               {placementType === "MANUAL" && (
                 <div className={`flex flex-col gap-4 pt-4 border-t animate-in fade-in text-sm ${theme === 'dark' ? 'border-slate-700' : 'border-slate-100'}`}>
@@ -4504,6 +4612,78 @@ export default function Home() {
       )}
 
       {/* ============================================== */}
+      {/* 🌟 Custom Reset Placements Modal (ទំនើប និងស្អាត) */}
+      {/* ============================================== */}
+      {isResetModalOpen && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className={`rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col p-6 transform transition-all scale-100 ${theme === 'dark' ? 'bg-[#242526] text-white border border-slate-700' : 'bg-white text-slate-900'}`}>
+            
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center text-xl shrink-0 font-bold">
+                🔄
+              </div>
+              <div>
+                <h3 className="font-bold text-base">កំណត់ឡើងវិញ (Restart)</h3>
+                <p className="text-xs text-slate-400">តើបងចង់សម្រេចចិត្តកំណត់ Placements ឡើងវិញមែនទេ?</p>
+              </div>
+            </div>
+
+            <p className={`text-xs leading-relaxed mb-6 p-3 rounded-xl border ${theme === 'dark' ? 'bg-[#18191A] border-slate-700 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-600'}`}>
+              សកម្មភាពនេះនឹងលុបការកំណត់ Manual Placements ទាំងអស់ ហើយទម្លាក់វាឱ្យត្រឡប់ទៅទម្រង់ដើម (Default) វិញភ្លាមៗ។
+            </p>
+
+            <div className="flex gap-3 justify-end">
+              <button 
+                type="button" 
+                onClick={() => setIsResetModalOpen(false)} 
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer border ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-slate-200 hover:bg-[#4E4F50]' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100'}`}
+              >
+                បោះបង់
+              </button>
+              
+              <button 
+                type="button" 
+                onClick={() => {
+                  // 1. លុបទិន្នន័យចេញពី localStorage
+                  localStorage.removeItem("placementType");
+                  localStorage.removeItem("platforms");
+                  localStorage.removeItem("detailedPlacements");
+                  localStorage.removeItem("deviceType");
+
+                  // 2. កំណត់តម្លៃដើម (Default States) មកវិញ
+                  setPlacementType("ADVANTAGE");
+                  setDeviceType("MOBILE"); 
+                  setPlatforms({
+                    facebook: true, 
+                    instagram: false, 
+                    audienceNetwork: false, 
+                    messenger: true, 
+                    whatsapp: false, 
+                    threads: false
+                  });
+                  setDetailedPlacements({
+                    fb_feed: true, fb_profile: true, ig_feed: true, ig_profile: true, fb_marketplace: true, fb_right_col: true, ig_explore: true, fb_business: true, threads_feed: true, fb_notifications: true,
+                    ig_stories: true, fb_stories: true, msg_stories: true, ig_reels: true, fb_reels: true, wa_status: false,
+                    instream_reels: true, fb_reels_ads: true,
+                    fb_search: true, ig_search: true,
+                    wa_messages: false,
+                    an_native: true, an_rewarded: true
+                  });
+
+                  // 3. បិទ Modal ភ្លាម (គ្មាន alert មកខ្វល់ខ្វាយទៀតទេ)
+                  setIsResetModalOpen(false);
+                }} 
+                className="px-5 py-2 rounded-xl text-xs font-bold text-white bg-red-600 hover:bg-red-700 transition shadow-sm cursor-pointer"
+              >
+                យល់ព្រម (OK)
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* ============================================== */}
       {/* 🌟 1. ផ្ទាំង Duplicate Ad Modal (Z-Index: 50) */}
       {/* ============================================== */}
       {isDuplicateModalOpen && (
@@ -4688,6 +4868,123 @@ export default function Home() {
             <div className="mt-6 flex justify-end">
               <button onClick={() => { if ('speechSynthesis' in window) window.speechSynthesis.cancel(); setIsAuditModalOpen(false); }} className="px-6 py-2.5 bg-slate-600 hover:bg-slate-700 text-white font-bold rounded-xl text-sm transition cursor-pointer">
                 បិទ (Close)
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+      {/* ============================================== */}
+      {/* 🌟 ផ្ទាំង Pop-up (Modal) ទំនើបសម្រាប់ Restart Placements */}
+      {/* ============================================== */}
+      {isRestartModalOpen && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className={`rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col p-6 text-center transform transition-all ${theme === 'dark' ? 'bg-[#242526] text-white border border-slate-700' : 'bg-white text-slate-900'}`}>
+            
+            {/* Icon ព្រមាន */}
+            <div className="w-14 h-14 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-2xl mx-auto mb-4 shadow-inner">
+              🔄
+            </div>
+
+            <h3 className="text-lg font-bold mb-2">តើបងចង់ Restart ដែរឬទេ?</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">
+              សកម្មភាពនេះនឹងកំណត់ការកំណត់ Placements ទាំងអស់ឱ្យត្រឡប់ទៅទម្រង់ដើម (Default) វិញ។
+            </p>
+
+            {/* ប៊ូតុងបញ្ជា */}
+            <div className="flex gap-3">
+              <button 
+                type="button" 
+                onClick={() => setIsRestartModalOpen(false)} 
+                className={`flex-1 py-2.5 rounded-xl font-bold text-sm border transition cursor-pointer ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-slate-300 hover:bg-[#4E4F50]' : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200'}`}
+              >
+                បោះបង់
+              </button>
+              
+              <button 
+                type="button" 
+                onClick={() => {
+                  localStorage.removeItem("placementType");
+                  localStorage.removeItem("platforms");
+                  localStorage.removeItem("detailedPlacements");
+                  localStorage.removeItem("deviceType");
+
+                  setPlacementType("ADVANTAGE");
+                  setDeviceType("MOBILE"); 
+                  setPlatforms({
+                    facebook: true, 
+                    instagram: false, 
+                    audienceNetwork: false, 
+                    messenger: true, 
+                    whatsapp: false, 
+                    threads: false
+                  });
+                  setDetailedPlacements({
+                    fb_feed: true, fb_profile: true, ig_feed: true, ig_profile: true, fb_marketplace: true, fb_right_col: true, ig_explore: true, fb_business: true, threads_feed: true, fb_notifications: true,
+                    ig_stories: true, fb_stories: true, msg_stories: true, ig_reels: true, fb_reels: true, wa_status: false,
+                    instream_reels: true, fb_reels_ads: true,
+                    fb_search: true, ig_search: true,
+                    wa_messages: false,
+                    an_native: true, an_rewarded: true
+                  });
+
+                  setIsRestartModalOpen(false);
+                  alert("🔄 បាន Restart ការកំណត់ Placements ត្រឡប់ទៅទម្រង់ដើមវិញដោយជោគជ័យ!");
+                }} 
+                className="flex-1 py-2.5 rounded-xl font-bold text-sm text-white bg-red-600 hover:bg-red-700 transition shadow-sm cursor-pointer"
+              >
+                យល់ព្រម (OK)
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* ============================================== */}
+      {/* 🌟 Custom Modal សម្រាប់ Boost រូបភាព និង វីដេអូ */}
+      {/* ============================================== */}
+      {presetModalOpen !== 'none' && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className={`rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col p-6 transform transition-all scale-100 ${theme === 'dark' ? 'bg-[#242526] text-white border border-slate-700' : 'bg-white text-slate-900'}`}>
+            
+            <div className="flex items-center gap-3 mb-3">
+              <div className={`w-11 h-11 rounded-full flex items-center justify-center text-xl shrink-0 font-bold shadow-inner ${presetModalOpen === 'photo' ? 'bg-emerald-100 text-emerald-600' : 'bg-purple-100 text-purple-600'}`}>
+                {presetModalOpen === 'photo' ? '🖼️' : '🎬'}
+              </div>
+              <div>
+                <h3 className="font-bold text-[15px]">
+                  {presetModalOpen === 'photo' ? 'កំណត់ស្តង់ដាររូបភាព' : 'កំណត់ស្តង់ដារវីដេអូ'}
+                </h3>
+                <p className="text-xs text-slate-400">អនុវត្តការកំណត់ Placements ស្វ័យប្រវត្តិ</p>
+              </div>
+            </div>
+
+            <p className={`text-[13px] leading-relaxed mb-6 p-3.5 rounded-xl border ${theme === 'dark' ? 'bg-[#18191A] border-slate-700 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-600'}`}>
+              តើបងពិតជាចង់រៀបចំការកំណត់ស្តង់ដារពិសេសសម្រាប់ <strong>{presetModalOpen === 'photo' ? 'ការ Boost រូបភាព' : 'ការ Boost វីដេអូ'}</strong> នេះមែនទេ?
+            </p>
+
+            <div className="flex gap-3 justify-end">
+              <button 
+                type="button" 
+                onClick={() => setPresetModalOpen('none')} 
+                className={`px-5 py-2.5 rounded-xl text-[13px] font-bold transition cursor-pointer border ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-slate-200 hover:bg-[#4E4F50]' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100'}`}
+              >
+                បោះបង់
+              </button>
+              
+              <button 
+                type="button" 
+                onClick={() => {
+                  if (presetModalOpen === 'photo') {
+                    handleBoostPhotos();
+                  } else {
+                    handleBoostVideos();
+                  }
+                }} 
+                className={`px-6 py-2.5 rounded-xl text-[13px] font-bold text-white transition shadow-md cursor-pointer ${presetModalOpen === 'photo' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-purple-600 hover:bg-purple-700'}`}
+              >
+                យល់ព្រម (OK)
               </button>
             </div>
 

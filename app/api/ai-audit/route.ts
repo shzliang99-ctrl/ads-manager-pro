@@ -14,11 +14,11 @@ export async function POST(request: Request) {
     ].filter(item => item.key && item.key.startsWith("AIzaSy") && item.key.length > 20);
 
     if (apiKeys.length === 0) {
-      return NextResponse.json({ success: false, error: "រកមិនឃើញ Gemini API Key ត្រឹមត្រូវ (ត្រូវขึ้นต้นด้วย AIzaSy) ក្នុង .env.local ទេ។" }, { status: 500 });
+      return NextResponse.json({ success: false, error: "រកមិនឃើញ Gemini API Key ត្រឹមត្រូវ (ត្រូវឡើងដើមដោយ AIzaSy) ក្នុង .env.local ទេ។" }, { status: 500 });
     }
 
     const prompt = `
-      អ្នកគឺជាអ្នកជំនាញខាង Meta Ads Marketing អាជីព។ សូមវិភាគទិន្នន័យ Facebook Ad នេះជាភាសាខ្មែរឱ្យបានច្បាស់លាស់៖
+      អ្នកគឺជាអ្នកជំនាញខាង Meta Ads Marketing អាជីព។ សូមវិភាគទិន្នន័យ Facebook Ad នេះជាភាសាខ្មែរឱ្យได้ច្បាស់លាស់៖
       - ឈ្មោះ Ad: ${adName || 'N/A'}
       - ប្រាក់ចំណាយ (Spend): $${spend || 0}
       - លទ្ធផលឆាត (Results): ${results || 0}
@@ -29,7 +29,7 @@ export async function POST(request: Request) {
 
       សូមធ្វើការវាយតម្លៃ និងបែងចែកចំណាត់ថ្នាក់ជា ៣ កម្រិតណាមួយ៖
       1. "green" (ប្រសិនបើលទ្ធផលល្អ ចំណាយតិច បានឆាតច្រើន)
-      2. "yellow" (ប្រសិនបើលទ្ធមធ្យម ធម្មតា)
+      2. "yellow" (ប្រសិនបើលទ្ធផលមធ្យម ធម្មតា)
       3. "red" (ប្រសិនបើខាតលុយ ស៊ីលុយច្រើនគ្មានលទ្ធផល ឬ CTR ទាបពេក)
 
       សូមឆ្លើយតបមកវិញជាទម្រង់ JSON សុទ្ធសាធ (មិនមាន Markdown formatting ដូចជា \`\`\`json ទេ) តាមទម្រង់ខាងក្រោមនេះ៖
@@ -52,7 +52,7 @@ export async function POST(request: Request) {
         
         const ai = new GoogleGenAI({ apiKey: item.key });
         const response = await ai.models.generateContent({
-          model: 'gemini-1.5-flash', // ប្រើ Model ស្តង់ដារដែលមានស្ថេរភាពខ្ពស់
+          model: 'gemini-3.5-flash', // 🌟 ប្ដូរមកប្រើ Model ស្តង់ដារជំនាន់ថ្មីដែលមានស្ថេរភាពខ្ពស់
           contents: prompt,
         });
 
