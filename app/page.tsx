@@ -33,6 +33,10 @@ export default function Home() {
     checkAdminRole();
   }, []);
 
+  const [autoFillInput, setAutoFillInput] = useState("");
+  const [isAutoFilling, setIsAutoFilling] = useState(false);
+
+  const [showConversationSection, setShowConversationSection] = useState(false);
   const [presetModalOpen, setPresetModalOpen] = useState<'none' | 'photo' | 'video'>('none');
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
 
@@ -183,6 +187,51 @@ export default function Home() {
     window.location.href = `https://www.facebook.com/v18.0/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&scope=${scope}&state=${safeState}&response_type=code`;
   };
 
+  // 🌟 មុខងារ AI Auto-Fill វិភាគ និងបំពេញទិន្នន័យស្វ័យប្រវត្តិ
+  const handleAiAutoFill = async () => {
+    if (!autoFillInput.trim()) {
+      alert("⚠️ សូមវាយបញ្ចូលប្រភេទផលិតផល ឬសេវាកម្មជាមុនសិន!");
+      return;
+    }
+    
+    setIsAutoFilling(true);
+    try {
+      const res = await fetch('/api/ai-auto-fill', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ product: autoFillInput })
+      });
+      const data = await res.json();
+
+      if (data.success && data.result) {
+        const resData = data.result;
+        
+        // 1. បំពេញ Campaign & Ad Set Name
+        if (resData.campaignName) saveParam("campaignName", resData.campaignName, setCampaignName);
+        if (resData.adsetName) saveParam("adsetName", resData.adsetName, setAdsetName);
+        
+        // 2. កំណត់ Age & Gender
+        if (resData.ageMin) saveParam("ageMin", String(resData.ageMin), setAgeMin);
+        if (resData.ageMax) saveParam("ageMax", String(resData.ageMax), setAgeMax);
+        if (resData.gender) saveParam("gender", resData.gender, setGender);
+        
+        // 3. បំពេញ Targeting Keywords
+        if (resData.targeting) {
+          setTargeting(resData.targeting);
+          localStorage.setItem("targeting", resData.targeting);
+        }
+
+        alert("✨ AI បានបំពេញការកំណត់ (Targeting & Settings) ជូនរួចរាល់ដោយជោគជ័យ!");
+      } else {
+        alert("❌ AI Auto-Fill Error: " + (data.error || "Unknown error"));
+      }
+    } catch (err) {
+      console.error(err);
+      alert("❌ មានបញ្ហាតភ្ជាប់ទៅកាន់ AI Server!");
+    }
+    setIsAutoFilling(false);
+  };
+
   // 🚪 មុខងារសម្រាប់ Logout ចេញពីប្រព័ន្ធទាំងស្រុង
   const handleLogout = async () => {
     if (!confirm('តើបងពិតជាចង់ Logout ចេញពីប្រព័ន្ធមែនទេ?')) return;
@@ -315,28 +364,33 @@ export default function Home() {
         const res = await fetch('/api/facebook/get-account');
         const contentType = res.headers.get("content-type");
 
-        // ឆែកមើលថាតើ API trả មកជា JSON ពិតប្រាកដ ឬអត់ មុនจะแปลงជា JSON
         if (contentType && contentType.includes("application/json")) {
           const result = await res.json();
           if (result.connected) {
             setIsFbConnected(true);
-            setFbPageName(result.pageName);
+            
+            // ✅ កែត្រង់នេះ៖ អានឈ្មោះពី localStorage សិន កុំឱ្យ Database ជាន់ពីលើ!
+            const savedPageName = localStorage.getItem("fbPageName");
+            if (!savedPageName && result.pageName) {
+              setFbPageName(result.pageName);
+            }
+
             if (result.accessToken) {
               localStorage.setItem('fb_user_token', result.accessToken);
             }
             if (result.adAccountId) {
-              setSelectedAdAccount(result.adAccountId);
-              localStorage.setItem('selectedAdAccount', result.adAccountId);
+              const savedAdAccount = localStorage.getItem("selectedAdAccount");
+              if (!savedAdAccount) {
+                 setSelectedAdAccount(result.adAccountId);
+                 localStorage.setItem('selectedAdAccount', result.adAccountId);
+              }
             }
           }
-        } else {
-          console.warn("API Route /api/facebook/get-account រកមិនឃើញ ឬឆ្លើយតបខុសទម្រង់ HTML");
         }
       } catch (err) {
         console.error("Error checking Supabase connection:", err);
       }
     };
-
     checkSupabaseConnection();
   }, []);
 
@@ -350,9 +404,65 @@ export default function Home() {
     }
   }, []);
   
-  // 🌟 States សម្រាប់ Pages និង Selected Page (ត្រូវប្រកាសមុនគេ)
+  // 🌟 1. អាន Page ចុងក្រោយពី localStorage មកដាក់ជា Default ភ្លាមៗពេលបើកទំព័រ
   const [pages, setPages] = useState<any[]>([]);
-  const [selectedPage, setSelectedPage] = useState("");
+  const [selectedPage, setSelectedPage] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("selectedPage") || "";
+    }
+    return "";
+  });
+  const [isFbConnected, setIsFbConnected] = useState(false);
+  const [fbPageName, setFbPageName] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("fbPageName") || "";
+    }
+    return "";
+  });
+
+  // 🌟 2. មុខងារពេលចុចប្ដូរ Page ក្នុង Dropdown (ចងចាំទុកអចិន្ត្រៃយ៍)
+  const handlePageSelect = (pageId: string) => {
+    setSelectedPage(pageId);
+    localStorage.setItem("selectedPage", pageId);
+    
+    const selectedObj = pages.find(p => p.id === pageId);
+    if (selectedObj) {
+      setFbPageName(selectedObj.name);
+      localStorage.setItem("fbPageName", selectedObj.name);
+    }
+    setIsPageMenuOpen(false);
+  };
+
+  // 🌟 3. ទាញយកបញ្ជី Pages ពី Facebook (កុំឱ្យវាប្ដូរ Page ចោលពេល Refresh)
+  useEffect(() => {
+    const token = localStorage.getItem('fb_user_token');
+    if (!token) return;
+
+    fetch(`https://graph.facebook.com/v18.0/me/accounts?fields=id,name,access_token,picture{url}&access_token=${token}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.data && data.data.length > 0) {
+          setPages(data.data);
+          setIsFbConnected(true);
+          
+          const savedPageId = localStorage.getItem("selectedPage");
+          const existingPage = data.data.find((p: any) => p.id === savedPageId);
+
+          if (existingPage) {
+            // ✅ បើមាន៖ គឺចាក់សោរឱ្យវាបង្ហាញ Page ចាស់ហ្នឹងដដែល (មិនប្ដូរទៅណាទេ)
+            setSelectedPage(existingPage.id);
+            setFbPageName(existingPage.name);
+          } else {
+            // ❌ បើអត់ទាន់មាន ទើបកំណត់យក Page ទីមួយ
+            setSelectedPage(data.data[0].id);
+            setFbPageName(data.data[0].name);
+            localStorage.setItem("selectedPage", data.data[0].id);
+            localStorage.setItem("fbPageName", data.data[0].name);
+          }
+        }
+      })
+      .catch(err => console.error("Error fetching pages:", err));
+  }, []);
 
   useEffect(() => {
     setIsMounted(true);
@@ -374,14 +484,10 @@ export default function Home() {
       window.history.replaceState({}, document.title, window.location.pathname);
     }
 
-    
-
     // 2. ឆែកមើល Token ក្នុង localStorage ហើយប្តូរ State ព្រមទាំងហៅ API ភ្លាមៗ
     const token = localStorage.getItem('fb_user_token');
     if (token) {
       setIsFbConnected(true);
-      
-      // ហៅ Function ទាញយក Ad Accounts ចូលមកប្រើប្រាស់ផ្ទាល់នៅទីនេះเลย
       fetchAdAccounts();
 
       // ទាញយកឈ្មោះ Page មកបង្ហាញលើប៊ូតុងបៃតង
@@ -389,15 +495,22 @@ export default function Home() {
         .then(res => res.json())
         .then(data => {
           if (data.success && data.pages && data.pages.length > 0) {
-            setFbPageName(data.pages[0].name);
+            // ✅ កែត្រង់នេះ៖ ហាមយក Page ទី១ [0] មកជាន់ពីលើរាល់ដង!
+            const savedPageId = localStorage.getItem("selectedPage");
+            const targetPage = savedPageId 
+               ? data.pages.find((p: any) => p.id === savedPageId) 
+               : data.pages[0];
+               
+            if (targetPage) {
+               setFbPageName(targetPage.name);
+               localStorage.setItem("fbPageName", targetPage.name);
+            }
           }
         })
         .catch(err => console.log("API Error:", err));
     }
   }, []);
 
-  const [isFbConnected, setIsFbConnected] = useState(false);
-  const [fbPageName, setFbPageName] = useState("");
 
   const [adsList, setAdsList] = useState<any[]>([]);
   const [loadingAds, setLoadingAds] = useState(false);
@@ -495,22 +608,42 @@ export default function Home() {
     { account_id: "1445624587438136", name: "Business Account" }
   ]);
   
-  // Function សម្រាប់ហៅ API ទាញ Ad Accounts របស់អតិថិជនម្នាក់ៗ
+  // 🌟 មុខងារទាញ Ad Accounts ព្រមទាំង Save ទុកជា String ក្នុង localStorage (Cache)
   const fetchAdAccounts = async () => {
-    const token = localStorage.getItem('fb_user_token');
-    
-    if (!token) {
-      console.log("គ្មាន Token ទេ, អត់ទាន់ Login!");
-      return;
+    // 1. ឆែកមើលក្នុង localStorage ជាមុនសិន ថាតើធ្លាប់មានទិន្នន័យ Save ទុកហើយឬនៅ?
+    const cachedAccounts = localStorage.getItem('cached_ad_accounts');
+    if (cachedAccounts) {
+      try {
+        const parsedAccounts = JSON.parse(cachedAccounts);
+        if (parsedAccounts && parsedAccounts.length > 0) {
+          setAdAccountsList(parsedAccounts);
+          
+          // បើគ្មានទិន្នន័យរើសទុកទេ យកអាដំបូងគេ
+          if (!localStorage.getItem('selectedAdAccount')) {
+            setSelectedAdAccount(parsedAccounts[0].account_id);
+            localStorage.setItem('selectedAdAccount', parsedAccounts[0].account_id);
+          }
+          return; // បើមានក្នុង Cache ហើយ គឺមិនបាច់ហៅ API ទៅ Facebook ទៀតទេ!
+        }
+      } catch (e) {
+        console.error("Parse cached accounts error:", e);
+      }
     }
+
+    // 2. បើគ្មានក្នុង Cache ទើបវាហៅ API ទៅ Facebook មួយដងគត់
+    const token = localStorage.getItem('fb_user_token');
+    if (!token) return;
 
     try {
       const response = await fetch(`/api/adaccounts?access_token=${token}`);
       const data = await response.json();
 
       if (data.success && data.accounts) {
-        setAdAccountsList(data.accounts); // ដូរពី data.adAccounts មកជា data.accounts
+        setAdAccountsList(data.accounts);
         
+        // 🌟 Save ទុកក្នុង localStorage ជាទម្រង់ String ភ្លាមៗ
+        localStorage.setItem('cached_ad_accounts', JSON.stringify(data.accounts));
+
         if (data.accounts.length > 0) {
           const firstAccountId = data.accounts[0].account_id;
           if (!localStorage.getItem('selectedAdAccount')) {
@@ -519,7 +652,7 @@ export default function Home() {
           }
         }
       } else {
-        console.error("បរាជ័យក្នុងការទាញ Ad Accounts:", data.error);
+        console.warn("API Error or Rate Limit:", data.error);
       }
     } catch (error) {
       console.error("API Error:", error);
@@ -576,35 +709,6 @@ export default function Home() {
       .catch(err => console.log("Error fetching ad accounts:", err));
   }, [isFbConnected]);
 
-  // 🌟 1. វិធីសាស្ត្រថ្មី៖ ទាញយកទិន្នន័យ Pages ពី Facebook ផ្ទាល់ (Bypass API Route)
-  useEffect(() => {
-    const token = localStorage.getItem('fb_user_token');
-    if (!token) return;
-
-    fetch(`https://graph.facebook.com/v18.0/me/accounts?fields=id,name,access_token,picture{url}&access_token=${token}`)
-      .then(res => res.json())
-      .then(data => {
-        if (data.data && data.data.length > 0) {
-          setPages(data.data);
-          
-          // បង្ហាញឈ្មោះ Page ទី១ នៅលើប៊ូតុងពណ៌បៃតង
-          setFbPageName(data.data[0].name);
-
-          // ឆែកមើលក្នុង localStorage ក្រែងធ្លាប់រើស Page ទុក
-          const savedPage = localStorage.getItem("selectedPage");
-          if (savedPage && data.data.find((p: any) => p.id === savedPage)) {
-            setSelectedPage(savedPage);
-          } else {
-            setSelectedPage(data.data[0].id);
-            localStorage.setItem("selectedPage", data.data[0].id);
-          }
-        } else {
-          console.log("No Pages found in this Facebook account.");
-        }
-      })
-      .catch(err => console.error("Error fetching pages directly:", err));
-  }, [isFbConnected]);
-
   // 🌟 2. វិធីសាស្ត្រថ្មី៖ ទាញយកទិន្នន័យ Ad Accounts ពី Facebook ផ្ទាល់ (Bypass API Route)
   useEffect(() => {
     const token = localStorage.getItem('fb_user_token');
@@ -635,6 +739,7 @@ export default function Home() {
       })
       .catch(err => console.error("Error fetching ad accounts directly:", err));
   }, [isFbConnected]);
+  
   
   // 🌟 ឱ្យប្រអប់ Search ចាំ និងរក្សាទុកពាក្យចុងក្រោយជាប់ជានិច្ច ទោះ Refresh ក៏មិនបាត់
   const [interestQuery, setInterestQuery] = useState(() => {
@@ -2412,6 +2517,43 @@ export default function Home() {
       
       {/* --- ១. Campaign Details Card --- */}
       <div className={`p-6 rounded-2xl shadow-sm border flex flex-col gap-5 w-full transition-colors ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-800'}`}>
+        
+        {/* ============================================== */}
+        {/* 🌟 AI Auto-Fill Smart Box (សម្រាប់អ្នកថ្មីងាយស្រួលប្រើ) */}
+        {/* ============================================== */}
+        <div className={`p-5 rounded-2xl border mb-4 shadow-sm ${theme === 'dark' ? 'bg-gradient-to-r from-indigo-950/40 to-purple-950/40 border-indigo-900/50 text-white' : 'bg-gradient-to-r from-indigo-50/80 to-purple-50/80 border-indigo-100 text-slate-900'}`}>
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-9 h-9 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center text-white text-lg shadow-md">✨</div>
+            <div>
+              <h4 className="font-bold text-[14px]">ជំនួយការ AI Auto-Fill (សម្រាប់អ្នកមិនសូវចេះប៊ូត)</h4>
+              <p className="text-xs opacity-75">គ្រាន់តែវាយឈ្មោះផលិតផល AI នឹងជួយរៀបចំការកំណត់ទាំងអស់ជូនដោយស្វ័យប្រវត្តិ</p>
+            </div>
+          </div>
+
+          <div className="flex gap-2 flex-col sm:flex-row">
+            <input 
+              type="text"
+              value={autoFillInput}
+              onChange={(e) => setAutoFillInput(e.target.value)}
+              placeholder="ឧ. លក់ស្បែកជើងកីឡាបុរស, សម្លៀកបំពាក់នារី..."
+              className={`w-full border rounded-xl p-3 text-sm outline-none font-medium shadow-xs ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white placeholder-slate-400 focus:border-indigo-400' : 'bg-white border-slate-300 text-slate-800 focus:border-indigo-500'}`}
+            />
+            
+            <button 
+              type="button"
+              onClick={handleAiAutoFill}
+              disabled={isAutoFilling || !autoFillInput.trim()}
+              className="px-6 py-3 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 transition shadow-md shadow-indigo-500/20 shrink-0 cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
+            >
+              {isAutoFilling ? (
+                <><div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div><span>កំពុងគិត...</span></>
+              ) : (
+                <><span>⚡</span><span>AI Auto-Fill</span></>
+              )}
+            </button>
+          </div>
+        </div>
+        
         <div className="flex justify-between items-center border-b pb-3">
           <h3 className={`font-bold flex items-center gap-2 text-[15px] ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>
             <span className={`p-1.5 rounded-xl ${theme === 'dark' ? 'bg-[#3A3B3C]' : 'bg-slate-100'}`}>📁</span> ១. Campaign Details
@@ -2947,36 +3089,64 @@ export default function Home() {
           </select>
         </div>
 
-        {/* Conversations */}
-        <div className={`mt-2 border-t pt-5 ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-          <label className={`block text-[15px] font-bold mb-2 ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>Conversations</label>
-          <p className={`text-[13px] mb-4 break-words whitespace-normal ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Create the messaging experience people see after they tap on your ad.</p>
+        {/* ============================================== */}
+        {/* 🌟 ផ្នែក Conversation (ស្ថិតក្នុងទម្រង់ Dropdown ទំនើប) */}
+        {/* ============================================== */}
+        <div className={`rounded-2xl border shadow-sm overflow-hidden mb-6 transition-colors ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'}`}>
+          
+          {/* Header សម្រាប់ចុចបើក/បិទ */}
+          <div 
+            onClick={() => setShowConversationSection(!showConversationSection)}
+            className={`p-4 flex justify-between items-center cursor-pointer select-none transition-colors ${theme === 'dark' ? 'bg-[#3A3B3C] hover:bg-[#4E4F50]' : 'bg-slate-100 hover:bg-slate-200'}`}
+          >
+            <div className="flex items-center gap-2.5">
+              <span className="text-xl">💬</span>
+              <div>
+                <h3 className="font-bold text-[14px]">Conversations</h3>
+                <p className="text-xs text-slate-400">Create the messaging experience people see after they tap on your ad.</p>
+              </div>
+            </div>
 
-          <div className="flex gap-2 mb-4">
-            <button type="button" onClick={() => setTemplateTab("suggested")} className={`px-4 py-2 rounded-xl text-[13px] font-bold transition ${templateTab === "suggested" ? (theme === 'dark' ? 'bg-blue-900/50 text-blue-400' : 'bg-blue-50 text-[#1877F2]') : (theme === 'dark' ? 'text-slate-400 hover:bg-[#3A3B3C]' : 'text-slate-600 hover:bg-slate-100')}`}>Suggested template</button>
-            <button type="button" onClick={() => setTemplateTab("saved")} className={`px-4 py-2 rounded-xl text-[13px] font-bold transition ${templateTab === "saved" ? (theme === 'dark' ? 'bg-blue-900/50 text-blue-400' : 'bg-blue-50 text-[#1877F2]') : (theme === 'dark' ? 'text-slate-400 hover:bg-[#3A3B3C]' : 'text-slate-600 hover:bg-slate-100')}`}>Saved templates</button>
-          </div>
-
-          <div className={`border rounded-xl p-5 mb-4 shadow-sm min-w-0 ${theme === 'dark' ? 'bg-[#18191A] border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
-            <div className={`font-bold text-sm mb-1.5 ${theme === 'dark' ? 'text-slate-200' : 'text-slate-800'}`}>Greeting</div>
-            <div className={`text-[13px] mb-4 break-words whitespace-normal ${theme === 'dark' ? 'text-slate-400' : 'text-slate-700'}`}>{msgGreeting}</div>
-
-            <div className={`font-bold text-sm mb-1.5 ${theme === 'dark' ? 'text-slate-200' : 'text-slate-800'}`}>Questions and responses</div>
-            <div className={`text-[13px] flex flex-col gap-1.5 mb-4 break-words whitespace-normal ${theme === 'dark' ? 'text-slate-400' : 'text-slate-700'}`}>
-              {msgQuestions.filter(q => q.q.trim() !== "").map((item, idx) => (
-                <div key={idx}>{idx + 1}. {item.q}</div>
-              ))}
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-blue-600">
+                {showConversationSection ? "▲ លាក់ការកំណត់" : "▼ បើកទម្លាក់មើល"}
+              </span>
             </div>
           </div>
 
-          <div className="flex gap-3">
-            <button type="button" onClick={() => setIsEditingConversations(true)} className={`border rounded-xl px-5 py-2.5 text-sm font-semibold shadow-sm flex items-center gap-2 transition cursor-pointer ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-slate-200 hover:bg-[#4E4F50]' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'}`}>
-              <span>✎</span> Edit
-            </button>
-            <button type="button" className={`border rounded-xl px-5 py-2.5 text-sm font-semibold shadow-sm flex items-center gap-2 transition cursor-pointer ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-slate-200 hover:bg-[#4E4F50]' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'}`}>
-              <span>+</span> Create template
-            </button>
-          </div>
+          {/* មាតិកាខាងក្នុង (លាក់/បង្ហាញ អាស្រ័យលើ State) */}
+          {showConversationSection && (
+            <div className="p-5 border-t border-slate-200 dark:border-slate-700 animate-in fade-in duration-200 space-y-4">
+              
+              <div className="flex gap-2 mb-4">
+                <button type="button" onClick={() => setTemplateTab("suggested")} className={`px-4 py-2 rounded-xl text-[13px] font-bold transition ${templateTab === "suggested" ? (theme === 'dark' ? 'bg-blue-900/50 text-blue-400' : 'bg-blue-50 text-[#1877F2]') : (theme === 'dark' ? 'text-slate-400 hover:bg-[#3A3B3C]' : 'text-slate-600 hover:bg-slate-100')}`}>Suggested template</button>
+                <button type="button" onClick={() => setTemplateTab("saved")} className={`px-4 py-2 rounded-xl text-[13px] font-bold transition ${templateTab === "saved" ? (theme === 'dark' ? 'bg-blue-900/50 text-blue-400' : 'bg-blue-50 text-[#1877F2]') : (theme === 'dark' ? 'text-slate-400 hover:bg-[#3A3B3C]' : 'text-slate-600 hover:bg-slate-100')}`}>Saved templates</button>
+              </div>
+
+              <div className={`border rounded-xl p-5 mb-4 shadow-sm min-w-0 ${theme === 'dark' ? 'bg-[#18191A] border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
+                <div className={`font-bold text-sm mb-1.5 ${theme === 'dark' ? 'text-slate-200' : 'text-slate-800'}`}>Greeting</div>
+                <div className={`text-[13px] mb-4 break-words whitespace-normal ${theme === 'dark' ? 'text-slate-400' : 'text-slate-700'}`}>{msgGreeting}</div>
+
+                <div className={`font-bold text-sm mb-1.5 ${theme === 'dark' ? 'text-slate-200' : 'text-slate-800'}`}>Questions and responses</div>
+                <div className={`text-[13px] flex flex-col gap-1.5 mb-4 break-words whitespace-normal ${theme === 'dark' ? 'text-slate-400' : 'text-slate-700'}`}>
+                  {msgQuestions.filter(q => q.q.trim() !== "").map((item, idx) => (
+                    <div key={idx}>{idx + 1}. {item.q}</div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <button type="button" onClick={() => setIsEditingConversations(true)} className={`border rounded-xl px-5 py-2.5 text-sm font-semibold shadow-sm flex items-center gap-2 transition cursor-pointer ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-slate-200 hover:bg-[#4E4F50]' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'}`}>
+                  <span>✎</span> Edit
+                </button>
+                <button type="button" className={`border rounded-xl px-5 py-2.5 text-sm font-semibold shadow-sm flex items-center gap-2 transition cursor-pointer ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-slate-200 hover:bg-[#4E4F50]' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'}`}>
+                  <span>+</span> Create template
+                </button>
+              </div>
+
+            </div>
+          )}
+
         </div>
       </div>
       

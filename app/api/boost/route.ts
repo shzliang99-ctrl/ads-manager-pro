@@ -8,7 +8,7 @@ const translateFBError = (errMsg: string) => {
   if (errMsg.includes("Invalid parameter")) return "ទិន្នន័យដែលបានបញ្ជូនទៅកាន់ Facebook មិនត្រឹមត្រូវ (Invalid parameter)។ សូមពិនិត្យមើលការកំណត់ម្ដងទៀត។";
   if (errMsg.includes("Invalid Creative")) return "ផុសនេះមិនអាចយកមកផ្សាយបានទេ (អាចដោយសារអត់មានប៊ូតុង Send Message ឬជារូបច្រើនសន្លឹកខុសខ្នាត)។";
   if (errMsg.includes("Permissions error")) return "គណនីរបស់អ្នកមិនមានសិទ្ធិ (Permission) គ្រប់គ្រាន់ក្នុងការបង្កើតការផ្សាយនេះទេ។";
-  return errMsg; // បើអត់មានក្នុងបញ្ជី គឺវាបង្ហាញ Error ដើម
+  return errMsg;
 };
 
 export async function POST(request: Request) {
@@ -20,10 +20,9 @@ export async function POST(request: Request) {
       ageMin, ageMax, gender, location, targeting, 
       placementType, deviceType, osType, wifiOnly, platforms, detailedPlacements, 
       budgetType, budget, duration,
-      access_token, adAccountId // 🌟 ទទួលយក Token និង Ad Account ID ដែលបោះមកពី Frontend ផ្ទាល់របស់ Client
+      access_token, adAccountId 
     } = body;
 
-    // 🌟 ប្រើប្រាស់ Token និង Ad Account ID របស់ Client ជាចម្បង ព្រមទាំងមាន .env ទុកជាជម្រើសបម្រុង
     const accessToken = access_token || process.env.FACEBOOK_ACCESS_TOKEN;
     const rawAdAccountId = adAccountId || process.env.FACEBOOK_AD_ACCOUNT_ID; 
 
@@ -61,7 +60,7 @@ export async function POST(request: Request) {
       age_min: Number(ageMin) || 18,
       age_max: Number(ageMax) || 65,
       geo_locations: geoLocations,
-      targeting_automation: { advantage_audience: 0 } // 🌟 ត្រូវថែមជួរនេះចូលវិញជាដាច់ខាត ដើម្បីប្រាប់ Facebook កុំឱ្យវាទារ
+      targeting_automation: { advantage_audience: 0 } 
     };
 
     if (targeting && targeting.trim() !== "") {
@@ -70,7 +69,7 @@ export async function POST(request: Request) {
           const validInterests = [];
           for (const keyword of interestNames) {
              try {
-                const searchRes = await fetch(`https://graph.facebook.com/v18.0/search?type=adinterest&q=${encodeURIComponent(keyword)}&limit=1&access_token=${accessToken}`);
+                const searchRes = await fetch(`https://graph.facebook.com/v18.0/search?type=adinterest&q=${encodeURIComponent(keyword)}&limit=70&access_token=${accessToken}`);
                 const searchData = await searchRes.json();
                 if (searchData.data && searchData.data.length > 0) {
                    validInterests.push({ id: searchData.data[0].id, name: searchData.data[0].name });
@@ -135,10 +134,9 @@ export async function POST(request: Request) {
        }
     }
 
-    // 🌟 បំប្លែង Performance Goal ឱ្យត្រូវក្បួន Facebook API ១០០%
     let fbOptimizationGoal = performanceGoal || 'REPLIES';
     if (fbOptimizationGoal === 'CONVERSATIONS') {
-       fbOptimizationGoal = 'REPLIES'; // Facebook API ប្រើពាក្យ REPLIES សម្រាប់សារ Messenger
+       fbOptimizationGoal = 'REPLIES'; 
     }
 
     const adSetPayload: any = {
@@ -183,14 +181,16 @@ export async function POST(request: Request) {
     const adSetId = adSetData.id;
 
     // ==========================================
-    // ជំហានទី ៣៖ លួចបំពាក់ប៊ូតុង និងក្បាច់ Dark Post
+    // ជំហានទី ៣៖ បំពាក់ប៊ូតុង Send Message (Call to Action)
     // ==========================================
     let validPostId = postUrl.includes('_') ? postUrl : `${pageId}_${postUrl}`;
     let finalCreativePostId = validPostId; 
 
-    let ctaType = 'MESSAGE_PAGE';
+    // 🌟 កំណត់តម្លៃ Call to Action ឱ្យត្រូវស្តង់ដារ Facebook API
+    let ctaType = 'MESSAGE_PAGE'; // ค่าเริ่มต้นជា Send Message
     if (callToAction === 'LEARN_MORE') ctaType = 'LEARN_MORE';
     else if (callToAction === 'SHOP_NOW') ctaType = 'SHOP_NOW';
+    else if (callToAction === 'SEND_MESSAGE') ctaType = 'MESSAGE_PAGE';
     else if (callToAction === 'NO_BUTTON') ctaType = '';
 
     if (ctaType !== '') {
@@ -211,6 +211,7 @@ export async function POST(request: Request) {
           });
           let updateResult = await updateRes.json();
 
+          // បើ Post ដើម Update មិនកើត (ឧ. ជា Album រូបច្រើនសន្លឹក) វានឹងបង្កើត Dark Post បម្រុង
           if (updateResult.error) {
              const getPostRes = await fetch(`https://graph.facebook.com/v18.0/${validPostId}?fields=message,full_picture&access_token=${pageToken}`);
              const postContent = await getPostRes.json();
