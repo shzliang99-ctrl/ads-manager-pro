@@ -1748,13 +1748,17 @@ export default function Home() {
   const executeDuplicate = async () => {
     setIsDuplicating(true);
     try {
-      // 1. ទាញយក Token ពី localStorage ឱ្យបានច្បាស់លាស់
-      const token = localStorage.getItem('fb_user_token');
-      if (!token) {
-        alert("⚠️ រកមិនឃើញ Token ទេ! សូមធ្វើការ Connect Facebook ឡើងវិញជាមុនសិន។");
+      // 1. ទាញយក Token រួចសម្អាតសញ្ញាធ្មេញកណ្ដុរ (Quotes) ឬចន្លោះចេញ
+      const rawToken = localStorage.getItem('fb_user_token');
+      
+      if (!rawToken || rawToken === 'null' || rawToken === 'undefined') {
+        alert("⚠️ Token របស់បងខូច ឬមិនត្រឹមត្រូវទេ! សូមចុច Disconnect រួច Connect Facebook ម្ដងទៀត។");
         setIsDuplicating(false);
         return;
       }
+
+      // សម្អាតសញ្ញា "" ដែលអាចជាប់មកពីការ Save ខុសក្បួន
+      const token = rawToken.replace(/['"]+/g, '').trim();
 
       if (selectedCampaigns.length === 0) {
         alert("⚠️ សូមជ្រើសរើស Campaign ណាមួយជាមុនសិន!");
@@ -1764,7 +1768,7 @@ export default function Home() {
 
       const targetCampaignId = selectedCampaigns[0];
       
-      // 2. បោះ access_token ទៅកាន់ API /api/duplicate
+      // 2. បោះ access_token ដែលសម្អាតរួចទៅកាន់ API
       const res = await fetch('/api/duplicate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1773,7 +1777,7 @@ export default function Home() {
           newName: duplicateAdName,
           newPostId: duplicatePostId,
           pageId: selectedPage,
-          access_token: token // 👈 បញ្ជូនសោរ Token ទៅជាមួយទីនេះ
+          access_token: token 
         }),
       });
 
