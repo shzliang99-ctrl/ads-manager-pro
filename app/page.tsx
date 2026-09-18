@@ -1748,27 +1748,28 @@ export default function Home() {
   const executeDuplicate = async () => {
     setIsDuplicating(true);
     try {
-      // 1. ទាញយក Token រួចសម្អាតសញ្ញាធ្មេញកណ្ដុរ (Quotes) ឬចន្លោះចេញ
-      const rawToken = localStorage.getItem('fb_user_token');
-      
-      if (!rawToken || rawToken === 'null' || rawToken === 'undefined') {
-        alert("⚠️ Token របស់បងខូច ឬមិនត្រឹមត្រូវទេ! សូមចុច Disconnect រួច Connect Facebook ម្ដងទៀត។");
-        setIsDuplicating(false);
-        return;
-      }
-
-      // សម្អាតសញ្ញា "" ដែលអាចជាប់មកពីការ Save ខុសក្បួន
-      const token = rawToken.replace(/['"]+/g, '').trim();
-
       if (selectedCampaigns.length === 0) {
         alert("⚠️ សូមជ្រើសរើស Campaign ណាមួយជាមុនសិន!");
-        setIsDuplicating(false);
-        return;
+        setIsDuplicating(false); return;
       }
 
+      if (!duplicatePostId) {
+        alert("⚠️ សូមចុច Select new post ដើម្បីជ្រើសរើស Post ថ្មីជាមុនសិន!");
+        setIsDuplicating(false); return;
+      }
+
+      // 🌟 វិធីសាស្ត្រថ្មី៖ ទាញយក Token ពី Page ដែលបងបានជ្រើសរើសផ្ទាល់!
+      const pageInfo = pages.find(p => p.id === selectedPage);
+      let validToken = pageInfo?.access_token || localStorage.getItem('fb_user_token');
+
+      if (!validToken || validToken === 'null' || validToken === 'undefined') {
+        alert("⚠️ រកមិនឃើញសោរ Token ទេ! សូមចុច Disconnect រួច Connect Facebook ឡើងវិញ។");
+        setIsDuplicating(false); return;
+      }
+
+      validToken = validToken.replace(/['"]+/g, '').trim(); // សម្អាតសញ្ញា
       const targetCampaignId = selectedCampaigns[0];
-      
-      // 2. បោះ access_token ដែលសម្អាតរួចទៅកាន់ API
+
       const res = await fetch('/api/duplicate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1776,15 +1777,14 @@ export default function Home() {
           campaignId: targetCampaignId,
           newName: duplicateAdName,
           newPostId: duplicatePostId,
-          pageId: selectedPage,
-          access_token: token 
+          access_token: validToken // 👈 បញ្ជូនសោរ Token សុទ្ធទៅកាន់ Backend
         }),
       });
 
       const data = await res.json();
       if (data.success) {
-        alert("✅ " + data.message);
         setIsDuplicateModalOpen(false);
+        setIsSuccessModal(true); // 🌟 បង្ហាញ Success Modal ទំនើប ពេល Duplicate ជោគជ័យ
         setActiveManageTab('ADS');
         fetchCampaigns();
       } else {
