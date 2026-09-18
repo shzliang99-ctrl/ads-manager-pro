@@ -33,6 +33,11 @@ export default function Home() {
     checkAdminRole();
   }, []);
 
+  // 🌟 States សម្រាប់ Modal Confirm លុបយុទ្ធនាការ
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isDeleteSuccessModal, setIsDeleteSuccessModal] = useState(false);
+
   const [autoFillInput, setAutoFillInput] = useState("");
   const [isAutoFilling, setIsAutoFilling] = useState(false);
 
@@ -1311,14 +1316,38 @@ export default function Home() {
     }
   }, [selectedAdAccount, selectedDatePreset, activeTab]);
 
+  // 🌟 1. ទាញយក Posts ដោយមានប្រព័ន្ធ Cache (រក្សាទុកក្នុង localStorage កុំឱ្យទាញញឹកញាប់ពេក)
   useEffect(() => {
     if (!selectedPage) return;
     localStorage.setItem("selectedPage", selectedPage);
     const pageInfo = pages.find(p => p.id === selectedPage);
     if (!pageInfo) return;
 
+    // 🔍 ឆែកមើលក្នុង Cache ថាតើធ្លាប់ទាញ Posts របស់ Page នេះទុកហើយឬនៅ?
+    const cacheKey = `cached_posts_${selectedPage}`;
+    const cachedData = localStorage.getItem(cacheKey);
+    
+    if (cachedData) {
+      try {
+        const parsedPosts = JSON.parse(cachedData);
+        if (parsedPosts && parsedPosts.length > 0) {
+          setPosts(parsedPosts);
+          const savedPost = localStorage.getItem("selectedPost");
+          if (savedPost && parsedPosts.find((p: any) => p.id === savedPost)) {
+            setSelectedPost(savedPost);
+          } else {
+            setSelectedPost(parsedPosts[0].id);
+          }
+          console.log("⚡ ប្រើប្រាស់ទិន្នន័យ Posts ពី Cache ស្រាប់ (លឿន និងមិន Error)");
+          return; // 🛑 បើមានក្នុង Cache ហើយ គឺមិនបាច់ហៅ API ទៅ Facebook ទៀតទេ!
+        }
+      } catch (e) {
+        console.error("Parse cached posts error:", e);
+      }
+    }
+
+    // 🚀 បើគ្មានក្នុង Cache ទើបហៅ API ទៅ Facebook មួយដងគត់
     setFetchingPosts(true);
-    // បោះ user_token ទៅជា Backup ក្រែងលោ page token អត់ដើរ
     const userToken = localStorage.getItem('fb_user_token');
     
     fetch('/api/posts', {
@@ -1335,18 +1364,22 @@ export default function Home() {
       if (data.success) {
         if (data.posts && data.posts.length > 0) {
           setPosts(data.posts);
+          
+          // 💾 រក្សាទុកចូលក្នុង localStorage (Cache) ទុកប្រើប្រាស់លើកក្រោយ
+          localStorage.setItem(cacheKey, JSON.stringify(data.posts));
+
           const savedPost = localStorage.getItem("selectedPost");
           if (savedPost && data.posts.find((p: any) => p.id === savedPost)) {
             setSelectedPost(savedPost);
           } else {
             setSelectedPost(data.posts[0].id);
+            localStorage.setItem("selectedPost", data.posts[0].id);
           }
         } else {
           setPosts([]);
           setSelectedPost("");
         }
       } else {
-        // 🌟 បើកកុងតាក់ឱ្យវាលោតប្រាប់ Error ច្បាស់ៗពី Facebook
         setPosts([]);
         setSelectedPost("");
         alert("❌ មិនអាចទាញ Post បានទេ:\n" + (data.error || "សូម Reconnect Facebook ម្ដងទៀត!"));
@@ -1711,11 +1744,27 @@ export default function Home() {
     setIsDuplicateModalOpen(true);
   };
 
-  // 🌟 2. មុខងារបញ្ជូនទិន្នន័យ Duplicate ពិតប្រាកដទៅកាន់ API
+  // 🌟 មុខងារបញ្ជូនទិន្នន័យ Duplicate ពិតប្រាកដទៅកាន់ API (បានកែសម្រួលបញ្ចូល access_token ត្រឹមត្រូវ)
   const executeDuplicate = async () => {
     setIsDuplicating(true);
     try {
+      // 1. ទាញយក Token ពី localStorage ឱ្យបានច្បាស់លាស់
+      const token = localStorage.getItem('fb_user_token');
+      if (!token) {
+        alert("⚠️ រកមិនឃើញ Token ទេ! សូមធ្វើការ Connect Facebook ឡើងវិញជាមុនសិន។");
+        setIsDuplicating(false);
+        return;
+      }
+
+      if (selectedCampaigns.length === 0) {
+        alert("⚠️ សូមជ្រើសរើស Campaign ណាមួយជាមុនសិន!");
+        setIsDuplicating(false);
+        return;
+      }
+
       const targetCampaignId = selectedCampaigns[0];
+      
+      // 2. បោះ access_token ទៅកាន់ API /api/duplicate
       const res = await fetch('/api/duplicate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1723,7 +1772,8 @@ export default function Home() {
           campaignId: targetCampaignId,
           newName: duplicateAdName,
           newPostId: duplicatePostId,
-          pageId: selectedPage // បញ្ជូន Page ID ទៅដើម្បីបង្កើត Creative ថ្មី
+          pageId: selectedPage,
+          access_token: token // 👈 បញ្ជូនសោរ Token ទៅជាមួយទីនេះ
         }),
       });
 
@@ -1734,10 +1784,10 @@ export default function Home() {
         setActiveManageTab('ADS');
         fetchCampaigns();
       } else {
-        alert("❌ ការ Duplicate បរាជ័យ:\n\n" + data.error);
+        alert("❌ ការ Duplicate បរាជ័យ:\n\n" + (data.error || "Unknown error"));
       }
-    } catch (err) {
-      alert("❌ មានបញ្ហាតភ្ជាប់ទៅកាន់ Server!");
+    } catch (err: any) {
+      alert("❌ មានបញ្ហាតភ្ជាប់ទៅកាន់ Server: " + err.message);
     } finally {
       setIsDuplicating(false);
     }
@@ -3703,8 +3753,23 @@ export default function Home() {
                     >
                       <span className="text-sm">✎</span> Edit
                     </button>
-                    <button onClick={handleDeleteCampaigns} disabled={selectedCampaigns.length === 0} className={`font-semibold py-2 px-3 rounded-lg text-[13px] flex items-center justify-center gap-1.5 transition shadow-sm disabled:opacity-50 border cursor-pointer ${theme === 'dark' ? 'bg-red-950/40 border-red-900/50 text-red-400 hover:bg-red-900/40' : 'bg-white border-slate-300 text-red-600 hover:bg-red-50'}`}>
-                      <span className="text-sm">🗑️</span> Delete
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        if (!selectedCampaigns || selectedCampaigns.length === 0) {
+                          alert("⚠️ សូមធីកជ្រើសរើស Campaign ណាមួយដែលបងចង់លុបជាមុនសិន!");
+                          return;
+                        }
+                        // បើក Modal ទំនើបជំនួសឱ្យ window.confirm
+                        setIsDeleteModalOpen(true);
+                      }}
+                      className={`font-bold py-2 px-3 rounded-lg text-[13px] flex items-center justify-center gap-1.5 transition cursor-pointer shadow-sm border ${
+                        selectedCampaigns && selectedCampaigns.length > 0
+                          ? 'bg-red-600 hover:bg-red-700 text-white border-transparent'
+                          : 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
+                      }`}
+                    >
+                      <span className="text-sm">🗑️</span> Delete ({selectedCampaigns?.length || 0})
                     </button>
                   </div>
                   
@@ -5322,9 +5387,108 @@ export default function Home() {
               Terms of Service
             </a>
           </div>
-
         </div>
       </footer>
+      {/* ============================================== */}
+      {/* 🌟 Custom Modern Delete Confirmation Modal     */}
+      {/* ============================================== */}
+      {isDeleteModalOpen && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className={`rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col p-6 text-center ${theme === 'dark' ? 'bg-[#242526] text-white border border-slate-700' : 'bg-white text-slate-900'}`}>
+            
+            <div className="w-14 h-14 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-2xl mx-auto mb-4 shadow-inner">
+              🗑️
+            </div>
+
+            <h3 className="text-lg font-bold mb-2">តើបងពិតជាចង់លុបមែនទេ?</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">
+              យុទ្ធនាការចំនួន <strong className="text-red-500 font-bold">{selectedCampaigns.length}</strong> ដែលបានជ្រើសរើសនឹងត្រូវលុបចេញពី Facebook Ads Manager ទាំងស្រុង។ សកម្មភាពនេះមិនអាច វេញត្រឡប់ក្រោយវិញបានទេ។
+            </p>
+
+            <div className="flex gap-3">
+              <button 
+                type="button" 
+                disabled={isDeleting}
+                onClick={() => setIsDeleteModalOpen(false)} 
+                className={`flex-1 py-2.5 rounded-xl font-bold text-sm border transition cursor-pointer ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-slate-300 hover:bg-[#4E4F50]' : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200'}`}
+              >
+                បោះបង់ (Cancel)
+              </button>
+              <button 
+                type="button" 
+                disabled={isDeleting}
+                onClick={async () => {
+                  setIsDeleting(true);
+                  try {
+                    const token = localStorage.getItem('fb_user_token');
+                    if (!token) {
+                      throw new Error("រកមិនឃើញ Token ទេ សូម Login ម្ដងទៀត។");
+                    }
+
+                    for (const campaignId of selectedCampaigns) {
+                      const res = await fetch(`/api/campaigns?id=${campaignId}&access_token=${token}`, {
+                        method: 'DELETE',
+                        headers: { 'Content-Type': 'application/json' }
+                      });
+                      const data = await res.json();
+                      if (!data.success) {
+                        throw new Error(data.error || "លុបមិនបានសម្រេច");
+                      }
+                    }
+
+                    setIsDeleteModalOpen(false);
+                    // 🌟 បើកផ្ទាំង Success Modal ទំនើបជំនួសឱ្យការប្រើ alert() ធម្មតា
+                    setIsDeleteSuccessModal(true);
+                    fetchCampaigns(); 
+                    setSelectedCampaigns([]); 
+                  } catch (error: any) {
+                    alert("❌ មានបញ្ហាក្នុងការលុប: " + error.message);
+                  } finally {
+                    setIsDeleting(false);
+                  }
+                }} 
+                className="flex-1 py-2.5 rounded-xl font-bold text-sm text-white bg-red-600 hover:bg-red-700 transition shadow-sm cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isDeleting ? (
+                  <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div><span>កំពុងលុប...</span></>
+                ) : (
+                  <span>យល់ព្រមលុប (Delete)</span>
+                )}
+              </button>
+            </div>
+
+          </div>
+        </div>
+        
+      )}
+      {/* ============================================== */}
+      {/* 🌟 Custom Modern Delete Success Modal          */}
+      {/* ============================================== */}
+      {isDeleteSuccessModal && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className={`rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col p-6 text-center transform transition-all scale-100 ${theme === 'dark' ? 'bg-[#242526] text-white border border-slate-700' : 'bg-white text-slate-900'}`}>
+            
+            {/* Icon  ടിកសញ្ញាគ្រីសបៃតង */}
+            <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-3xl font-bold mx-auto mb-4 shadow-inner">
+              ✓
+            </div>
+
+            <h3 className="text-lg font-bold mb-2">លុបបានជោគជ័យ!</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">
+              យុទ្ធនាការដែលបានជ្រើសរើសត្រូវបានលុបចេញពី Facebook Ads Manager ដោយជោគជ័យ។
+            </p>
+
+            <button
+              type="button"
+              onClick={() => setIsDeleteSuccessModal(false)}
+              className="w-full py-3 rounded-xl bg-[#1877F2] hover:bg-blue-600 text-white font-bold text-sm transition shadow-md cursor-pointer"
+            >
+              OK
+            </button>
+
+          </div>
+        </div>
+      )}
     </div>
   );
 }
