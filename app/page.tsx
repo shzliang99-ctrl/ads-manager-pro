@@ -40,6 +40,10 @@ export default function Home() {
   const [presetModalOpen, setPresetModalOpen] = useState<'none' | 'photo' | 'video'>('none');
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
 
+  // 🌟 State សម្រាប់គ្រប់គ្រង Custom Error Modal និង Link ទៅ Ads Manager
+  const [customError, setCustomError] = useState<string | null>(null);
+  const [errorActionUrl, setErrorActionUrl] = useState<string | null>(null);
+
   // 🌟 State និង Function សម្រាប់ AI Audit ព្រមទាំង Speaker (Text-to-Speech)
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
   const [auditLoading, setAuditLoading] = useState(false);
@@ -709,7 +713,7 @@ export default function Home() {
       .catch(err => console.log("Error fetching ad accounts:", err));
   }, [isFbConnected]);
 
-  // 🌟 2. វិធីសាស្ត្រថ្មី៖ ទាញយកទិន្នន័យ Ad Accounts ពី Facebook ផ្ទាល់ (Bypass API Route)
+  // 🌟 វិធីសាស្ត្រទាញយក និងចាក់សោរ Ad Account ចុងក្រោយមិនឱ្យប្ដូរផ្ដេសផ្ដាស
   useEffect(() => {
     const token = localStorage.getItem('fb_user_token');
     if (!token) return;
@@ -718,7 +722,6 @@ export default function Home() {
       .then(res => res.json())
       .then(data => {
         if (data.data && data.data.length > 0) {
-          // រៀបចំឈ្មោះ Ad Account ឱ្យងាយស្រួលមើល
           const accList = data.data.map((acc: any) => ({
             account_id: acc.account_id || acc.id.replace('act_', ''),
             name: acc.name || `Ad Account (${acc.account_id || acc.id})`
@@ -726,10 +729,15 @@ export default function Home() {
           
           setAdAccountsList(accList);
 
+          // ១. ឆែកមើលក្នុង localStorage ថាតើធ្លាប់រើស Account ណាទុកមុនពេល Refresh/Verify ទេ?
           const savedAccount = localStorage.getItem("selectedAdAccount");
-          if (savedAccount && accList.find((acc: any) => acc.account_id === savedAccount)) {
-            setSelectedAdAccount(savedAccount);
+          const existingAccount = accList.find((acc: any) => acc.account_id === savedAccount);
+
+          if (existingAccount) {
+            // ✅ បើមាន៖ គឺចាក់សោរឱ្យវាប្រើ Ad Account ចាស់ហ្នឹងដដែល (មិនប្ដូរទៅណាទេ)
+            setSelectedAdAccount(existingAccount.account_id);
           } else {
+            // ❌ បើអត់ទាន់មានទិន្នន័យចាស់សោះ ទើបអនុញ្ញាតឱ្យយក Account ទីមួយ
             setSelectedAdAccount(accList[0].account_id);
             localStorage.setItem("selectedAdAccount", accList[0].account_id);
           }
@@ -1498,7 +1506,19 @@ export default function Home() {
         }, 150);
       } else {
         setLoading(false);
-        alert("❌ បរាជ័យពី Facebook ក្នុងការ Boost:\n\n" + data.error);
+        
+        // 🌟 ឆែកមើល Error រឿងអត់មានប៊ូតុង ឬ Invalid Creative
+        if (data.error && (data.error.includes("ប៊ូតុង") || data.error.includes("Creative") || data.error.includes("message"))) {
+          // បង្កើត Link ភ្ជាប់ទៅកាន់ Meta Ads Manager ផ្ទាល់របស់អ្នកប្រើប្រាស់
+          const adAccountClean = selectedAdAccount?.replace('act_', '');
+          const adsManagerUrl = `https://adsmanager.facebook.com/adsmanager/manage/ads?act=${adAccountClean}`;
+          
+          // បង្ហាញ Error Modal ព្រមទាំងភ្ជាប់ Link
+          setCustomError("⚠️ ផុសនេះមានបញ្ហា (ឧ. ជារូបភាពច្រើនសន្លឹក មិនអាចដាក់ប៊ូតុង Send Message បាន)។\n\nសូមចុច OK ដើម្បីបើកផ្ទាំង Meta Ads Manager រួចចុច Publish ជាការស្រេច!");
+          setErrorActionUrl(adsManagerUrl);
+        } else {
+          alert("❌ បរាជ័យពី Facebook ក្នុងការ Boost:\n\n" + data.error);
+        }
       }
     } catch (error) {
       setLoading(false);
@@ -1572,14 +1592,21 @@ export default function Home() {
   };
 
   const fetchAds = async () => {
-    if (selectedCampaigns.length === 0) return;
     setLoadingAds(true);
     try {
-      // 🌟 ទាញយក Token ពី localStorage
       const token = localStorage.getItem('fb_user_token');
       const tokenParam = token ? `&access_token=${token}` : '';
 
-      const targetCampaignId = selectedCampaigns[0];
+      // 🌟 បើមាន Campaign ដែលបាន Select យកមួយនោះ បើអត់ទេ យក Campaign ដំបូងគេបង្អស់បង្គ្រប់កិច្ច
+      let targetCampaignId = selectedCampaigns.length > 0 ? selectedCampaigns[0] : "";
+      if (!targetCampaignId && campaignsList.length > 0) {
+        targetCampaignId = campaignsList[0].id;
+      }
+
+      if (!targetCampaignId) {
+        setLoadingAds(false);
+        return;
+      }
       
       let apiDatePreset = selectedDatePreset.toLowerCase();
       if (apiDatePreset === 'lifetime') apiDatePreset = 'maximum';
@@ -3636,7 +3663,42 @@ export default function Home() {
                     </button>
                     <button 
                       type="button"
-                      onClick={() => handleEditCampaign()}
+                      onClick={() => {
+                        // ១. ឆែកមើលថាតើកំពុងនៅ Tab Ads មែនឬអត់?
+                        if (activeManageTab === 'ADS') {
+                          
+                          // ២. ឆែកមើលថាមានទិន្នន័យ Ad ក្នុងតារាងឬអត់?
+                          if (!adsList || adsList.length === 0) {
+                            alert("⚠️ អត់ទាន់មានទិន្នន័យ Ad ក្នុងតារាងទេបង! សូមរង់ចាំឱ្យវាទាញទិន្នន័យចេញមកសិន។");
+                            return;
+                          }
+
+                          // ៣. រៀបចំ Link ទាញយក ID
+                          const adAccountClean = selectedAdAccount?.replace('act_', '');
+                          const targetAdId = adsList[0].id; // ទាញយក Ad ID ទីមួយក្នុងតារាង
+                          
+                          if (!targetAdId) {
+                            alert("⚠️ រកមិនឃើញ ID របស់ Ad នេះទេ!");
+                            return;
+                          }
+
+                          // ៤. បង្កើត Link ទៅកាន់កន្លែងកែប្រែក្នុង Meta Ads Manager
+                          const editUrl = `https://adsmanager.facebook.com/adsmanager/manage/ads/edit/standalone?act=${adAccountClean}&selected_ad_ids=${targetAdId}`;
+                          
+                          // ៥. សាកល្បងបើក Tab ថ្មី
+                          const newWindow = window.open(editUrl, '_blank');
+                          
+                          // ៦. បើ Browser របស់បង Block មិនឱ្យបើក Tab ថ្មីទេ ឱ្យវាលោតទៅ Link ហ្នឹងក្នុង Tab ដើមតែម្ដង!
+                          if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
+                            alert("⚠️ Chrome របស់បងបានបិទមិនឱ្យលោត Tab ថ្មីទេ!\n\nប្រព័ន្ធនឹងបញ្ជូនបងទៅកាន់ Ads Manager នៅលើ Tab នេះតែម្ដង។");
+                            window.location.href = editUrl; // បង្ខំឱ្យលោតទៅ
+                          }
+
+                        } else {
+                          // បើនៅ Tab ផ្សេង (Campaigns ឬ Ad Sets) ឱ្យលោតផ្ទាំង Quick Edit
+                          handleEditCampaign();
+                        }
+                      }}
                       className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-3 rounded-lg text-[13px] flex items-center justify-center gap-1.5 transition cursor-pointer shadow-sm border border-transparent"
                     >
                       <span className="text-sm">✎</span> Edit
@@ -3828,13 +3890,39 @@ export default function Home() {
                                   </td>
 
                                   <td className={`p-3 border-r align-middle min-w-[120px] ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-                                    {c.effective_status === 'ACTIVE' ? (
-                                      <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[#31A24C]"></span> Active</span>
-                                    ) : c.effective_status === 'PAUSED' ? (
-                                      <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[#BCC0C4]"></span> Off</span>
-                                    ) : (
-                                      <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-slate-400"></span> {c.effective_status || c.status}</span>
-                                    )}
+                                    {(() => {
+                                      // 🌟 ឆែកមើលថាតើ Campaign នេះមាន Ads ឬអត់ (តាមរយៈ Insights ឬ Array របស់ Ads)
+                                      const ins = getInsights(c);
+                                      const hasAds = ins && (Number(ins.impressions) > 0 || Number(ins.spend) > 0 || Number(ins.reach) > 0);
+                                      const status = c.effective_status || c.status;
+
+                                      // បើ Status ដាក់ Active តែអត់ទាន់មាន Ads ឬ Impressions សោះ គឺត្រូវបង្ហាញថា "No ads" ដូច Facebook
+                                      if (status === 'ACTIVE' && !hasAds) {
+                                        return (
+                                          <span className="flex items-center gap-1.5 font-medium text-slate-500">
+                                            <span className="w-2 h-2 rounded-full bg-slate-400"></span> No ads
+                                          </span>
+                                        );
+                                      } else if (status === 'ACTIVE') {
+                                        return (
+                                          <span className="flex items-center gap-1.5 font-medium text-[#31A24C]">
+                                            <span className="w-2 h-2 rounded-full bg-[#31A24C]"></span> Active
+                                          </span>
+                                        );
+                                      } else if (status === 'PAUSED' || status === 'OFF') {
+                                        return (
+                                          <span className="flex items-center gap-1.5 font-medium text-slate-500">
+                                            <span className="w-2 h-2 rounded-full bg-[#BCC0C4]"></span> Off
+                                          </span>
+                                        );
+                                      } else {
+                                        return (
+                                          <span className="flex items-center gap-1.5 font-medium text-slate-400">
+                                            <span className="w-2 h-2 rounded-full bg-slate-400"></span> {status}
+                                          </span>
+                                        );
+                                      }
+                                    })()}
                                   </td>
 
                                   <td className={`p-3 border-r align-middle min-w-[140px] ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
@@ -5161,6 +5249,82 @@ export default function Home() {
           </div>
         </div>
       )}
+
+      {/* 🌟 Custom Error Modal: ពេលចុច OK វានឹងបើកផ្ទាំង Meta Ads Manager ដូចរូបភាពទី ២ */}
+      {customError && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className={`rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col p-6 text-center ${theme === 'dark' ? 'bg-[#242526] text-white border border-slate-700' : 'bg-white text-slate-900'}`}>
+            
+            <div className="w-14 h-14 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-2xl mx-auto mb-4 shadow-inner">
+              ⚠️
+            </div>
+
+            <h3 className="text-lg font-bold mb-2">តម្រូវឱ្យកែសម្រួលការផ្សាយពាណិជ្ជកម្ម</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-6 leading-relaxed whitespace-pre-wrap">
+              {customError}
+            </p>
+
+            <div className="flex flex-col gap-2.5">
+              {errorActionUrl && (
+                <a 
+                  href={errorActionUrl} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  onClick={() => { setCustomError(null); setErrorActionUrl(null); }}
+                  className="w-full py-3 rounded-xl font-bold text-sm text-white bg-[#1877F2] hover:bg-blue-600 transition shadow-md flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <span>✅</span> <span>OK (បើកទៅកាន់ Meta Ads Manager)</span>
+                </a>
+              )}
+
+              <button 
+                type="button" 
+                onClick={() => { setCustomError(null); setErrorActionUrl(null); }} 
+                className={`w-full py-2.5 rounded-xl font-bold text-sm border transition cursor-pointer ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-slate-300 hover:bg-[#4E4F50]' : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200'}`}
+              >
+                បោះបង់ (Cancel)
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+      {/* 🌟 Footer Section (មានភ្ជាប់ Privacy Policy & Terms) */}
+      <footer className={`mt-auto py-8 px-4 sm:px-8 border-t text-center transition-colors ${
+        theme === 'dark' 
+          ? 'bg-[#18191A] border-slate-800 text-slate-400' 
+          : 'bg-white border-slate-200 text-slate-500'
+      }`}>
+        <div className="max-w-[1400px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+          
+          {/* Copyright */}
+          <div className="text-xs sm:text-sm font-medium">
+            © 2026 Ads Manager Pro (UrbanGarbs). All rights reserved.
+          </div>
+
+          {/* Policy Links */}
+          <div className="flex items-center gap-6 text-xs sm:text-sm font-semibold">
+            <a 
+              href="/privacy-policy" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="hover:text-blue-600 transition underline cursor-pointer"
+            >
+              Privacy Policy
+            </a>
+            <span className="opacity-40">|</span>
+            <a 
+              href="/terms" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="hover:text-blue-600 transition underline cursor-pointer"
+            >
+              Terms of Service
+            </a>
+          </div>
+
+        </div>
+      </footer>
     </div>
   );
 }

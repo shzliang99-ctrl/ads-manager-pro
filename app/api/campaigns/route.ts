@@ -27,7 +27,7 @@ export async function GET(request: Request) {
       throw new Error("Missing Token or Ad Account ID");
     }
 
-    // 🌟 URL ដែលបានកែសម្រួលដើម្បីទាញយក insights ពេញលេញ និង limit=500
+    // 🌟 ដាក់បញ្ចូល effective_status ក្នុង URL Endpoint នេះ ដើម្បីទាញយក Delivery ឱ្យត្រូវដូច Facebook 100%
     const endpoint = `https://graph.facebook.com/v18.0/${targetAdAccountId}/campaigns?fields=id,name,status,effective_status,daily_budget,lifetime_budget,objective,start_time,stop_time,insights.date_preset(${datePreset}){spend,impressions,reach,actions}&limit=500&access_token=${accessToken}`;
 
     const response = await fetch(endpoint, { cache: 'no-store' });

@@ -41,7 +41,7 @@ export async function POST(request: Request) {
       body: JSON.stringify({
         name: campaignName || `Auto Boost Campaign`,
         objective: 'OUTCOME_ENGAGEMENT', 
-        status: 'PAUSED',
+        status: 'ACTIVE', 
         special_ad_categories: ['NONE'], 
         is_adset_budget_sharing_enabled: false,
         access_token: accessToken,
@@ -145,7 +145,7 @@ export async function POST(request: Request) {
       billing_event: 'IMPRESSIONS',
       optimization_goal: fbOptimizationGoal, 
       bid_strategy: 'LOWEST_COST_WITHOUT_CAP',
-      status: 'PAUSED',
+      status: 'ACTIVE', 
       targeting: targetingData,
       access_token: accessToken,
     };
@@ -186,8 +186,7 @@ export async function POST(request: Request) {
     let validPostId = postUrl.includes('_') ? postUrl : `${pageId}_${postUrl}`;
     let finalCreativePostId = validPostId; 
 
-    // 🌟 កំណត់តម្លៃ Call to Action ឱ្យត្រូវស្តង់ដារ Facebook API
-    let ctaType = 'MESSAGE_PAGE'; // ค่าเริ่มต้นជា Send Message
+    let ctaType = 'MESSAGE_PAGE'; 
     if (callToAction === 'LEARN_MORE') ctaType = 'LEARN_MORE';
     else if (callToAction === 'SHOP_NOW') ctaType = 'SHOP_NOW';
     else if (callToAction === 'SEND_MESSAGE') ctaType = 'MESSAGE_PAGE';
@@ -211,7 +210,6 @@ export async function POST(request: Request) {
           });
           let updateResult = await updateRes.json();
 
-          // បើ Post ដើម Update មិនកើត (ឧ. ជា Album រូបច្រើនសន្លឹក) វានឹងបង្កើត Dark Post បម្រុង
           if (updateResult.error) {
              const getPostRes = await fetch(`https://graph.facebook.com/v18.0/${validPostId}?fields=message,full_picture&access_token=${pageToken}`);
              const postContent = await getPostRes.json();
@@ -270,7 +268,7 @@ export async function POST(request: Request) {
         name: adName || `Ad - Final`, 
         adset_id: adSetId,
         creative: { creative_id: creativeData.id },
-        status: 'PAUSED',
+        status: 'ACTIVE', 
         access_token: accessToken,
       })
     });
@@ -279,7 +277,14 @@ export async function POST(request: Request) {
     if (adData.error) {
        const subcode = adData.error.error_subcode;
        if (subcode === 1487891 || adData.error.error_user_title?.includes('Invalid Creative')) {
-          throw new Error(`\n🛑 ផុសនេះអត់មានប៊ូតុង "Send Message" ទេ!\n(បញ្ជាក់៖ ផុសជារូបច្រើនសន្លឹក មិនអាចបំពាក់ប៊ូតុងដោយស្វ័យប្រវត្តិបានទេ)`);
+          const adAccountClean = targetAdAccountId.replace('act_', '');
+          const editUrl = `https://adsmanager.facebook.com/adsmanager/manage/ads?act=${adAccountClean}`;
+          
+          return NextResponse.json({ 
+            success: false, 
+            error: `\n🛑 ផុសនេះអត់មានប៊ូតុង "Send Message" ទេ!\n(បញ្ជាក់៖ ផុសជារូបច្រើនសន្លឹក មិនអាចបំពាក់ប៊ូតុងដោយស្វ័យប្រវត្តិបានទេ)`,
+            editUrl: editUrl 
+          }, { status: 400 });
        }
        throw new Error(`Ad ធ្លាក់: ${translateFBError(adData.error.message)}`);
     }
