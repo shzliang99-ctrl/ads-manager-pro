@@ -5,16 +5,16 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { campaignId, newName, newPostId, pageId, access_token } = body;
 
-    // 🌟 1. ពិនិត្យមើលសោរ Token ដែលបញ្ជូនមកពី Frontend
+    // 🌟 1. ពិនិត្យមើលសោរ Token
     if (!access_token) {
-      return NextResponse.json({ success: false, error: "មិនមាន Access Token បញ្ជូនមកពី Frontend ទេ!" }, { status: 400 });
+      return NextResponse.json({ success: false, error: "មិនមាន Access Token ទេ!" }, { status: 400 });
     }
 
     if (!campaignId) {
       return NextResponse.json({ success: false, error: "Missing Campaign ID" }, { status: 400 });
     }
 
-    // ២. រក Ad ដំបូងគេនៅក្នុង Campaign ហ្នឹងដើម្បីយកមក Copy
+    // ២. រក Ad ដំបូងគេនៅក្នុង Campaign ហ្នឹងដើម្បីយកមក Copy (កូដដើមរបស់បង)
     const adsRes = await fetch(`https://graph.facebook.com/v18.0/${campaignId}/ads?fields=id,adset_id&access_token=${access_token}`);
     const adsData = await adsRes.json();
     
@@ -23,15 +23,15 @@ export async function POST(request: Request) {
     
     const originalAdId = adsData.data[0].id;
 
-    // ៣. ទាញយក Ad Set info ដើម្បីដឹង Ad Account ID ត្រឹមត្រូវ
+    // ៣. ទាញយក Ad Set info ដើម្បីយក Ad Account ID
     const adSetsRes = await fetch(`https://graph.facebook.com/v18.0/${campaignId}/adsets?fields=id,account_id&access_token=${access_token}`);
     const adSetsData = await adSetsRes.json();
     
-    if (!adSetsData.data || adSetsData.data.length === 0) throw new Error("រកមិនឃើញ Ad Set ក្នុង Campaign នេះទេ។");
+    if (!adSetsData.data || adSetsData.data.length === 0) throw new Error("រកមិនឃើញ Ad Set ទេ។");
     const originalAdSet = adSetsData.data[0];
     const adAccountId = originalAdSet.account_id ? `act_${originalAdSet.account_id.replace('act_', '')}` : 'me';
 
-    // ៤. បើមានការជ្រើសរើស Post ថ្មី ត្រូវបង្កើត Ad Creative ថ្មីជាមុនសិន
+    // ៤. បង្កើត Ad Creative ថ្មី (បើមានជ្រើសរើស Post ថ្មី)
     let newCreativeId = null;
     if (newPostId && pageId) {
       const objectStoryId = newPostId.includes('_') ? newPostId : `${pageId}_${newPostId}`;
@@ -47,13 +47,8 @@ export async function POST(request: Request) {
       });
       const creativeData = await creativeRes.json();
       
-      if (creativeData.error) {
-        throw new Error("មិនអាចបង្កើត Ad Creative ថ្មីបានទេ: " + creativeData.error.message);
-      }
-      
-      if (creativeData.id) {
-        newCreativeId = creativeData.id;
-      }
+      if (creativeData.error) throw new Error("មិនអាចបង្កើត Ad Creative ថ្មីបានទេ: " + creativeData.error.message);
+      if (creativeData.id) newCreativeId = creativeData.id;
     }
 
     // ៥. Copy Ad ដើម (ដាក់ Paused សិន)
@@ -64,20 +59,16 @@ export async function POST(request: Request) {
     });
 
     const duplicateData = await duplicateRes.json();
-    if (duplicateData.error) throw new Error(duplicateData.error.message);
+    if (duplicateData.error) throw new Error("Copy Ad Error: " + duplicateData.error.message);
     
     const newAdId = duplicateData.copied_ad_id;
     let updatePayload: any = { access_token: access_token };
 
-    // ៦. ដាក់ឈ្មោះថ្មីចូល Payload (បើមាន)
+    // ៦. ដាក់ឈ្មោះ និង Creative ថ្មី
     if (newName) updatePayload.name = newName;
+    if (newCreativeId) updatePayload.creative = { creative_id: newCreativeId };
 
-    // ៧. ដាក់ Creative ID ថ្មីចូល Payload (បើមាន)
-    if (newCreativeId) {
-      updatePayload.creative = { creative_id: newCreativeId };
-    }
-
-    // ៨. Update ឈ្មោះ និង Creative ទៅកាន់ Ad ដែលទើបតែកូពីបានរួច
+    // ៧. Update ទៅកាន់ Ad ដែលទើបតែកូពីបានរួច
     if (updatePayload.name || updatePayload.creative) {
       const updateRes = await fetch(`https://graph.facebook.com/v18.0/${newAdId}`, {
         method: 'POST',
@@ -85,9 +76,7 @@ export async function POST(request: Request) {
         body: JSON.stringify(updatePayload),
       });
       const updateData = await updateRes.json();
-      if (updateData.error) {
-        throw new Error("Copy បាន ប៉ុន្តែមិនអាច Update ឈ្មោះ ឬ Post ថ្មីបានទេ: " + updateData.error.message);
-      }
+      if (updateData.error) throw new Error("Update Ad Error: " + updateData.error.message);
     }
 
     return NextResponse.json({

@@ -1748,45 +1748,46 @@ export default function Home() {
   const executeDuplicate = async () => {
     setIsDuplicating(true);
     try {
+      const pageInfo = pages.find(p => p.id === selectedPage);
+      let validToken = pageInfo?.access_token || localStorage.getItem('fb_user_token');
+
+      if (!validToken || validToken === 'null' || validToken === 'undefined') {
+        alert("⚠️ រកមិនឃើញសោរ Token ទេ! សូម Connect Facebook ឡើងវិញ។");
+        setIsDuplicating(false); return;
+      }
+      validToken = validToken.replace(/['"]+/g, '').trim();
+
+      if (!duplicatePostId) {
+        alert("⚠️ សូមជ្រើសរើស Post ថ្មីជាមុនសិន!");
+        setIsDuplicating(false); return;
+      }
+
       if (selectedCampaigns.length === 0) {
         alert("⚠️ សូមជ្រើសរើស Campaign ណាមួយជាមុនសិន!");
         setIsDuplicating(false); return;
       }
 
-      if (!duplicatePostId) {
-        alert("⚠️ សូមចុច Select new post ដើម្បីជ្រើសរើស Post ថ្មីជាមុនសិន!");
-        setIsDuplicating(false); return;
-      }
-
-      // 🌟 វិធីសាស្ត្រថ្មី៖ ទាញយក Token ពី Page ដែលបងបានជ្រើសរើសផ្ទាល់!
-      const pageInfo = pages.find(p => p.id === selectedPage);
-      let validToken = pageInfo?.access_token || localStorage.getItem('fb_user_token');
-
-      if (!validToken || validToken === 'null' || validToken === 'undefined') {
-        alert("⚠️ រកមិនឃើញសោរ Token ទេ! សូមចុច Disconnect រួច Connect Facebook ឡើងវិញ។");
-        setIsDuplicating(false); return;
-      }
-
-      validToken = validToken.replace(/['"]+/g, '').trim(); // សម្អាតសញ្ញា
       const targetCampaignId = selectedCampaigns[0];
 
+      // 🌟 ត្រលប់មកប្រើកូដដើមវិញ៖ បោះតែ campaignId ទៅឱ្យ Backend ធ្វើការ
       const res = await fetch('/api/duplicate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          campaignId: targetCampaignId,
+          campaignId: targetCampaignId, // 👈 ប្រើប្រាស់ Campaign ID ដូចដើមវិញ
           newName: duplicateAdName,
           newPostId: duplicatePostId,
-          access_token: validToken // 👈 បញ្ជូនសោរ Token សុទ្ធទៅកាន់ Backend
+          pageId: selectedPage,
+          access_token: validToken 
         }),
       });
 
       const data = await res.json();
       if (data.success) {
         setIsDuplicateModalOpen(false);
-        setIsSuccessModal(true); // 🌟 បង្ហាញ Success Modal ទំនើប ពេល Duplicate ជោគជ័យ
+        setIsSuccessModal(true);
         setActiveManageTab('ADS');
-        fetchCampaigns();
+        if (typeof fetchAds === 'function') fetchAds();
       } else {
         alert("❌ ការ Duplicate បរាជ័យ:\n\n" + (data.error || "Unknown error"));
       }
