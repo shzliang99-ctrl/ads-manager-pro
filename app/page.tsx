@@ -3,6 +3,25 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 
+const translations = {
+  kh: {
+    createCampaign: "បង្កើតយុទ្ធនាការ",
+    manageCampaign: "គ្រប់គ្រងយុទ្ធនាការ",
+    aiCopywriter: "AI Copywriter",
+    subscriptions: "គ្រប់គ្រងអតិថិជន",
+    settings: "ការកំណត់ (Settings)",
+    logout: "Logout ចេញពីប្រព័ន្ធ",
+  },
+  en: {
+    createCampaign: "Create Campaign",
+    manageCampaign: "Manage Campaigns",
+    aiCopywriter: "AI Copywriter",
+    subscriptions: "Manage Subscriptions",
+    settings: "Settings",
+    logout: "Logout",
+  }
+};
+
 // 🌟 Option សម្រាប់ជ្រើសរើសថ្ងៃ
 const datePresetOptions = [
   { value: 'today', label: 'Today' },
@@ -32,6 +51,75 @@ export default function Home() {
     };
     checkAdminRole();
   }, []);
+
+  // 🌟 State សម្រាប់ Toast Notifications
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => {
+      setToast(null);
+    }, 4000); // បាត់ទៅវិញដោយស្វ័យប្រវត្តិក្រោយ ៤ វិនាទី
+  };
+
+  // 🌟 មុខងារកំណត់កម្រិត CPA พร้อม Tooltip ពេលเอา Mouse ដាក់លើ
+  const getCpaBadge = (cpa: number) => {
+    let badgeConfig = {
+      bg: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 border-emerald-300",
+      text: "🟢 ល្អខ្លាំង (Excellent)",
+      action: "រក្សាលំនឹង ឬ បង្កើនថវិកា (Scale Budget) បន្ថែមព្រោះការផ្សាយពាណិជ្ជកម្មទាក់ទាញខ្លាំង។"
+    };
+
+    if (cpa > 0.50 && cpa <= 1.00) {
+      badgeConfig = {
+        bg: "bg-emerald-50 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-300 border-emerald-200",
+        text: "🟢 ល្អ (Good)",
+        action: "ប្រសិទ្ធភាពការងារល្អប្រសើរ អាចបន្តដំណើរការយុទ្ធនាការនេះធម្មតា។"
+      };
+    } else if (cpa > 1.00 && cpa <= 2.00) {
+      badgeConfig = {
+        bg: "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400 border-amber-300",
+        text: "🟡 មធ្យម (Average)",
+        action: "នៅអាចទទួលយកបាន ប៉ុន្តែគួរពិនិត្យមើលរូបភាព ឬអត្ថបទ (Copywriter) ក្រែងលោអាចកែច្នៃឱ្យទាក់ទាញជាងមុន។"
+      };
+    } else if (cpa > 2.00 && cpa <= 5.00) {
+      badgeConfig = {
+        bg: "bg-orange-100 text-orange-700 dark:bg-orange-950/60 dark:text-orange-400 border-orange-300",
+        text: "🟠 ខ្សោយ (Poor)",
+        action: "ចំណាយដើមទុនច្រើន ប៉ុន្តែទទួលបានលទ្ធផលតិច គួរផ្អាកសិន ឬកែសម្រួល Targeting ។"
+      };
+    } else if (cpa > 5.00) {
+      badgeConfig = {
+        bg: "bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-400 border-red-300",
+        text: "🔴 អត់ល្អ (Critical)",
+        action: "ត្រូវផ្អាក (Pause) ជាបន្ទាន់! បើមិនដូច្នេះទេ នឹងខាតលុយឥតប្រយោជន៍ ហើយត្រូវប្រើ AI Copywriter សរសេរ Content ថ្មី ឬប្ដូរម៉ូដស្បែកជើងមកសាកល្បងម្ដងទៀត។"
+      };
+    }
+
+    return (
+      <div className="relative group inline-block">
+        {/* Badge Button */}
+        <span className={`px-2.5 py-1 rounded-full text-xs font-bold border flex items-center gap-1 w-max cursor-pointer transition-transform duration-200 hover:scale-105 shadow-xs ${badgeConfig.bg}`}>
+          {badgeConfig.text}
+        </span>
+
+        {/* 🌟 Tooltip Box នឹងលោតបង្ហាញពេលเอา Mouse ដាក់លើយ៉ាងស្អាត */}
+        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:flex flex-col w-[260px] p-3 text-xs text-white bg-slate-900/95 backdrop-blur-md rounded-xl shadow-2xl border border-slate-700 z-50 pointer-events-none animate-in fade-in zoom-in-95 duration-150">
+          <div className="font-bold text-amber-400 mb-1 flex items-center gap-1">
+            <span>💡</span> យោបល់ណែនាំសម្រាប់អ្នកគ្រប់គ្រង៖
+          </div>
+          <p className="leading-relaxed text-slate-200 font-normal">
+            {badgeConfig.action}
+          </p>
+          {/* Triangle Pointer */}
+          <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-[1px] border-solid border-t-slate-900 border-t-8 border-x-transparent border-x-8 border-b-0"></div>
+        </div>
+      </div>
+    );
+  };
+  
+  // 🌟 បន្ថែម State សម្រាប់គ្រប់គ្រង Page Menu Dropdown
+  const [isPageMenuOpen, setIsPageMenuOpen] = useState(false);
 
   // 🌟 States សម្រាប់ Modal Confirm លុបយុទ្ធនាការ
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -196,10 +284,10 @@ export default function Home() {
     window.location.href = `https://www.facebook.com/v18.0/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&scope=${scope}&state=${safeState}&response_type=code`;
   };
 
-  // 🌟 មុខងារ AI Auto-Fill វិភាគ និងបំពេញទិន្នន័យស្វ័យប្រវត្តិ
+  // 🌟 មុខងារ AI Auto-Fill វិភាគ និងបំពេញទិន្នន័យទាំង Targeting & Placements ស្វ័យប្រវត្តិ ១០០%
   const handleAiAutoFill = async () => {
     if (!autoFillInput.trim()) {
-      alert("⚠️ សូមវាយបញ្ចូលប្រភេទផលិតផល ឬសេវាកម្មជាមុនសិន!");
+      showToast("⚠️ សូមវាយបញ្ចូលប្រភេទផលិតផល ឬសេវាកម្មជាមុនសិន!", "error");
       return;
     }
     
@@ -224,19 +312,36 @@ export default function Home() {
         if (resData.ageMax) saveParam("ageMax", String(resData.ageMax), setAgeMax);
         if (resData.gender) saveParam("gender", resData.gender, setGender);
         
-        // 3. បំពេញ Targeting Keywords
+        // 3. បំពេញ Targeting Keywords (Interests) ស្វ័យប្រវត្តិ
         if (resData.targeting) {
           setTargeting(resData.targeting);
           localStorage.setItem("targeting", resData.targeting);
         }
 
-        alert("✨ AI បានបំពេញការកំណត់ (Targeting & Settings) ជូនរួចរាល់ដោយជោគជ័យ!");
+        // 4. 🌟 កំណត់ PlacementType និង Auto-Tick លើប្រអប់ Placements ផ្ទាល់ស្វ័យប្រវត្តិ
+        if (resData.placementType) {
+           const pType = resData.placementType.toLowerCase();
+           
+           if (pType === 'photo') {
+              // កំណត់ស្តង់ដារសម្រាប់រូបភាព (Feed & Marketplace ប៉ុណ្ណោះ មិនយក Reels/Stories)
+              handleBoostPhotos(); 
+           } else if (pType === 'video') {
+              // កំណត់ស្តង់ដារសម្រាប់វីដេអូ (Feed, Stories & Reels)
+              handleBoostVideos(); 
+           } else {
+              // បើមិនច្បាស់ ទុកជា Advantage+ (Manual Placements ពេញលេញ)
+              setPlacementType("MANUAL");
+              localStorage.setItem("placementType", "MANUAL");
+           }
+        }
+
+        showToast("✨ AI បានបំពេញការកំណត់ (Targeting & Placements) ជូនរួចរាល់ដោយជោគជ័យ!", "success");
       } else {
-        alert("❌ AI Auto-Fill Error: " + (data.error || "Unknown error"));
+        showToast("❌ AI Auto-Fill Error: " + (data.error || "Unknown error"), "error");
       }
     } catch (err) {
       console.error(err);
-      alert("❌ មានបញ្ហាតភ្ជាប់ទៅកាន់ AI Server!");
+      showToast("❌ មានបញ្ហាតភ្ជាប់ទៅកាន់ AI Server!", "error");
     }
     setIsAutoFilling(false);
   };
@@ -578,8 +683,10 @@ export default function Home() {
   // 🌟 State សម្រាប់ Theme (យប់/ថ្ងៃ) និង Language (ខ្មែរ/អង់គ្លេស)
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [lang, setLang] = useState<'kh' | 'en'>('kh');
+  const [isLangMenuOpen, setIsLangMenuOpen] = useState(false);
 
-  const [isPageMenuOpen, setIsPageMenuOpen] = useState(false);
+  // យក variable នេះមកប្រើប្រាស់កន្លែងបង្ហាញអត្ថបទ
+  const t = translations[lang];
   
   const [posts, setPosts] = useState<any[]>([]);
   const [selectedPost, setSelectedPost] = useState("");
@@ -849,6 +956,42 @@ export default function Home() {
 
   const [selectedCampaigns, setSelectedCampaigns] = useState<string[]>([]);
 
+  const [selectedAds, setSelectedAds] = useState<string[]>([]);
+
+  // 🌟 ១. Auto-Load ទិន្នន័យ Draft ដែលធ្លាប់បានរក្សាទុកក្នុង LocalStorage ពេលបើកទំព័រដំបូង
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedDraft = localStorage.getItem('ads_manager_campaign_draft');
+      if (savedDraft) {
+        try {
+          const parsed = JSON.parse(savedDraft);
+          if (parsed.campaignName) setCampaignName(parsed.campaignName);
+          if (parsed.adsetName) setAdsetName(parsed.adsetName);
+          if (parsed.budget) setBudget(parsed.budget);
+          if (parsed.duration) setDuration(parsed.duration);
+          if (parsed.targeting) setTargeting(parsed.targeting);
+        } catch (e) {
+          console.error("Error loading draft:", e);
+        }
+      }
+    }
+  }, []);
+
+  // 🌟 ២. Auto-Save Draft ស្វ័យប្រវត្តិរាល់ពេលដែលទិន្នន័យមានការផ្លាស់ប្តូរ
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const draftData = {
+        campaignName,
+        adsetName,
+        budget,
+        duration,
+        targeting,
+        updatedAt: new Date().toLocaleTimeString()
+      };
+      localStorage.setItem('ads_manager_campaign_draft', JSON.stringify(draftData));
+    }
+  }, [campaignName, adsetName, budget, duration, targeting]);
+
   // ១. ថែម State សម្រាប់មុខងារថ្មីនេះ (ដាក់ជិត State ចាស់ៗ)
   const [includeAdImages, setIncludeAdImages] = useState(true);
   const [adButtonText, setAdButtonText] = useState('Ask for availability');
@@ -1059,6 +1202,29 @@ export default function Home() {
       }
     } catch (error) {
       console.error("Fetch Campaigns Error:", error);
+    }
+  };
+
+  // 🌟 មុខងារសម្រាប់ចុច Refresh ទិន្នន័យដោយដៃ (Manual Refresh)
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleManualRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      if (activeManageTab === 'CAMPAIGNS' || typeof fetchCampaigns === 'function') {
+        await fetchCampaigns();
+      }
+      if (activeManageTab === 'ADSETS' && typeof fetchAdsets === 'function') {
+        await fetchAdsets();
+      }
+      if (activeManageTab === 'ADS' && typeof fetchAds === 'function') {
+        await fetchAds();
+      }
+      showToast("🔄 បានទាញយកទិន្នន័យថ្មីពី Facebook ដោយជោគជ័យ!", "success");
+    } catch (err) {
+      showToast("❌ បរាជ័យក្នុងការ Refresh ទិន្នន័យ!", "error");
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -1601,6 +1767,37 @@ export default function Home() {
     }
   };
 
+  // 🌟 មុខងារលុប Ad ជាក់លាក់ដែលបានធីក (Tick) មិនឱ្យប៉ះពាល់ Ad ផ្សេងឡើយ
+  const handleDeleteSelectedAds = async () => {
+    if (!selectedAds || selectedAds.length === 0) {
+      alert("⚠️ សូមធីក (Tick) ជ្រើសរើស Ad ណាដែលចង់លុបជាមុនសិន!");
+      return;
+    }
+
+    if (!confirm(`តើបងពិតជាចង់លុប Ads ចំនួន ${selectedAds.length} នេះមែនទេ?`)) return;
+
+    try {
+      const token = localStorage.getItem('fb_user_token');
+      if (!token) {
+        alert("⚠️ រកមិនឃើញ Token ទេ សូម Connect Facebook ឡើងវិញ!");
+        return;
+      }
+
+      // លុបទៅកាន់ Graph API ដោយផ្ទាល់
+      for (const adId of selectedAds) {
+        await fetch(`https://graph.facebook.com/v18.0/${adId}?access_token=${token}`, {
+          method: 'DELETE',
+        });
+      }
+
+      alert("✅ បានលុប Ad ដែលបានជ្រើសរើសដោយជោគជ័យ!");
+      setSelectedAds([]); // សម្អាតបញ្ជីដែលបានធីក
+      if (typeof fetchAds === 'function') fetchAds(); // Refresh តារាង Ads ភ្លាមៗ
+    } catch (err: any) {
+      alert("❌ មានបញ្ហាក្នុងការលុប: " + err.message);
+    }
+  };
+
   const handleToggleAdStatus = async (adId: string, currentStatus: string) => {
     const newStatus = currentStatus === 'ACTIVE' ? 'PAUSED' : 'ACTIVE';
     
@@ -1827,6 +2024,8 @@ export default function Home() {
     }
   };
 
+  
+
   // 🌟 មុខងារពេលចុចប៊ូតុង Edit
   const handleEditCampaign = () => {
     if (selectedCampaigns.length === 0) {
@@ -1901,6 +2100,32 @@ export default function Home() {
   return (
     <div className={`min-h-screen font-sans flex flex-col pb-20 transition-colors duration-300 ${theme === 'dark' ? 'bg-[#18191A] text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
       
+      {/* 🌟 Modern Toast Notification Popup (มุมខាងស្តាំលើ) */}
+      {toast && (
+        <div className="fixed top-20 right-6 z-[999999] animate-in slide-in-from-top-5 fade-in duration-300">
+          <div className={`flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-2xl border backdrop-blur-md font-sans ${
+            toast.type === 'success' 
+              ? (theme === 'dark' ? 'bg-emerald-950/90 border-emerald-800 text-emerald-200' : 'bg-emerald-600 border-emerald-500 text-white')
+              : toast.type === 'error'
+              ? (theme === 'dark' ? 'bg-red-950/90 border-red-800 text-red-200' : 'bg-red-600 border-red-500 text-white')
+              : (theme === 'dark' ? 'bg-blue-950/90 border-blue-800 text-blue-200' : 'bg-blue-600 border-blue-500 text-white')
+          }`}>
+            <span className="text-xl">
+              {toast.type === 'success' ? '✅' : toast.type === 'error' ? '❌' : 'ℹ️'}
+            </span>
+            <div className="flex flex-col">
+              <span className="text-[13.5px] font-bold tracking-wide">{toast.message}</span>
+            </div>
+            <button 
+              onClick={() => setToast(null)} 
+              className="ml-3 opacity-70 hover:opacity-100 text-lg font-bold cursor-pointer"
+            >
+              &times;
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Global Header */}
       <header className={`${theme === 'dark' ? 'bg-[#18191A] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-900'} shadow-sm py-3 px-3 lg:px-8 flex flex-wrap items-center justify-between sticky top-0 z-30 border-b transition-colors duration-300 gap-3`}>
         
@@ -1970,24 +2195,49 @@ export default function Home() {
         {/* ផ្នែកទី៣៖ Controls (Language, Theme, Ad Account, Reporting) */}
         <div className="flex items-center flex-wrap gap-2 ml-auto lg:ml-0">
           
-          {/* ប៊ូតុងប្តូរភាសា */}
-          <button 
-            onClick={() => setLang(lang === 'kh' ? 'en' : 'kh')} 
-            className={`px-3 h-8 flex items-center gap-2 rounded-full font-bold text-xs shadow-sm transition-all cursor-pointer border group ${
-              theme === 'dark' 
-                ? 'bg-[#242526] border-slate-600 text-slate-100 hover:border-blue-500' 
-                : 'bg-white border-slate-300 text-slate-700 hover:border-blue-500'
-            }`}
-            title="ប្តូរភាសា / Change Language"
-          >
-            <div className="w-4 h-4 rounded-full bg-blue-500/10 text-blue-600 flex items-center justify-center text-[10px] group-hover:rotate-45 transition-transform duration-300">
-              🌐
-            </div>
-            <span className="tracking-wide font-extrabold text-[11px]">
-              {lang === 'kh' ? 'KH' : 'EN'}
-            </span>
-            <span className="text-[9px] opacity-60 ml-[-2px]">▼</span>
-          </button>
+          {/* 🌟 Language Dropdown (ខ្មែរ / English) */}
+          <div className="relative">
+            <button 
+              type="button"
+              onClick={() => setIsLangMenuOpen(!isLangMenuOpen)} 
+              className={`px-3 h-8 flex items-center gap-2 rounded-full font-bold text-xs shadow-sm transition-all cursor-pointer border group ${
+                theme === 'dark' 
+                  ? 'bg-[#242526] border-slate-600 text-slate-100 hover:border-blue-500' 
+                  : 'bg-white border-slate-300 text-slate-700 hover:border-blue-500'
+              }`}
+              title="ប្តូរភាសា / Change Language"
+            >
+              <div className="w-4 h-4 rounded-full bg-blue-500/10 text-blue-600 flex items-center justify-center text-[10px]">
+                🌐
+              </div>
+              <span className="tracking-wide font-extrabold text-[11px]">
+                {lang === 'kh' ? 'ភាសាខ្មែរ (KH)' : 'English (EN)'}
+              </span>
+              <span className="text-[9px] opacity-60 ml-[-2px]">▼</span>
+            </button>
+
+            {isLangMenuOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setIsLangMenuOpen(false)}></div>
+                <div className={`absolute top-[110%] right-0 w-[160px] border rounded-xl shadow-xl z-50 p-1.5 flex flex-col ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-800'}`}>
+                  <div 
+                    onClick={() => { setLang('kh'); setIsLangMenuOpen(false); showToast("🇰🇭 បានប្ដូរទៅជាភាសាខ្មែរ", "success"); }}
+                    className={`p-2.5 rounded-lg text-xs cursor-pointer transition flex items-center justify-between ${lang === 'kh' ? 'bg-blue-600 text-white font-bold' : 'hover:bg-slate-100 dark:hover:bg-[#3A3B3C]'}`}
+                  >
+                    <span>🇰🇭 ភាសាខ្មែរ (KH)</span>
+                    {lang === 'kh' && <span>✓</span>}
+                  </div>
+                  <div 
+                    onClick={() => { setLang('en'); setIsLangMenuOpen(false); showToast("🇺🇸 Switched to English", "success"); }}
+                    className={`p-2.5 rounded-lg text-xs cursor-pointer transition flex items-center justify-between ${lang === 'en' ? 'bg-blue-600 text-white font-bold' : 'hover:bg-slate-100 dark:hover:bg-[#3A3B3C]'}`}
+                  >
+                    <span>🇺🇸 English (EN)</span>
+                    {lang === 'en' && <span>✓</span>}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
 
           {/* ប៊ូតុងផ្លាស់ប្តូរ យប់/ថ្ងៃ */}
           <button 
@@ -2089,24 +2339,34 @@ export default function Home() {
       {/* 🌟 Layout Main + Left Sidebar (ប៊ូតុង Logout ជាប់នឹងបាត Sidebar ឃើញជានិច្ច) */}
       <div className="flex flex-1 w-full items-stretch">
 
+        {/* 🌟 ១. យក Object វចនានុក្រមភាសា មកដាក់ពីលើ Component Home របស់បង */}
+        {/* 
+          const translations = {
+            kh: { createCampaign: "បង្កើតយុទ្ធនាការ", manageCampaign: "គ្រប់គ្រងយុទ្ធនាការ", aiCopywriter: "AI Copywriter", subscriptions: "គ្រប់គ្រងអតិថិជន", settings: "ការកំណត់ (Settings)", logout: "Logout ចេញពីប្រព័ន្ធ" },
+            en: { createCampaign: "Create Campaign", manageCampaign: "Manage Campaigns", aiCopywriter: "AI Copywriter", subscriptions: "Manage Subscriptions", settings: "Settings", logout: "Logout" }
+          };
+          const t = translations[lang];
+        */}
+
+        {/* ២. យកកូដ Sidebar នេះទៅដាក់ជំនួសកន្លែងចាស់ក្នុង Page.tsx របស់បង */}
         <aside className={`hidden md:flex flex-col w-[260px] shrink-0 border-r h-[calc(100vh-64px)] sticky top-[64px] shadow-sm z-10 transition-colors ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'}`}>
-         
-         {/* ១. ផ្នែកមឺនុយខាងលើ (Main Menu & Tools) */}
-         <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-2 pt-6 custom-scrollbar">
-            <div className="text-[11px] font-bold text-slate-400 mb-2 px-3 uppercase tracking-widest">{lang === 'kh' ? 'Main Menu' : 'Main Menu'}</div>
+          
+          {/* ១. ផ្នែកមឺនុយខាងលើ (Main Menu & Tools) */}
+          <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-2 pt-6 custom-scrollbar">
+            <div className="text-[11px] font-bold text-slate-400 mb-2 px-3 uppercase tracking-widest">Main Menu</div>
             
             <button 
               onClick={() => handleTabChange("CREATE")}
               className={`w-full text-left px-4 py-3.5 rounded-xl font-bold transition-all flex items-center gap-3 cursor-pointer ${activeTab === "CREATE" ? "bg-blue-600 text-white shadow-md" : (theme === 'dark' ? 'text-slate-300 hover:bg-[#3A3B3C] hover:text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900')}`}
             >
-              <span className="text-lg leading-none">✍️</span> <span className="text-[13.5px]">បង្កើតយុទ្ធនាការ</span>
+              <span className="text-lg leading-none">✍️</span> <span className="text-[13.5px]">{t.createCampaign}</span>
             </button>
 
             <button 
               onClick={() => handleTabChange("MANAGE")}
               className={`w-full text-left px-4 py-3.5 rounded-xl font-bold transition-all flex items-center gap-3 cursor-pointer ${activeTab === "MANAGE" ? "bg-blue-600 text-white shadow-md" : (theme === 'dark' ? 'text-slate-300 hover:bg-[#3A3B3C] hover:text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900')}`}
             >
-              <span className="text-lg leading-none">📊</span> <span className="text-[13.5px]">គ្រប់គ្រងយុទ្ធនាការ</span>
+              <span className="text-lg leading-none">📊</span> <span className="text-[13.5px]">{t.manageCampaign}</span>
             </button>
             
             {/* 🌟 ផ្នែក Tools */}
@@ -2117,7 +2377,7 @@ export default function Home() {
               onClick={() => handleTabChange("AI")}
               className={`w-full text-left px-4 py-3.5 rounded-xl font-bold transition-all flex items-center gap-3 cursor-pointer ${activeTab === "AI" ? "bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-md" : (theme === 'dark' ? 'text-slate-300 hover:bg-[#3A3B3C] hover:text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900')}`}
             >
-              <span className="text-lg leading-none">✨</span> <span className="text-[13.5px]">AI Copywriter</span>
+              <span className="text-lg leading-none">✨</span> <span className="text-[13.5px]">{t.aiCopywriter}</span>
             </button>
 
             {/* 🌟 បង្ហាញ Tab គ្រប់គ្រងអតិថិជន เฉพาะ Admin តែប៉ុណ្ណោះ */}
@@ -2126,7 +2386,7 @@ export default function Home() {
                 onClick={() => handleTabChange("SUBSCRIPTIONS")}
                 className={`w-full text-left px-4 py-3.5 rounded-xl font-bold transition-all flex items-center gap-3 cursor-pointer ${activeTab === "SUBSCRIPTIONS" ? "bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md" : (theme === 'dark' ? 'text-slate-300 hover:bg-[#3A3B3C] hover:text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900')}`}
               >
-                <span className="text-lg leading-none">📋</span> <span className="text-[13.5px]">គ្រប់គ្រងអតិថិជន</span>
+                <span className="text-lg leading-none">📋</span> <span className="text-[13.5px]">{t.subscriptions}</span>
               </button>
             )}
          </div>
@@ -2143,7 +2403,7 @@ export default function Home() {
                   : (theme === 'dark' ? 'text-slate-300 hover:bg-[#3A3B3C] hover:text-white' : 'text-slate-700 hover:bg-slate-100')
               }`}
             >
-              <span className="text-lg leading-none">⚙️</span> <span className="text-[13.5px]">ការកំណត់ (Settings)</span>
+              <span className="text-lg leading-none">⚙️</span> <span className="text-[13.5px]">{t.settings}</span>
             </button>
 
             {/* ប៊ូតុង Logout */}
@@ -2157,7 +2417,7 @@ export default function Home() {
               }`}
               title="ចាកចេញពីគណនី / Logout"
             >
-              <span>🚪</span> <span className="text-[13.5px]">Logout ចេញពីប្រព័ន្ធ</span>
+              <span>🚪</span> <span className="text-[13.5px]">{t.logout}</span>
             </button>
 
          </div>
@@ -2272,21 +2532,46 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* AI Results Display */}
+                {/* AI Results Display ជាមួយនឹងប៊ូតុង Save & Use for Ads */}
                 {aiResults.length > 0 && (
-                  <div className="mt-8 space-y-4 animate-in slide-in-from-bottom-4 duration-300">
-                    <h3 className={`font-bold text-[15px] border-b pb-2 ${theme === 'dark' ? 'text-white border-slate-700' : 'text-slate-800 border-slate-200'}`}>ជម្រើសអត្ថបទដែល AI បានបង្កើត៖</h3>
+                  <div className="mt-8 space-y-4 animate-in slide-in-from-top-4 duration-300">
+                    <h3 className={`font-bold text-[15px] border-b pb-2 ${theme === 'dark' ? 'text-white border-slate-700' : 'text-slate-800 border-slate-200'}`}>
+                      ជម្រើសអត្ថបទដែល AI បានបង្កើត៖
+                    </h3>
                     {aiResults.map((res, idx) => (
                       <div key={idx} className={`border p-5 rounded-xl shadow-sm hover:shadow-md transition relative group ${theme === 'dark' ? 'bg-[#3A3B3C] border-indigo-900/50 text-white' : 'bg-[#F8F9FE] border-indigo-100 text-slate-800'}`}>
-                        <p className="text-[14px] leading-relaxed pr-8 whitespace-pre-wrap">{res}</p>
-                        <button 
-                          type="button"
-                          onClick={() => { navigator.clipboard.writeText(res); alert("✅ បានចម្លងអត្ថបទ (Copied!)"); }} 
-                          className={`absolute top-4 right-4 p-2 border rounded-md transition shadow-sm cursor-pointer ${theme === 'dark' ? 'bg-[#242526] border-slate-600 text-slate-300 hover:text-purple-400' : 'bg-white border-slate-200 text-slate-400 hover:text-purple-600'}`}
-                          title="Copy to clipboard"
-                        >
-                          📋
-                        </button>
+                        <p className="text-[14px] leading-relaxed pr-8 whitespace-pre-wrap mb-4">{res}</p>
+                        
+                        {/* 🌟 Toolbar ក្រោមអត្ថបទនីមួយៗ (Copy & Save & Use for Ads) */}
+                        <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-indigo-100/50 dark:border-slate-600">
+                          <button 
+                            type="button"
+                            onClick={() => { 
+                              navigator.clipboard.writeText(res); 
+                              showToast("✅ បានចម្លងអត្ថបទ (Copied!)", "success"); 
+                            }} 
+                            className={`px-3 py-1.5 border rounded-lg text-xs font-bold transition shadow-xs cursor-pointer flex items-center gap-1 ${theme === 'dark' ? 'bg-[#242526] border-slate-600 text-slate-300 hover:bg-slate-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                          >
+                            <span>📋</span> Copy
+                          </button>
+
+                          <button 
+                            type="button"
+                            onClick={() => {
+                              // ១. រក្សាទុកអត្ថបទនេះចូលក្នុង localStorage សម្រាប់ឱ្យផ្ទាំង Create Campaign អានយកទៅប្រើ
+                              localStorage.setItem("selected_ai_ad_copy", res);
+                              // ២. ប្ដូរ Tab ទៅកាន់ CREATE ស្វ័យប្រវត្តិ
+                              setActiveTab("CREATE");
+                              if (typeof window !== "undefined") {
+                                localStorage.setItem("activeTab", "CREATE");
+                              }
+                              showToast("🚀 បានរក្សាទុក និងផ្ដល់ជូនផ្ទាំង Create Campaign រួចរាល់!", "success");
+                            }}
+                            className="px-4 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg text-xs font-bold shadow-sm transition flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <span>💾</span> Save & Use for Ads ➔
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -3761,20 +4046,23 @@ export default function Home() {
                     <button 
                       type="button"
                       onClick={() => {
-                        if (!selectedCampaigns || selectedCampaigns.length === 0) {
-                          alert("⚠️ សូមធីកជ្រើសរើស Campaign ណាមួយដែលបងចង់លុបជាមុនសិន!");
-                          return;
+                        if (activeManageTab === 'ADS') {
+                          handleDeleteSelectedAds();
+                        } else {
+                          if (!selectedCampaigns || selectedCampaigns.length === 0) {
+                            alert("⚠️ សូមធីកជ្រើសរើស Campaign ណាមួយជាមុនសិន!");
+                            return;
+                          }
+                          setIsDeleteModalOpen(true);
                         }
-                        // បើក Modal ទំនើបជំនួសឱ្យ window.confirm
-                        setIsDeleteModalOpen(true);
                       }}
                       className={`font-bold py-2 px-3 rounded-lg text-[13px] flex items-center justify-center gap-1.5 transition cursor-pointer shadow-sm border ${
-                        selectedCampaigns && selectedCampaigns.length > 0
+                        (activeManageTab === 'ADS' ? selectedAds.length > 0 : selectedCampaigns.length > 0)
                           ? 'bg-red-600 hover:bg-red-700 text-white border-transparent'
                           : 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
                       }`}
                     >
-                      <span className="text-sm">🗑️</span> Delete ({selectedCampaigns?.length || 0})
+                      <span className="text-sm">🗑️</span> Delete ({activeManageTab === 'ADS' ? selectedAds.length : selectedCampaigns.length})
                     </button>
                   </div>
                   
@@ -3783,9 +4071,19 @@ export default function Home() {
                   <div className="hidden sm:flex items-center justify-between gap-3 pt-2 border-t border-slate-100 dark:border-slate-700 w-full flex-wrap">
                     <div className="flex items-center gap-2">
                       <span className={`flex items-center gap-1.5 text-[12px] ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
-                        <span className="w-2 h-2 rounded-full bg-slate-400"></span> Updated just now
+                        <span className="w-2 h-2 rounded-full bg-emerald-500"></span> Updated just now
                       </span>
-                      <button onClick={fetchCampaigns} className={`transition text-base p-1 rounded-lg cursor-pointer ${theme === 'dark' ? 'hover:bg-slate-700 text-white' : 'hover:bg-slate-100 text-slate-800'}`} title="Refresh">🔄</button>
+                      <button 
+                        type="button"
+                        onClick={handleManualRefresh} 
+                        disabled={isRefreshing}
+                        className={`transition text-base p-1.5 rounded-lg cursor-pointer border shadow-xs flex items-center justify-center ${
+                          theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white hover:bg-[#4E4F50]' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100'
+                        }`} 
+                        title="Refresh data"
+                      >
+                        <span className={`inline-block ${isRefreshing ? 'animate-spin' : ''}`}>🔄</span>
+                      </button>
                     </div>
                     
                     {/* អា ៣ ហ្នឹងតម្រៀបជាជួរតែមួយ (រត់លើ Desktop ប៉ុណ្ណោះ លាក់លើ Mobile) */}
@@ -3863,7 +4161,7 @@ export default function Home() {
                 {activeManageTab === 'CAMPAIGNS' && (
                   <div className="w-full h-full flex flex-col justify-between min-w-full">
                     <div className="w-full overflow-x-auto flex-1 custom-scrollbar">
-                      <table className="w-full text-left border-collapse min-w-[1500px]">
+                      <table className="w-full text-left border-collapse min-w-[1650px]">
                         <thead className={`sticky top-0 z-20 shadow-[0_1px_0_0_rgba(0,0,0,0.1)] ${theme === 'dark' ? 'bg-[#18191A] text-slate-400' : 'bg-[#F5F6F8] text-[#65676B]'}`}>
                           <tr className="text-[12px]">
                             <th className={`p-3 border-r w-10 text-center ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
@@ -3889,6 +4187,12 @@ export default function Home() {
                               <div className="flex items-center justify-between"><span>Results</span><span>{sortField === 'results' ? (sortDirection === 'asc' ? '↑' : '↓') : '↕'}</span></div>
                             </th>
                             <th className={`p-3 border-r min-w-[120px] font-bold ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Cost per result</th>
+                            
+                            {/* 🌟 ជួរឈរថ្មី៖ បង្ហាញការវាយតម្លៃ AI លើកម្រិត CPA */}
+                            <th className={`p-3 border-r min-w-[150px] font-bold text-blue-600 dark:text-blue-400 ${theme === 'dark' ? 'border-slate-700 bg-blue-950/20' : 'border-slate-200 bg-blue-50/50'}`}>
+                              ការវាយតម្លៃ AI (CPA)
+                            </th>
+
                             <th onClick={() => handleSort('budget')} className={`p-3 border-r min-w-[100px] font-bold cursor-pointer select-none ${theme === 'dark' ? 'border-slate-700 hover:bg-[#3A3B3C]' : 'border-slate-200 hover:bg-slate-200'}`}>
                               <div className="flex items-center justify-between"><span>Budget</span><span>{sortField === 'budget' ? (sortDirection === 'asc' ? '↑' : '↓') : '↕'}</span></div>
                             </th>
@@ -3907,7 +4211,7 @@ export default function Home() {
                         <tbody className={`text-[13px] ${theme === 'dark' ? 'text-slate-300' : 'text-[#050505]'}`}>
                           {campaignsList.length === 0 && !loadingCampaigns ? (
                             <tr>
-                              <td colSpan={12} className={`p-10 text-center font-medium ${theme === 'dark' ? 'bg-[#242526] text-slate-500' : 'bg-slate-50 text-slate-500'}`}>No campaigns found.</td>
+                              <td colSpan={13} className={`p-10 text-center font-medium ${theme === 'dark' ? 'bg-[#242526] text-slate-500' : 'bg-slate-50 text-slate-500'}`}>No campaigns found.</td>
                             </tr>
                           ) : (
                             campaignsList.map((c) => {
@@ -3961,12 +4265,10 @@ export default function Home() {
 
                                   <td className={`p-3 border-r align-middle min-w-[120px] ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
                                     {(() => {
-                                      // 🌟 ឆែកមើលថាតើ Campaign នេះមាន Ads ឬអត់ (តាមរយៈ Insights ឬ Array របស់ Ads)
                                       const ins = getInsights(c);
                                       const hasAds = ins && (Number(ins.impressions) > 0 || Number(ins.spend) > 0 || Number(ins.reach) > 0);
                                       const status = c.effective_status || c.status;
 
-                                      // បើ Status ដាក់ Active តែអត់ទាន់មាន Ads ឬ Impressions សោះ គឺត្រូវបង្ហាញថា "No ads" ដូច Facebook
                                       if (status === 'ACTIVE' && !hasAds) {
                                         return (
                                           <span className="flex items-center gap-1.5 font-medium text-slate-500">
@@ -4009,6 +4311,11 @@ export default function Home() {
                                     <div className="text-[10px] text-slate-500 uppercase mt-0.5">Per Conversation</div>
                                   </td>
 
+                                  {/* 🌟 ផ្ទាំងបង្ហាញ Badge វាយតម្លៃ CPA ស្វ័យប្រវត្តិតាមលក្ខខណ្ឌ */}
+                                  <td className={`p-3 border-r align-middle min-w-[150px] ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                                    {cpa !== null ? getCpaBadge(cpa) : <span className="text-slate-400 text-xs">-</span>}
+                                  </td>
+
                                   <td className={`p-3 border-r text-right align-middle min-w-[100px] ${theme === 'dark' ? 'border-slate-700 text-slate-400' : 'border-slate-200 text-slate-600'}`}>
                                     {c.daily_budget ? (
                                       <><div>{formatCurrency(c.daily_budget)}</div><div className="text-[10px] uppercase">Daily</div></>
@@ -4032,7 +4339,7 @@ export default function Home() {
                           )}
                         </tbody>
 
-                        {/* 🌟 ដាក់បញ្ជូល Summary Footer Row ក្នុង Tag <tfoot> ខាងក្នុង Table តែមួយ */}
+                        {/* 🌟 Footer បូកសរុប (បានតម្រឹមបន្ថែម ១ ជួរឈរ សម្រាប់ CPA Status ឱ្យស្មើគ្នា ១០០%) */}
                         <tfoot className={`sticky bottom-0 z-20 font-bold text-[13px] border-t-2 ${theme === 'dark' ? 'bg-[#18191A] border-slate-600 text-white' : 'bg-[#F5F6F8] border-slate-300 text-slate-900'}`}>
                           <tr>
                             <td colSpan={5} className="p-3 border-r border-slate-300 dark:border-slate-700">
@@ -4048,6 +4355,7 @@ export default function Home() {
                               }, 0))}
                             </td>
                             <td className="p-3 border-r text-right border-slate-300 dark:border-slate-700">-</td>
+                            <td className="p-3 border-r text-center border-slate-300 dark:border-slate-700">-</td>
                             <td className="p-3 border-r text-right border-slate-300 dark:border-slate-700">
                               {formatCurrency(campaignsList.reduce((acc, c) => {
                                 const bgt = c.daily_budget || c.lifetime_budget || 0;
@@ -4180,126 +4488,152 @@ export default function Home() {
                   )}
 
                   {/* ========================================================= */}
-                  {/* 3. TABLE: ADS */}
-                  {/* ========================================================= */}
-                  {activeManageTab === 'ADS' && (
-                    <div className="w-full overflow-x-auto">
-                      <table className="w-full text-left border-collapse min-w-[1500px]">
-                        <thead className={`sticky top-0 z-20 shadow-[0_1px_0_0_rgba(0,0,0,0.1)] ${theme === 'dark' ? 'bg-[#18191A] text-slate-400' : 'bg-[#F5F6F8] text-[#65676B]'}`}>
-                          <tr className="text-[12px]">
-                            <th className={`p-3 border-r w-10 text-center ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}><input type="checkbox" className="w-3.5 h-3.5 accent-[#1877F2]" /></th>
-                            <th className={`p-3 border-r w-16 text-center font-bold ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Off / On</th>
-                            <th className={`p-3 border-r min-w-[300px] font-bold ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Ad name</th>
-                            <th className={`p-3 border-r min-w-[120px] font-bold ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Delivery</th>
-                            <th className={`p-3 border-r min-w-[140px] font-bold text-right ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Results</th>
-                            <th className={`p-3 border-r min-w-[120px] font-bold text-right ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Cost per result</th>
-                            <th className={`p-3 border-r min-w-[120px] font-bold text-right ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Budget</th>
-                            <th className={`p-3 border-r min-w-[120px] font-bold text-right ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Amount spent</th>
-                            <th className={`p-3 border-r min-w-[100px] font-bold text-right ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Impressions</th>
-                            <th className={`p-3 border-r min-w-[100px] font-bold text-right ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Reach</th>
-                            <th className="p-3 min-w-[100px] font-bold">Ends</th>
-                          </tr>
-                        </thead>
-                        <tbody className={`text-[13px] ${theme === 'dark' ? 'text-slate-300' : 'text-[#050505]'}`}>
-                          {loadingAds ? (
-                            <tr><td colSpan={11} className="p-10 text-center text-slate-500">កំពុងទាញយកបញ្ជី Ads...</td></tr>
-                          ) : adsList.length === 0 ? (
-                            <tr><td colSpan={11} className="p-10 text-center text-slate-500">រកមិនឃើញ Ads ក្រោម Campaign នេះទេ</td></tr>
-                          ) : (
-                            adsList.map((ad) => {
-                              const ins = ad.insights && ad.insights.data && ad.insights.data.length > 0 ? ad.insights.data[0] : null;
-                              
-                              let results: string | number = "-";
-                              if (ins && ins.actions) {
-                                const actionObj = ins.actions.find((a: any) => 
-                                    a.action_type === 'onsite_conversion.messaging_conversation_started_7d' || 
-                                    a.action_type === 'onsite_conversion.messaging_first_reply' || 
-                                    a.action_type === 'post_engagement' || 
-                                    a.action_type === 'link_click'
+                {/* 3. TABLE: ADS */}
+                {/* ========================================================= */}
+                {activeManageTab === 'ADS' && (
+                  <div className="w-full overflow-x-auto">
+                    <table className="w-full text-left border-collapse min-w-[1500px]">
+                      <thead className={`sticky top-0 z-20 shadow-[0_1px_0_0_rgba(0,0,0,0.1)] ${theme === 'dark' ? 'bg-[#18191A] text-slate-400' : 'bg-[#F5F6F8] text-[#65676B]'}`}>
+                        <tr className="text-[12px]">
+                          <th className={`p-3 border-r w-10 text-center ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                            <input 
+                              type="checkbox" 
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedAds(adsList.map(ad => ad.id));
+                                } else {
+                                  setSelectedAds([]);
+                                }
+                              }}
+                              checked={adsList.length > 0 && selectedAds.length === adsList.length}
+                              className="w-3.5 h-3.5 accent-[#1877F2] cursor-pointer" 
+                            />
+                          </th>
+                          <th className={`p-3 border-r w-16 text-center font-bold ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Off / On</th>
+                          <th className={`p-3 border-r min-w-[300px] font-bold ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Ad name</th>
+                          <th className={`p-3 border-r min-w-[120px] font-bold ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Delivery</th>
+                          <th className={`p-3 border-r min-w-[140px] font-bold text-right ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Results</th>
+                          <th className={`p-3 border-r min-w-[120px] font-bold text-right ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Cost per result</th>
+                          <th className={`p-3 border-r min-w-[120px] font-bold text-right ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Budget</th>
+                          <th className={`p-3 border-r min-w-[120px] font-bold text-right ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Amount spent</th>
+                          <th className={`p-3 border-r min-w-[100px] font-bold text-right ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Impressions</th>
+                          <th className={`p-3 border-r min-w-[100px] font-bold text-right ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Reach</th>
+                          <th className="p-3 min-w-[100px] font-bold">Ends</th>
+                        </tr>
+                      </thead>
+                      <tbody className={`text-[13px] ${theme === 'dark' ? 'text-slate-300' : 'text-[#050505]'}`}>
+                        {loadingAds ? (
+                          <tr><td colSpan={11} className="p-10 text-center text-slate-500">កំពុងទាញយកបញ្ជី Ads...</td></tr>
+                        ) : adsList.length === 0 ? (
+                          <tr><td colSpan={11} className="p-10 text-center text-slate-500">រកមិនឃើញ Ads ក្រោម Campaign នេះទេ</td></tr>
+                        ) : (
+                          adsList.map((ad) => {
+                            const ins = ad.insights && ad.insights.data && ad.insights.data.length > 0 ? ad.insights.data[0] : null;
+                            
+                            let results: string | number = "-";
+                            if (ins && ins.actions) {
+                              const actionObj = ins.actions.find((a: any) => 
+                                  a.action_type === 'onsite_conversion.messaging_conversation_started_7d' || 
+                                  a.action_type === 'onsite_conversion.messaging_first_reply' || 
+                                  a.action_type === 'post_engagement' || 
+                                  a.action_type === 'link_click'
                                 );
-                                if (actionObj) results = actionObj.value;
-                              }
+                              if (actionObj) results = actionObj.value;
+                            }
 
-                              const spend = ins?.spend || 0;
-                              const impressions = ins?.impressions || 0;
-                              const reach = ins?.reach || 0;
-                              const cpa = (results !== "-" && spend && Number(results) > 0) ? (Number(spend) / Number(results)) : null;
+                            const spend = ins?.spend || 0;
+                            const impressions = ins?.impressions || 0;
+                            const reach = ins?.reach || 0;
+                            const cpa = (results !== "-" && spend && Number(results) > 0) ? (Number(spend) / Number(results)) : null;
+                            const isAdSelected = selectedAds.includes(ad.id);
 
-                              return (
-                                <tr key={ad.id} className={`border-b transition min-h-[48px] ${theme === 'dark' ? 'border-slate-700 hover:bg-[#3A3B3C]' : 'border-slate-200 hover:bg-slate-50'}`}>
-                                  <td className={`p-3 border-r text-center align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}><input type="checkbox" className="w-3.5 h-3.5 accent-[#1877F2] cursor-pointer" /></td>
-                                  
-                                  <td className={`p-3 border-r text-center align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-                                    <div 
-                                      onClick={() => handleToggleAdStatus(ad.id, ad.status)}
-                                      className={`w-8 h-4 rounded-full mx-auto relative cursor-pointer transition-colors ${ad.status === 'ACTIVE' ? 'bg-[#1877F2]' : 'bg-[#BCC0C4]'}`}
-                                    >
-                                      <div className={`w-3.5 h-3.5 bg-white rounded-full absolute top-[1px] transition-all ${ad.status === 'ACTIVE' ? 'right-[2px]' : 'left-[2px]'}`}></div>
-                                    </div>
-                                  </td>
+                            return (
+                              <tr key={ad.id} className={`border-b transition min-h-[48px] ${theme === 'dark' ? (isAdSelected ? 'bg-blue-900/30 border-slate-700' : 'border-slate-700 hover:bg-[#3A3B3C]') : (isAdSelected ? 'bg-[#EBF5FF] border-slate-200' : 'border-slate-200 hover:bg-slate-50')}`}>
+                                {/* 🌟 ដាក់ប្រអប់ Checkbox សម្រាប់លុប Ad នីមួយៗនៅទីនេះ */}
+                                <td className={`p-3 border-r text-center align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                                  <input 
+                                    type="checkbox" 
+                                    checked={isAdSelected}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        setSelectedAds([...selectedAds, ad.id]);
+                                      } else {
+                                        setSelectedAds(selectedAds.filter(id => id !== ad.id));
+                                      }
+                                    }}
+                                    className="w-3.5 h-3.5 accent-[#1877F2] cursor-pointer" 
+                                  />
+                                </td>
+                                
+                                <td className={`p-3 border-r text-center align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                                  <div 
+                                    onClick={() => handleToggleAdStatus(ad.id, ad.status)}
+                                    className={`w-8 h-4 rounded-full mx-auto relative cursor-pointer transition-colors ${ad.status === 'ACTIVE' ? 'bg-[#1877F2]' : 'bg-[#BCC0C4]'}`}
+                                  >
+                                    <div className={`w-3.5 h-3.5 bg-white rounded-full absolute top-[1px] transition-all ${ad.status === 'ACTIVE' ? 'right-[2px]' : 'left-[2px]'}`}></div>
+                                  </div>
+                                </td>
 
-                                  {/* 🌟 ទីតាំងដាក់ប៊ូតុង AI Audit ស្ថិតនៅកន្លែង Ad name នេះឯង */}
-                                  <td className={`p-3 border-r align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-                                    <div className="flex items-center justify-between gap-3">
-                                      <div className="flex items-center gap-2.5 min-w-0">
-                                        <div className="w-9 h-9 rounded bg-slate-800 flex items-center justify-center text-white text-xs overflow-hidden shrink-0 shadow-xs">
-                                          {ad.creative?.thumbnail_url ? <img src={ad.creative.thumbnail_url} className="w-full h-full object-cover" /> : '👟'}
-                                        </div>
-                                        <span className="font-semibold text-[#1877F2] hover:underline cursor-pointer truncate max-w-[180px]">{ad.name}</span>
+                                <td className={`p-3 border-r align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                                  <div className="flex items-center justify-between gap-3">
+                                    <div className="flex items-center gap-2.5 min-w-0">
+                                      <div className="w-9 h-9 rounded bg-slate-800 flex items-center justify-center text-white text-xs overflow-hidden shrink-0 shadow-xs">
+                                        {ad.creative?.thumbnail_url ? <img src={ad.creative.thumbnail_url} className="w-full h-full object-cover" /> : '👟'}
                                       </div>
-
-                                      {/* 🚀 ប៊ូតុង AI Audit ស្ថិតនៅទីនេះ */}
-                                      <button 
-                                        type="button"
-                                        disabled={auditLoading}
-                                        onClick={() => handleAiAudit(ad)}
-                                        className="px-2.5 py-1 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold rounded-lg text-[11px] flex items-center gap-1.5 shadow-sm hover:opacity-90 cursor-pointer shrink-0 disabled:opacity-50"
-                                      >
-                                        {auditLoading ? (
-                                          <>
-                                            <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                                            <span>កំពុងវិភាគ...</span>
-                                          </>
-                                        ) : (
-                                          <>
-                                            <span>✨</span> <span>AI Audit</span>
-                                          </>
-                                        )}
-                                      </button>
+                                      <span className="font-semibold text-[#1877F2] hover:underline cursor-pointer truncate max-w-[180px]">{ad.name}</span>
                                     </div>
-                                  </td>
 
-                                  <td className={`p-3 border-r align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-                                    <span className="flex items-center gap-1.5"><span className={`w-2 h-2 rounded-full ${ad.effective_status === 'ACTIVE' ? 'bg-[#31A24C]' : 'bg-slate-400'}`}></span> {ad.effective_status || ad.status}</span>
-                                  </td>
-                                  
-                                  <td className={`p-3 border-r text-right align-middle min-w-[150px] ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-                                    <div className="font-semibold">{results === "-" ? "-" : formatNumber(results)}</div>
-                                    <div className="text-[10px] text-slate-500 uppercase mt-0.5">Results</div>
-                                  </td>
+                                    <button 
+                                      type="button"
+                                      disabled={auditLoading}
+                                      onClick={() => handleAiAudit(ad)}
+                                      className="px-2.5 py-1 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold rounded-lg text-[11px] flex items-center gap-1.5 shadow-sm hover:opacity-90 cursor-pointer shrink-0 disabled:opacity-50"
+                                    >
+                                      {auditLoading ? (
+                                        <>
+                                          <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                          <span>កំពុងវិភាគ...</span>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <span>✨</span> <span>AI Audit</span>
+                                        </>
+                                      )}
+                                    </button>
+                                  </div>
+                                </td>
 
-                                  <td className={`p-3 border-r text-right align-middle min-w-[120px] ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-                                    <div className="font-semibold">{cpa ? "$" + cpa.toFixed(2) : "-"}</div>
-                                    <div className="text-[10px] text-slate-500 uppercase mt-0.5">Per Result</div>
-                                  </td>
+                                <td className={`p-3 border-r align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                                  <span className="flex items-center gap-1.5"><span className={`w-2 h-2 rounded-full ${ad.effective_status === 'ACTIVE' ? 'bg-[#31A24C]' : 'bg-slate-400'}`}></span> {ad.effective_status || ad.status}</span>
+                                </td>
+                                
+                                <td className={`p-3 border-r text-right align-middle min-w-[150px] ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                                  <div className="font-semibold">{results === "-" ? "-" : formatNumber(results)}</div>
+                                  <div className="text-[10px] text-slate-500 uppercase mt-0.5">Results</div>
+                                </td>
 
-                                  <td className={`p-3 border-r text-right align-middle text-slate-500 ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Using ad set budget</td>
-                                  
-                                  <td className={`p-3 border-r text-right font-bold align-middle ${theme === 'dark' ? 'border-slate-700 text-white' : 'border-slate-200 text-slate-900'}`}>
-                                    ${Number(spend).toFixed(2)}
-                                  </td>
-                                  
-                                  <td className={`p-3 border-r text-right align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>{formatNumber(impressions)}</td>
-                                  <td className={`p-3 border-r text-right align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>{formatNumber(reach)}</td>
-                                  <td className={`p-3 text-[12px] align-middle ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Ongoing</td>
-                                </tr>
-                              );
-                            })
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
+                                <td className={`p-3 border-r text-right align-middle min-w-[120px] ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                                  <div className="font-semibold">{cpa ? "$" + cpa.toFixed(2) : "-"}</div>
+                                  <div className="text-[10px] text-slate-500 uppercase mt-0.5">Per Result</div>
+                                </td>
+
+                                <td className={`p-3 border-r text-right align-middle text-slate-500 ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Using ad set budget</td>
+                                
+                                <td className={`p-3 border-r text-right font-bold align-middle ${theme === 'dark' ? 'border-slate-700 text-white' : 'border-slate-200 text-slate-900'}`}>
+                                  ${Number(spend).toFixed(2)}
+                                </td>
+                                
+                                <td className={`p-3 border-r text-right align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>{formatNumber(impressions)}</td>
+                                <td className={`p-3 border-r text-right align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>{formatNumber(reach)}</td>
+                                <td className={`p-3 text-[12px] align-middle ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Ongoing</td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
 
                 </div>
               </div>

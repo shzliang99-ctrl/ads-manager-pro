@@ -1,20 +1,33 @@
 import { NextResponse } from 'next/server';
+import { checkRateLimit } from '../middleware/rateLimit';
 
 export async function POST(request: Request) {
   try {
+    // 🛡️ 1. ការពារ Rate Limiting តាម IP Address
+    const ip = request.headers.get('x-forwarded-for') || '127.0.0.1';
+    if (!checkRateLimit(ip, 15, 60000)) { 
+      return NextResponse.json({ 
+        success: false, 
+        error: "⚠️ សំណូមពរច្រើនហួសហេតុពេក! សូមសម្រាកបន្តិចសិនរួចសាកល្បងម្តងទៀត។" 
+      }, { status: 429 });
+    }
+
     const body = await request.json();
     const { campaignId, newName, newPostId, pageId, access_token } = body;
 
-    // 🌟 1. ពិនិត្យមើលសោរ Token
-    if (!access_token) {
-      return NextResponse.json({ success: false, error: "មិនមាន Access Token ទេ!" }, { status: 400 });
+    // 🔒 2. Validation សោរ Token យ៉ាងតឹងរឹង
+    if (!access_token || typeof access_token !== 'string' || access_token.length < 20) {
+      return NextResponse.json({ 
+        success: false, 
+        error: "🔒 សុវត្ថិភាព៖ រកមិនឃើញ Access Token ឬ Token មិនត្រឹមត្រូវទេ!" 
+      }, { status: 401 });
     }
 
     if (!campaignId) {
       return NextResponse.json({ success: false, error: "Missing Campaign ID" }, { status: 400 });
     }
 
-    // ២. រក Ad ដំបូងគេនៅក្នុង Campaign ហ្នឹងដើម្បីយកមក Copy (កូដដើមរបស់បង)
+    // ២. រក Ad ដំបូងគេនៅក្នុង Campaign ហ្នឹងដើម្បីយកមក Copy
     const adsRes = await fetch(`https://graph.facebook.com/v18.0/${campaignId}/ads?fields=id,adset_id&access_token=${access_token}`);
     const adsData = await adsRes.json();
     
@@ -51,37 +64,35 @@ export async function POST(request: Request) {
       if (creativeData.id) newCreativeId = creativeData.id;
     }
 
-    // ៥. Copy Ad ដើម (ដាក់ Paused សិន)
+    // ៥. Copy Ad ដើម (🌟 កែសម្រួលដាក់ជា ACTIVE ស្របតាមសំណូមពរឱ្យវាបើកដំណើរការភ្លាមៗ)
     const duplicateRes = await fetch(`https://graph.facebook.com/v18.0/${originalAdId}/copies`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status_option: 'PAUSED', access_token: access_token }),
+      body: JSON.stringify({ status_option: 'ACTIVE', access_token: access_token }),
     });
 
     const duplicateData = await duplicateRes.json();
     if (duplicateData.error) throw new Error("Copy Ad Error: " + duplicateData.error.message);
     
     const newAdId = duplicateData.copied_ad_id;
-    let updatePayload: any = { access_token: access_token };
+    let updatePayload: any = { access_token: access_token, status: 'ACTIVE' }; // 🌟 បន្ថែម status: 'ACTIVE' ធានាឱ្យប៊ូតុង ON ស្របតាមបងចង់បាន
 
     // ៦. ដាក់ឈ្មោះ និង Creative ថ្មី
     if (newName) updatePayload.name = newName;
     if (newCreativeId) updatePayload.creative = { creative_id: newCreativeId };
 
     // ៧. Update ទៅកាន់ Ad ដែលទើបតែកូពីបានរួច
-    if (updatePayload.name || updatePayload.creative) {
-      const updateRes = await fetch(`https://graph.facebook.com/v18.0/${newAdId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatePayload),
-      });
-      const updateData = await updateRes.json();
-      if (updateData.error) throw new Error("Update Ad Error: " + updateData.error.message);
-    }
+    const updateRes = await fetch(`https://graph.facebook.com/v18.0/${newAdId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updatePayload),
+    });
+    const updateData = await updateRes.json();
+    if (updateData.error) throw new Error("Update Ad Error: " + updateData.error.message);
 
     return NextResponse.json({
       success: true,
-      message: "បាន Duplicate និងផ្លាស់ប្តូរ Post ថ្មីដោយជោគជ័យ!",
+      message: "បាន Duplicate និងបើកដំណើរការ (Active) Ad ថ្មីដោយជោគជ័យ!",
       newAdId: newAdId,
     });
   } catch (error: any) {
