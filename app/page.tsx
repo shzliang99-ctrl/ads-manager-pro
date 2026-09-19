@@ -52,6 +52,8 @@ export default function Home() {
     checkAdminRole();
   }, []);
 
+  const [activePreviewAdId, setActivePreviewAdId] = useState<string | null>(null);
+
   // 🌟 State សម្រាប់ Toast Notifications
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
@@ -547,36 +549,40 @@ export default function Home() {
     setIsPageMenuOpen(false);
   };
 
-  // 🌟 3. ទាញយកបញ្ជី Pages ពី Facebook (កុំឱ្យវាប្ដូរ Page ចោលពេល Refresh)
+  // 🌟 វិធីសាស្ត្រទាញយក និងចាក់សោរ Ad Account ចុងក្រោយមិនឱ្យប្ដូរផ្ដេសផ្ដាស
   useEffect(() => {
     const token = localStorage.getItem('fb_user_token');
     if (!token) return;
 
-    fetch(`https://graph.facebook.com/v18.0/me/accounts?fields=id,name,access_token,picture{url}&access_token=${token}`)
+    fetch(`https://graph.facebook.com/v18.0/me/adaccounts?fields=account_id,name&access_token=${token}`)
       .then(res => res.json())
       .then(data => {
         if (data.data && data.data.length > 0) {
-          setPages(data.data);
-          setIsFbConnected(true);
+          const accList = data.data.map((acc: any) => ({
+            account_id: acc.account_id || acc.id.replace('act_', ''),
+            name: acc.name || `Ad Account (${acc.account_id || acc.id})`
+          }));
           
-          const savedPageId = localStorage.getItem("selectedPage");
-          const existingPage = data.data.find((p: any) => p.id === savedPageId);
+          setAdAccountsList(accList);
 
-          if (existingPage) {
-            // ✅ បើមាន៖ គឺចាក់សោរឱ្យវាបង្ហាញ Page ចាស់ហ្នឹងដដែល (មិនប្ដូរទៅណាទេ)
-            setSelectedPage(existingPage.id);
-            setFbPageName(existingPage.name);
+          // ១. ឆែកមើលក្នុង localStorage ថាតើធ្លាប់រើស Account ណាទុកមុនពេល Refresh/Verify ទេ?
+          const savedAccount = localStorage.getItem("selectedAdAccount");
+          const existingAccount = accList.find((acc: any) => acc.account_id === savedAccount);
+
+          if (existingAccount) {
+            // ✅ បើមាន៖ គឺចាក់សោរឱ្យវាប្រើ Ad Account ចាស់ហ្នឹងដដែល (មិនប្ដូរទៅណាទេ)
+            setSelectedAdAccount(existingAccount.account_id);
           } else {
-            // ❌ បើអត់ទាន់មាន ទើបកំណត់យក Page ទីមួយ
-            setSelectedPage(data.data[0].id);
-            setFbPageName(data.data[0].name);
-            localStorage.setItem("selectedPage", data.data[0].id);
-            localStorage.setItem("fbPageName", data.data[0].name);
+            // ❌ បើអត់ទាន់មានទិន្នន័យចាស់សោះ ទើបអនុញ្ញាតឱ្យយក Account ទីមួយ
+            setSelectedAdAccount(accList[0].account_id);
+            localStorage.setItem("selectedAdAccount", accList[0].account_id);
           }
+        } else {
+          console.log("No Ad Accounts found.");
         }
       })
-      .catch(err => console.error("Error fetching pages:", err));
-  }, []);
+      .catch(err => console.error("Error fetching ad accounts directly:", err));
+  }, [isFbConnected]);
 
   useEffect(() => {
     setIsMounted(true);
@@ -824,42 +830,6 @@ export default function Home() {
       })
       .catch(err => console.log("Error fetching ad accounts:", err));
   }, [isFbConnected]);
-
-  // 🌟 វិធីសាស្ត្រទាញយក និងចាក់សោរ Ad Account ចុងក្រោយមិនឱ្យប្ដូរផ្ដេសផ្ដាស
-  useEffect(() => {
-    const token = localStorage.getItem('fb_user_token');
-    if (!token) return;
-
-    fetch(`https://graph.facebook.com/v18.0/me/adaccounts?fields=account_id,name&access_token=${token}`)
-      .then(res => res.json())
-      .then(data => {
-        if (data.data && data.data.length > 0) {
-          const accList = data.data.map((acc: any) => ({
-            account_id: acc.account_id || acc.id.replace('act_', ''),
-            name: acc.name || `Ad Account (${acc.account_id || acc.id})`
-          }));
-          
-          setAdAccountsList(accList);
-
-          // ១. ឆែកមើលក្នុង localStorage ថាតើធ្លាប់រើស Account ណាទុកមុនពេល Refresh/Verify ទេ?
-          const savedAccount = localStorage.getItem("selectedAdAccount");
-          const existingAccount = accList.find((acc: any) => acc.account_id === savedAccount);
-
-          if (existingAccount) {
-            // ✅ បើមាន៖ គឺចាក់សោរឱ្យវាប្រើ Ad Account ចាស់ហ្នឹងដដែល (មិនប្ដូរទៅណាទេ)
-            setSelectedAdAccount(existingAccount.account_id);
-          } else {
-            // ❌ បើអត់ទាន់មានទិន្នន័យចាស់សោះ ទើបអនុញ្ញាតឱ្យយក Account ទីមួយ
-            setSelectedAdAccount(accList[0].account_id);
-            localStorage.setItem("selectedAdAccount", accList[0].account_id);
-          }
-        } else {
-          console.log("No Ad Accounts found.");
-        }
-      })
-      .catch(err => console.error("Error fetching ad accounts directly:", err));
-  }, [isFbConnected]);
-  
   
   // 🌟 ឱ្យប្រអប់ Search ចាំ និងរក្សាទុកពាក្យចុងក្រោយជាប់ជានិច្ច ទោះ Refresh ក៏មិនបាត់
   const [interestQuery, setInterestQuery] = useState(() => {
@@ -2674,13 +2644,74 @@ export default function Home() {
                 {/* Header */}
                 <div className="flex justify-between items-center mb-6">
                   <div>
-                    <h1 className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>👥 គ្រប់គ្រងគណនី និងកញ្ចប់សេវាអតិថិជន</h1>
-                    <p className={`text-sm mt-1 ${theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>បង្កើតគណនីភ្ជាប់ជាមួយ Facebook Page និងកំណត់ថ្ងៃផុតកំណត់</p>
+                    <h1 className={`text-xl font-bold flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
+                      <span className="p-1.5 bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 rounded-lg text-lg">👥</span> 
+                      គ្រប់គ្រងគណនី និងកញ្ចប់សេវាអតិថិជន
+                    </h1>
+                    <p className={`text-sm mt-1.5 ${theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>បង្កើតគណនីភ្ជាប់ជាមួយ Facebook Page និងតាមដានទិន្នន័យអតិថិជនរបស់អ្នក</p>
                   </div>
-                  <button onClick={() => setShowSubModal(true)} className="px-5 py-2.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition shadow-md cursor-pointer flex items-center gap-2">
+                  <button onClick={() => setShowSubModal(true)} className="px-5 py-2.5 bg-[#1877F2] hover:bg-[#166FE5] text-white font-bold rounded-xl transition shadow-md cursor-pointer flex items-center gap-2">
                     <span className="text-lg leading-none">+</span> <span className="hidden sm:inline">បង្កើតគណនីថ្មីអោយអតិថិជន</span>
                   </button>
                 </div>
+
+                {/* 🌟 ផ្នែក Dashboard Statistic Cards ទាំង ៤ (ដាក់ពីលើតារាង) */}
+                {(() => {
+                  const totalClients = clients.length;
+                  const activeClients = clients.filter(c => new Date(c.expiry_date) >= new Date()).length;
+                  const totalRevenue = clients.reduce((sum, c) => sum + (Number(c.amount) || 0), 0);
+                  const pendingSlips = clients.filter(c => c.slip_status === 'pending').length || 0; 
+
+                  return (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                      
+                      {/* 1. សរុបអតិថិជន (TOTAL CLIENTS) */}
+                      <div className={`p-5 rounded-2xl border shadow-sm flex items-center justify-between transition-colors ${theme === 'dark' ? 'bg-[#18191A] border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
+                        <div>
+                          <h4 className={`text-[11px] font-bold uppercase tracking-widest mb-1.5 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>សរុបអតិថិជន (Total Clients)</h4>
+                          <div className={`text-3xl font-black ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>{totalClients}</div>
+                        </div>
+                        <div className="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center text-xl shadow-inner">
+                          👥
+                        </div>
+                      </div>
+
+                      {/* 2. អតិថិជនសកម្ម (ACTIVE) */}
+                      <div className={`p-5 rounded-2xl border shadow-sm flex items-center justify-between transition-colors ${theme === 'dark' ? 'bg-[#18191A] border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
+                        <div>
+                          <h4 className={`text-[11px] font-bold uppercase tracking-widest mb-1.5 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>អតិថិជនសកម្ម (Active)</h4>
+                          <div className="text-3xl font-black text-[#31A24C]">{activeClients}</div>
+                        </div>
+                        <div className="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-[#31A24C] flex items-center justify-center text-xl shadow-inner">
+                          ✅
+                        </div>
+                      </div>
+
+                      {/* 3. ប្រាក់ចំណូលសរុប (REVENUE) */}
+                      <div className={`p-5 rounded-2xl border shadow-sm flex items-center justify-between transition-colors ${theme === 'dark' ? 'bg-[#18191A] border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
+                        <div>
+                          <h4 className={`text-[11px] font-bold uppercase tracking-widest mb-1.5 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>ប្រាក់ចំណូលសរុប (Revenue)</h4>
+                          <div className="text-3xl font-black text-[#F5C33B] dark:text-amber-400">${totalRevenue.toFixed(2)}</div>
+                        </div>
+                        <div className="w-12 h-12 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 flex items-center justify-center text-xl shadow-inner">
+                          💰
+                        </div>
+                      </div>
+
+                      {/* 4. រង់ចាំពិនិត្យ SLIP (PENDING) */}
+                      <div className={`p-5 rounded-2xl border shadow-sm flex items-center justify-between transition-colors ${theme === 'dark' ? 'bg-[#18191A] border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
+                        <div>
+                          <h4 className={`text-[11px] font-bold uppercase tracking-widest mb-1.5 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>រង់ចាំពិនិត្យ SLIP (Pending)</h4>
+                          <div className={`text-3xl font-black ${pendingSlips > 0 ? 'text-[#F5533D]' : (theme === 'dark' ? 'text-slate-500' : 'text-slate-400')}`}>{pendingSlips}</div>
+                        </div>
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center text-xl shadow-inner ${pendingSlips > 0 ? 'bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400' : 'bg-slate-200 text-slate-500 dark:bg-slate-700 dark:text-slate-400'}`}>
+                          ⏳
+                        </div>
+                      </div>
+
+                    </div>
+                  );
+                })()}
 
                 {/* Table CRM */}
                 <div className={`rounded-2xl shadow-sm border overflow-hidden ${theme === 'dark' ? 'bg-[#18191A] border-slate-700' : 'bg-white border-gray-100'}`}>
@@ -2730,17 +2761,16 @@ export default function Home() {
                                 <td className="py-3.5 px-4">
                                   {item.linked_fb_page ? (
                                     <div className="flex items-center gap-2">
-                                      {linkedPageObj?.picture?.data?.url ? (
-                                        <img src={linkedPageObj.picture.data.url} className="w-6 h-6 rounded-full border border-gray-200" alt="FB" />
-                                      ) : (
-                                        <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-[10px]">f</div>
-                                      )}
-                                      <span className={`text-[12px] font-bold ${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'}`}>
-                                        {linkedPageObj?.name || 'FB Page'}
+                                      <div className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0 shadow-sm">
+                                        f
+                                      </div>
+                                      <span className={`text-[12.5px] font-bold truncate max-w-[160px] ${theme === 'dark' ? 'text-blue-400' : 'text-[#1877F2]'}`} title={item.linked_fb_page}>
+                                        {/* 🌟 ឆែករកមើលក្នុង pages បើរកមិនឃើញ គឺបង្ហាញ Page ID ជំនួសភ្លាម ធានាថាមិនចេញថា "មិនបានភ្ជាប់" ទៀតទេ */}
+                                        {pages.find(p => p.id === item.linked_fb_page)?.name || `Page ID: ${item.linked_fb_page}`}
                                       </span>
                                     </div>
                                   ) : (
-                                    <span className="text-[12px] text-gray-400 italic">មិនបានភ្ជាប់</span>
+                                    <span className="text-[12px] text-slate-400 italic">មិនបានភ្ជាប់</span>
                                   )}
                                 </td>
 
@@ -2767,7 +2797,7 @@ export default function Home() {
 
                                 {/* Actions */}
                                 <td className="py-3.5 px-4 text-center">
-                                  <button onClick={() => handleDeleteClient(item.id)} className="px-3 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 rounded-lg text-xs font-bold transition cursor-pointer dark:bg-red-950/40 dark:hover:bg-red-900/60 dark:text-red-400">
+                                  <button onClick={() => handleDeleteClient(item.id)} className="px-3.5 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 rounded-lg text-xs font-bold transition cursor-pointer dark:bg-red-950/40 dark:hover:bg-red-900/60 dark:text-red-400">
                                     លុប
                                   </button>
                                 </td>
@@ -4573,13 +4603,20 @@ export default function Home() {
                                     </div>
                                   </td>
 
-                                  {/* 🌟 ជួរឈរ Ad Name (Update: បង្ហាញរូបច្រើនសន្លឹកជា Grid ដូច Facebook ស៊ីន 100%) */}
-                                  <td className={`p-3 border-r align-middle relative hover:z-[60] ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                                  {/* ជួរឈរ Ad Name (Update: គាំទ្រទាំង Hover លើ PC និង Tap/Click លើ Mobile) */}
+                                  <td className={`p-3 border-r align-middle relative ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
                                     <div className="flex items-center justify-between gap-3">
                                       
-                                      <div className="relative group/preview flex items-center gap-2.5 min-w-0">
-                                        {/* រូបតូច Thumbnail ក្បែរឈ្មោះ */}
-                                        <div className="w-10 h-10 rounded bg-slate-800 flex items-center justify-center text-white text-xs overflow-hidden shrink-0 shadow-xs cursor-pointer border border-slate-300 dark:border-slate-600">
+                                      <div className="relative flex items-center gap-2.5 min-w-0">
+                                        {/* រូបតូច Thumbnail: ពេលចុច (Click) ឬយកម៉ៅដាក់លើ នឹងលោតផ្ទាំង Preview */}
+                                        <div 
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            // បើចុចលើអត្ថបទ/រូប ឱ្យវា toggle បើកបិទផ្ទាំង Preview លើទូរស័ព្ទ
+                                            setActivePreviewAdId(activePreviewAdId === ad.id ? null : ad.id);
+                                          }}
+                                          className="w-10 h-10 rounded bg-slate-800 flex items-center justify-center text-white text-xs overflow-hidden shrink-0 shadow-xs cursor-pointer border border-slate-300 dark:border-slate-600"
+                                        >
                                           {ad.creative?.thumbnail_url || ad.creative?.image_url ? (
                                             <img src={ad.creative.thumbnail_url || ad.creative.image_url} className="w-full h-full object-cover" alt="Ad thumb" />
                                           ) : (
@@ -4587,13 +4624,30 @@ export default function Home() {
                                           )}
                                         </div>
 
-                                        <span className="font-semibold text-[#1877F2] hover:underline cursor-pointer truncate max-w-[180px]">
+                                        <span 
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setActivePreviewAdId(activePreviewAdId === ad.id ? null : ad.id);
+                                          }}
+                                          className="font-semibold text-[#1877F2] hover:underline cursor-pointer truncate max-w-[180px]"
+                                        >
                                           {ad.name}
                                         </span>
 
-                                        {/* 🚀 ផ្ទាំង Popover ធំលោតមកខាងស្តាំដៃ */}
-                                        <div className="fixed top-1/2 right-[5%] transform -translate-y-1/2 hidden group-hover/preview:flex flex-col w-[340px] rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.4)] border overflow-hidden z-[999999] bg-white dark:bg-[#242526] border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white animate-in fade-in zoom-in-95 duration-200 pointer-events-none">
+                                        {/* 🚀 ផ្ទាំង Popover ធំ (លោតចេញមកទាំងពេល Hover និងពេល Click/Tap) */}
+                                        <div className={`fixed top-1/2 right-[5%] transform -translate-y-1/2 flex-col w-[340px] rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.4)] border overflow-hidden z-[999999] bg-white dark:bg-[#242526] border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white animate-in fade-in zoom-in-95 duration-200 ${
+                                          activePreviewAdId === ad.id ? 'flex' : 'hidden group-hover:flex'
+                                        }`}>
                                           
+                                          {/* ប៊ូតុងបិទ (X) សម្រាប់ជំនួយលើទូរស័ព្ទ */}
+                                          <button 
+                                            type="button" 
+                                            onClick={(e) => { e.stopPropagation(); setActivePreviewAdId(null); }}
+                                            className="absolute top-2 right-2 w-7 h-7 bg-black/50 hover:bg-black/70 text-white rounded-full flex items-center justify-center text-xs font-bold z-20 cursor-pointer"
+                                          >
+                                            ✕
+                                          </button>
+
                                           {/* 1. Header: Page Info */}
                                           <div className="p-3.5 flex justify-between items-start bg-white dark:bg-[#242526]">
                                             <div className="flex items-center gap-2.5">
@@ -4612,23 +4666,45 @@ export default function Home() {
 
                                           {/* 2. Ad Message / Caption */}
                                           <div className="px-3.5 pb-2 text-[13px] break-words whitespace-normal line-clamp-4 text-[#050505] dark:text-slate-300 bg-white dark:bg-[#242526]">
-                                            {ad.enriched_post?.message || ad.creative?.body || ad.creative?.object_story_spec?.text || "..."}
+                                            {(() => {
+                                              const storyId = ad.creative?.effective_object_story_id || ad.creative?.object_story_id || "";
+                                              const rawPostId = storyId.includes('_') ? storyId.split('_')[1] : storyId;
+                                              const matchedPost = (rawPostId && typeof posts !== 'undefined') ? posts.find((p: any) => p.id === storyId || p.id === rawPostId || p.id.endsWith(`_${rawPostId}`)) : null;
+                                              return ad.enriched_post?.message || matchedPost?.message || ad.creative?.body || ad.creative?.object_story_spec?.text || ad.creative?.name || "គ្មានអត្ថបទបង្ហាញ";
+                                            })()}
                                           </div>
 
-                                          {/* 3. 🌟 Large Image Preview / Auto Grid System */}
+                                          {/* 3. 🌟 បូមយករូបភាព និងតម្រៀប Auto Grid */}
                                           <div className="w-full bg-slate-100 dark:bg-slate-800 relative overflow-hidden flex flex-col justify-center border-t border-b dark:border-slate-700">
                                             {(() => {
                                               let adImages: string[] = [];
-                                              
-                                              // 🌟 ទី១៖ ទាញយកពី Enriched Post ដែល Backend បានបញ្ជូនមក (ស៊ីន ១០០%)
-                                              const enriched = ad.enriched_post;
-                                              if (enriched?.attachments?.data?.[0]?.subattachments?.data) {
-                                                  adImages = enriched.attachments.data[0].subattachments.data.map((att: any) => att.media?.image?.src);
-                                              } else if (enriched?.full_picture) {
-                                                  adImages = [enriched.full_picture];
+                                              const storyId = ad.creative?.effective_object_story_id || ad.creative?.object_story_id || "";
+                                              const rawPostId = storyId.includes('_') ? storyId.split('_')[1] : storyId;
+
+                                              let matchedPost = null;
+                                              if (rawPostId && typeof posts !== 'undefined' && posts.length > 0) {
+                                                  matchedPost = posts.find((p: any) => p.id === storyId || p.id === rawPostId || p.id.endsWith(`_${rawPostId}`));
                                               }
-                                              // 🌟 ទី២៖ បើអត់មាន (ឧ. Dynamic Creative) ប្រើ Fallback ពី Creative ផ្ទាល់
-                                              else {
+
+                                              const sourcePost = ad.enriched_post || matchedPost;
+
+                                              if (sourcePost?.attachments?.data) {
+                                                  sourcePost.attachments.data.forEach((att: any) => {
+                                                      if (att.subattachments?.data) {
+                                                          att.subattachments.data.forEach((sub: any) => {
+                                                              if (sub.media?.image?.src) adImages.push(sub.media.image.src);
+                                                          });
+                                                      } else if (att.media?.image?.src) {
+                                                          adImages.push(att.media.image.src);
+                                                      }
+                                                  });
+                                              }
+                                              
+                                              if (adImages.length === 0 && sourcePost?.full_picture) {
+                                                  adImages.push(sourcePost.full_picture);
+                                              }
+
+                                              if (adImages.length <= 1) {
                                                   const childAtts = ad.creative?.object_story_spec?.link_data?.child_attachments 
                                                                 || ad.creative?.object_story_spec?.template_data?.link?.child_attachments;
                                                   if (childAtts && childAtts.length > 0) {
@@ -4639,54 +4715,43 @@ export default function Home() {
                                                   }
                                               }
 
-                                              adImages = adImages.filter(Boolean);
+                                              adImages = [...new Set(adImages)].filter(Boolean);
 
-                                              if (adImages.length === 0 && (ad.creative?.image_url || ad.creative?.thumbnail_url)) {
-                                                  adImages = [ad.creative.image_url || ad.creative.thumbnail_url];
+                                              if (adImages.length === 0) {
+                                                  if (ad.creative?.image_url) adImages.push(ad.creative.image_url);
+                                                  else if (ad.creative?.thumbnail_url) adImages.push(ad.creative.thumbnail_url);
                                               }
 
-                                              // គ្មានរូបភាពសោះ
                                               if (adImages.length === 0) {
                                                 return <div className="w-full h-[200px] flex items-center justify-center text-xs text-slate-400">គ្មានរូបភាពបង្ហាញ</div>;
                                               }
 
-                                              // រូប ១ សន្លឹក
-                                              if (adImages.length === 1) {
-                                                return <img src={adImages[0]} className="w-full object-cover max-h-[300px]" alt="Ad Preview" />;
-                                              }
+                                              if (adImages.length === 1) return <img src={adImages[0]} className="w-full object-cover max-h-[300px]" alt="Ad Preview" />;
                                               
-                                              // រូប ២ សន្លឹក
-                                              if (adImages.length === 2) {
-                                                return (
+                                              if (adImages.length === 2) return (
                                                   <div className="grid grid-cols-2 gap-0.5 w-full h-[300px]">
-                                                    <img src={adImages[0]} className="w-full h-full object-cover" alt="Image 1"/>
-                                                    <img src={adImages[1]} className="w-full h-full object-cover" alt="Image 2"/>
+                                                    <img src={adImages[0]} className="w-full h-full object-cover" alt="Img 1"/>
+                                                    <img src={adImages[1]} className="w-full h-full object-cover" alt="Img 2"/>
                                                   </div>
-                                                );
-                                              }
+                                              );
 
-                                              // រូប ៣ សន្លឹក
-                                              if (adImages.length === 3) {
-                                                return (
+                                              if (adImages.length === 3) return (
                                                   <div className="flex flex-col gap-0.5 w-full h-[300px]">
-                                                    <img src={adImages[0]} className="w-full h-[150px] object-cover" alt="Image 1" />
+                                                    <img src={adImages[0]} className="w-full h-[150px] object-cover" alt="Img 1" />
                                                     <div className="grid grid-cols-2 gap-0.5 h-[148px]">
-                                                      <img src={adImages[1]} className="w-full h-full object-cover" alt="Image 2" />
-                                                      <img src={adImages[2]} className="w-full h-full object-cover" alt="Image 3" />
+                                                      <img src={adImages[1]} className="w-full h-full object-cover" alt="Img 2" />
+                                                      <img src={adImages[2]} className="w-full h-full object-cover" alt="Img 3" />
                                                     </div>
                                                   </div>
-                                                );
-                                              }
+                                              );
 
-                                              // រូប ៤ សន្លឹកឡើងទៅ (មានលេខ +3, +4...)
-                                              if (adImages.length >= 4) {
-                                                return (
+                                              if (adImages.length >= 4) return (
                                                   <div className="grid grid-cols-2 gap-0.5 w-full h-[300px]">
-                                                    <img src={adImages[0]} className="w-full h-[149px] object-cover" alt="Image 1" />
-                                                    <img src={adImages[1]} className="w-full h-[149px] object-cover" alt="Image 2" />
-                                                    <img src={adImages[2]} className="w-full h-[149px] object-cover" alt="Image 3" />
+                                                    <img src={adImages[0]} className="w-full h-[149px] object-cover" alt="Img 1" />
+                                                    <img src={adImages[1]} className="w-full h-[149px] object-cover" alt="Img 2" />
+                                                    <img src={adImages[2]} className="w-full h-[149px] object-cover" alt="Img 3" />
                                                     <div className="relative w-full h-[149px]">
-                                                      <img src={adImages[3]} className="w-full h-full object-cover brightness-[0.55]" alt="Image 4" />
+                                                      <img src={adImages[3]} className="w-full h-full object-cover brightness-[0.55]" alt="Img 4" />
                                                       {adImages.length > 4 && (
                                                         <div className="absolute inset-0 flex items-center justify-center text-white font-bold text-3xl drop-shadow-lg">
                                                           +{adImages.length - 3}
@@ -4694,12 +4759,10 @@ export default function Home() {
                                                       )}
                                                     </div>
                                                   </div>
-                                                );
-                                              }
+                                              );
                                             })()}
                                           </div>
 
-                                          {/* 4. Footer: Call to Action (Send Message) */}
                                           <div className="px-3.5 py-2.5 flex justify-between items-center bg-[#F0F2F5] dark:bg-[#3A3B3C]">
                                             <div className="flex flex-col">
                                               <span className="text-[10px] uppercase font-bold text-[#65676B] dark:text-slate-400">CHAT IN MESSENGER</span>
@@ -4708,7 +4771,6 @@ export default function Home() {
                                             <button type="button" className="px-4 py-1.5 rounded-xl text-[13px] font-bold bg-[#E4E6EB] text-[#050505] dark:bg-[#4E4F50] dark:text-white shadow-sm">Send</button>
                                           </div>
 
-                                          {/* 5. Footer: Like, Comment, Share */}
                                           <div className="px-3.5 py-2.5 flex justify-between text-[12px] border-t bg-white border-gray-200 text-[#65676B] dark:bg-[#242526] dark:border-slate-700 dark:text-slate-400">
                                             <div className="flex gap-4 font-semibold">
                                               <span>👍 Like</span>

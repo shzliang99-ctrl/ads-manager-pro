@@ -72,8 +72,8 @@ export async function GET(request: Request) {
 
       for (const chunk of chunkedIds) {
         const idsParam = chunk.join(',');
-        // ទាញយករូបភាពលម្អិតទាំងអស់ (subattachments) ពី Facebook Graph API
-        const postUrl = `https://graph.facebook.com/v18.0/?ids=${idsParam}&fields=id,message,full_picture,attachments{subattachments}&access_token=${accessToken}`;
+        // 🌟 ជំនួសបន្ទាត់ postUrl នេះ (ថែម attachments{media,subattachments{media}} ដើម្បីកុំឱ្យចន្លោះរូប)
+        const postUrl = `https://graph.facebook.com/v18.0/?ids=${idsParam}&fields=id,message,full_picture,attachments{media,subattachments{media}}&access_token=${accessToken}`;
         const postRes = await fetch(postUrl);
         const postData = await postRes.json();
         if (!postData.error) {
