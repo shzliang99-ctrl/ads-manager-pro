@@ -4522,115 +4522,245 @@ export default function Home() {
                         </tr>
                       </thead>
                       <tbody className={`text-[13px] ${theme === 'dark' ? 'text-slate-300' : 'text-[#050505]'}`}>
-                        {loadingAds ? (
-                          <tr><td colSpan={11} className="p-10 text-center text-slate-500">កំពុងទាញយកបញ្ជី Ads...</td></tr>
-                        ) : adsList.length === 0 ? (
-                          <tr><td colSpan={11} className="p-10 text-center text-slate-500">រកមិនឃើញ Ads ក្រោម Campaign នេះទេ</td></tr>
-                        ) : (
-                          adsList.map((ad) => {
-                            const ins = ad.insights && ad.insights.data && ad.insights.data.length > 0 ? ad.insights.data[0] : null;
-                            
-                            let results: string | number = "-";
-                            if (ins && ins.actions) {
-                              const actionObj = ins.actions.find((a: any) => 
-                                  a.action_type === 'onsite_conversion.messaging_conversation_started_7d' || 
-                                  a.action_type === 'onsite_conversion.messaging_first_reply' || 
-                                  a.action_type === 'post_engagement' || 
-                                  a.action_type === 'link_click'
-                                );
-                              if (actionObj) results = actionObj.value;
-                            }
+                          {loadingAds ? (
+                            <tr><td colSpan={11} className="p-10 text-center text-slate-500">កំពុងទាញយកបញ្ជី Ads...</td></tr>
+                          ) : adsList.length === 0 ? (
+                            <tr><td colSpan={11} className="p-10 text-center text-slate-500">រកមិនឃើញ Ads ក្រោម Campaign នេះទេ</td></tr>
+                          ) : (
+                            adsList.map((ad) => {
+                              const ins = ad.insights && ad.insights.data && ad.insights.data.length > 0 ? ad.insights.data[0] : null;
+                              
+                              // 🌟 ១. ទាញយក Objective ពី Campaign មេ ដើម្បីដឹងថាវាជាប្រភេទផ្ញើសារ ឬប្រភេទផ្សេង
+                              const parentCamp = campaignsList.find(c => c.id === selectedCampaigns[0]);
+                              const objective = parentCamp?.objective || 'OUTCOME_ENGAGEMENT';
 
-                            const spend = ins?.spend || 0;
-                            const impressions = ins?.impressions || 0;
-                            const reach = ins?.reach || 0;
-                            const cpa = (results !== "-" && spend && Number(results) > 0) ? (Number(spend) / Number(results)) : null;
-                            const isAdSelected = selectedAds.includes(ad.id);
+                              // 🌟 ២. ប្រើប្រាស់រូបមន្តទាញយក Results ដូចគ្នានឹងផ្ទាំង Campaign ធានាថាទិន្នន័យស៊ីគ្នា ១០០%
+                              const results = getResults(ins, objective);
 
-                            return (
-                              <tr key={ad.id} className={`border-b transition min-h-[48px] ${theme === 'dark' ? (isAdSelected ? 'bg-blue-900/30 border-slate-700' : 'border-slate-700 hover:bg-[#3A3B3C]') : (isAdSelected ? 'bg-[#EBF5FF] border-slate-200' : 'border-slate-200 hover:bg-slate-50')}`}>
-                                {/* 🌟 ដាក់ប្រអប់ Checkbox សម្រាប់លុប Ad នីមួយៗនៅទីនេះ */}
-                                <td className={`p-3 border-r text-center align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-                                  <input 
-                                    type="checkbox" 
-                                    checked={isAdSelected}
-                                    onChange={(e) => {
-                                      if (e.target.checked) {
-                                        setSelectedAds([...selectedAds, ad.id]);
-                                      } else {
-                                        setSelectedAds(selectedAds.filter(id => id !== ad.id));
-                                      }
-                                    }}
-                                    className="w-3.5 h-3.5 accent-[#1877F2] cursor-pointer" 
-                                  />
-                                </td>
-                                
-                                <td className={`p-3 border-r text-center align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-                                  <div 
-                                    onClick={() => handleToggleAdStatus(ad.id, ad.status)}
-                                    className={`w-8 h-4 rounded-full mx-auto relative cursor-pointer transition-colors ${ad.status === 'ACTIVE' ? 'bg-[#1877F2]' : 'bg-[#BCC0C4]'}`}
-                                  >
-                                    <div className={`w-3.5 h-3.5 bg-white rounded-full absolute top-[1px] transition-all ${ad.status === 'ACTIVE' ? 'right-[2px]' : 'left-[2px]'}`}></div>
-                                  </div>
-                                </td>
+                              const spend = ins?.spend || 0;
+                              const impressions = ins?.impressions || 0;
+                              const reach = ins?.reach || 0;
+                              
+                              // គណនា CPA ថ្មីដោយផ្អែកលើ Results ត្រឹមត្រូវ
+                              const cpa = (results !== "-" && spend && Number(results) > 0) ? (Number(spend) / Number(results)) : null;
+                              const isAdSelected = selectedAds.includes(ad.id);
 
-                                <td className={`p-3 border-r align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-                                  <div className="flex items-center justify-between gap-3">
-                                    <div className="flex items-center gap-2.5 min-w-0">
-                                      <div className="w-9 h-9 rounded bg-slate-800 flex items-center justify-center text-white text-xs overflow-hidden shrink-0 shadow-xs">
-                                        {ad.creative?.thumbnail_url ? <img src={ad.creative.thumbnail_url} className="w-full h-full object-cover" /> : '👟'}
-                                      </div>
-                                      <span className="font-semibold text-[#1877F2] hover:underline cursor-pointer truncate max-w-[180px]">{ad.name}</span>
-                                    </div>
-
-                                    <button 
-                                      type="button"
-                                      disabled={auditLoading}
-                                      onClick={() => handleAiAudit(ad)}
-                                      className="px-2.5 py-1 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold rounded-lg text-[11px] flex items-center gap-1.5 shadow-sm hover:opacity-90 cursor-pointer shrink-0 disabled:opacity-50"
+                              return (
+                                <tr key={ad.id} className={`border-b transition min-h-[48px] ${theme === 'dark' ? (isAdSelected ? 'bg-blue-900/30 border-slate-700' : 'border-slate-700 hover:bg-[#3A3B3C]') : (isAdSelected ? 'bg-[#EBF5FF] border-slate-200' : 'border-slate-200 hover:bg-slate-50')}`}>
+                                  {/* Checkbox */}
+                                  <td className={`p-3 border-r text-center align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                                    <input 
+                                      type="checkbox" 
+                                      checked={isAdSelected}
+                                      onChange={(e) => {
+                                        if (e.target.checked) {
+                                          setSelectedAds([...selectedAds, ad.id]);
+                                        } else {
+                                          setSelectedAds(selectedAds.filter(id => id !== ad.id));
+                                        }
+                                      }}
+                                      className="w-3.5 h-3.5 accent-[#1877F2] cursor-pointer" 
+                                    />
+                                  </td>
+                                  
+                                  {/* Status Toggle */}
+                                  <td className={`p-3 border-r text-center align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                                    <div 
+                                      onClick={() => handleToggleAdStatus(ad.id, ad.status)}
+                                      className={`w-8 h-4 rounded-full mx-auto relative cursor-pointer transition-colors ${ad.status === 'ACTIVE' ? 'bg-[#1877F2]' : 'bg-[#BCC0C4]'}`}
                                     >
-                                      {auditLoading ? (
-                                        <>
-                                          <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                                          <span>កំពុងវិភាគ...</span>
-                                        </>
-                                      ) : (
-                                        <>
-                                          <span>✨</span> <span>AI Audit</span>
-                                        </>
-                                      )}
-                                    </button>
-                                  </div>
-                                </td>
+                                      <div className={`w-3.5 h-3.5 bg-white rounded-full absolute top-[1px] transition-all ${ad.status === 'ACTIVE' ? 'right-[2px]' : 'left-[2px]'}`}></div>
+                                    </div>
+                                  </td>
 
-                                <td className={`p-3 border-r align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-                                  <span className="flex items-center gap-1.5"><span className={`w-2 h-2 rounded-full ${ad.effective_status === 'ACTIVE' ? 'bg-[#31A24C]' : 'bg-slate-400'}`}></span> {ad.effective_status || ad.status}</span>
-                                </td>
-                                
-                                <td className={`p-3 border-r text-right align-middle min-w-[150px] ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-                                  <div className="font-semibold">{results === "-" ? "-" : formatNumber(results)}</div>
-                                  <div className="text-[10px] text-slate-500 uppercase mt-0.5">Results</div>
-                                </td>
+                                  {/* 🌟 ជួរឈរ Ad Name (Update: បង្ហាញរូបច្រើនសន្លឹកជា Grid ដូច Facebook ស៊ីន 100%) */}
+                                  <td className={`p-3 border-r align-middle relative hover:z-[60] ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                                    <div className="flex items-center justify-between gap-3">
+                                      
+                                      <div className="relative group/preview flex items-center gap-2.5 min-w-0">
+                                        {/* រូបតូច Thumbnail ក្បែរឈ្មោះ */}
+                                        <div className="w-10 h-10 rounded bg-slate-800 flex items-center justify-center text-white text-xs overflow-hidden shrink-0 shadow-xs cursor-pointer border border-slate-300 dark:border-slate-600">
+                                          {ad.creative?.thumbnail_url || ad.creative?.image_url ? (
+                                            <img src={ad.creative.thumbnail_url || ad.creative.image_url} className="w-full h-full object-cover" alt="Ad thumb" />
+                                          ) : (
+                                            '👟'
+                                          )}
+                                        </div>
 
-                                <td className={`p-3 border-r text-right align-middle min-w-[120px] ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-                                  <div className="font-semibold">{cpa ? "$" + cpa.toFixed(2) : "-"}</div>
-                                  <div className="text-[10px] text-slate-500 uppercase mt-0.5">Per Result</div>
-                                </td>
+                                        <span className="font-semibold text-[#1877F2] hover:underline cursor-pointer truncate max-w-[180px]">
+                                          {ad.name}
+                                        </span>
 
-                                <td className={`p-3 border-r text-right align-middle text-slate-500 ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Using ad set budget</td>
-                                
-                                <td className={`p-3 border-r text-right font-bold align-middle ${theme === 'dark' ? 'border-slate-700 text-white' : 'border-slate-200 text-slate-900'}`}>
-                                  ${Number(spend).toFixed(2)}
-                                </td>
-                                
-                                <td className={`p-3 border-r text-right align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>{formatNumber(impressions)}</td>
-                                <td className={`p-3 border-r text-right align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>{formatNumber(reach)}</td>
-                                <td className={`p-3 text-[12px] align-middle ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Ongoing</td>
-                              </tr>
-                            );
-                          })
-                        )}
-                      </tbody>
+                                        {/* 🚀 ផ្ទាំង Popover ធំលោតមកខាងស្តាំដៃ */}
+                                        <div className="fixed top-1/2 right-[5%] transform -translate-y-1/2 hidden group-hover/preview:flex flex-col w-[340px] rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.4)] border overflow-hidden z-[999999] bg-white dark:bg-[#242526] border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white animate-in fade-in zoom-in-95 duration-200 pointer-events-none">
+                                          
+                                          {/* 1. Header: Page Info */}
+                                          <div className="p-3.5 flex justify-between items-start bg-white dark:bg-[#242526]">
+                                            <div className="flex items-center gap-2.5">
+                                              {selectedPageData?.picture?.data?.url ? (
+                                                <img src={selectedPageData.picture.data.url} className="w-9 h-9 rounded-full object-cover border border-slate-100 dark:border-slate-600" />
+                                              ) : (
+                                                <div className="w-9 h-9 bg-gray-400 rounded-full flex items-center justify-center text-white font-bold">W</div>
+                                              )}
+                                              <div>
+                                                <div className="font-bold text-[13px] leading-tight text-[#050505] dark:text-white">{selectedPageData?.name || "Wear Luxury Cambodia"}</div>
+                                                <div className="text-[11px] flex items-center gap-1 text-[#65676B] dark:text-slate-400">Sponsored <span className="text-[5px]">●</span> 🌎</div>
+                                              </div>
+                                            </div>
+                                            <span className="tracking-widest text-[16px] -mt-2 text-[#65676B] dark:text-slate-400">...</span>
+                                          </div>
+
+                                          {/* 2. Ad Message / Caption */}
+                                          <div className="px-3.5 pb-2 text-[13px] break-words whitespace-normal line-clamp-4 text-[#050505] dark:text-slate-300 bg-white dark:bg-[#242526]">
+                                            {ad.enriched_post?.message || ad.creative?.body || ad.creative?.object_story_spec?.text || "..."}
+                                          </div>
+
+                                          {/* 3. 🌟 Large Image Preview / Auto Grid System */}
+                                          <div className="w-full bg-slate-100 dark:bg-slate-800 relative overflow-hidden flex flex-col justify-center border-t border-b dark:border-slate-700">
+                                            {(() => {
+                                              let adImages: string[] = [];
+                                              
+                                              // 🌟 ទី១៖ ទាញយកពី Enriched Post ដែល Backend បានបញ្ជូនមក (ស៊ីន ១០០%)
+                                              const enriched = ad.enriched_post;
+                                              if (enriched?.attachments?.data?.[0]?.subattachments?.data) {
+                                                  adImages = enriched.attachments.data[0].subattachments.data.map((att: any) => att.media?.image?.src);
+                                              } else if (enriched?.full_picture) {
+                                                  adImages = [enriched.full_picture];
+                                              }
+                                              // 🌟 ទី២៖ បើអត់មាន (ឧ. Dynamic Creative) ប្រើ Fallback ពី Creative ផ្ទាល់
+                                              else {
+                                                  const childAtts = ad.creative?.object_story_spec?.link_data?.child_attachments 
+                                                                || ad.creative?.object_story_spec?.template_data?.link?.child_attachments;
+                                                  if (childAtts && childAtts.length > 0) {
+                                                      adImages = childAtts.map((att: any) => att.image_url || att.picture || att.image_crops?.['100x100']?.[0]?.[0]);
+                                                  } 
+                                                  else if (ad.creative?.asset_feed_spec?.images) {
+                                                      adImages = ad.creative.asset_feed_spec.images.map((img: any) => img.url);
+                                                  }
+                                              }
+
+                                              adImages = adImages.filter(Boolean);
+
+                                              if (adImages.length === 0 && (ad.creative?.image_url || ad.creative?.thumbnail_url)) {
+                                                  adImages = [ad.creative.image_url || ad.creative.thumbnail_url];
+                                              }
+
+                                              // គ្មានរូបភាពសោះ
+                                              if (adImages.length === 0) {
+                                                return <div className="w-full h-[200px] flex items-center justify-center text-xs text-slate-400">គ្មានរូបភាពបង្ហាញ</div>;
+                                              }
+
+                                              // រូប ១ សន្លឹក
+                                              if (adImages.length === 1) {
+                                                return <img src={adImages[0]} className="w-full object-cover max-h-[300px]" alt="Ad Preview" />;
+                                              }
+                                              
+                                              // រូប ២ សន្លឹក
+                                              if (adImages.length === 2) {
+                                                return (
+                                                  <div className="grid grid-cols-2 gap-0.5 w-full h-[300px]">
+                                                    <img src={adImages[0]} className="w-full h-full object-cover" alt="Image 1"/>
+                                                    <img src={adImages[1]} className="w-full h-full object-cover" alt="Image 2"/>
+                                                  </div>
+                                                );
+                                              }
+
+                                              // រូប ៣ សន្លឹក
+                                              if (adImages.length === 3) {
+                                                return (
+                                                  <div className="flex flex-col gap-0.5 w-full h-[300px]">
+                                                    <img src={adImages[0]} className="w-full h-[150px] object-cover" alt="Image 1" />
+                                                    <div className="grid grid-cols-2 gap-0.5 h-[148px]">
+                                                      <img src={adImages[1]} className="w-full h-full object-cover" alt="Image 2" />
+                                                      <img src={adImages[2]} className="w-full h-full object-cover" alt="Image 3" />
+                                                    </div>
+                                                  </div>
+                                                );
+                                              }
+
+                                              // រូប ៤ សន្លឹកឡើងទៅ (មានលេខ +3, +4...)
+                                              if (adImages.length >= 4) {
+                                                return (
+                                                  <div className="grid grid-cols-2 gap-0.5 w-full h-[300px]">
+                                                    <img src={adImages[0]} className="w-full h-[149px] object-cover" alt="Image 1" />
+                                                    <img src={adImages[1]} className="w-full h-[149px] object-cover" alt="Image 2" />
+                                                    <img src={adImages[2]} className="w-full h-[149px] object-cover" alt="Image 3" />
+                                                    <div className="relative w-full h-[149px]">
+                                                      <img src={adImages[3]} className="w-full h-full object-cover brightness-[0.55]" alt="Image 4" />
+                                                      {adImages.length > 4 && (
+                                                        <div className="absolute inset-0 flex items-center justify-center text-white font-bold text-3xl drop-shadow-lg">
+                                                          +{adImages.length - 3}
+                                                        </div>
+                                                      )}
+                                                    </div>
+                                                  </div>
+                                                );
+                                              }
+                                            })()}
+                                          </div>
+
+                                          {/* 4. Footer: Call to Action (Send Message) */}
+                                          <div className="px-3.5 py-2.5 flex justify-between items-center bg-[#F0F2F5] dark:bg-[#3A3B3C]">
+                                            <div className="flex flex-col">
+                                              <span className="text-[10px] uppercase font-bold text-[#65676B] dark:text-slate-400">CHAT IN MESSENGER</span>
+                                              <span className="font-bold text-[14px] text-[#050505] dark:text-white">Send message</span>
+                                            </div>
+                                            <button type="button" className="px-4 py-1.5 rounded-xl text-[13px] font-bold bg-[#E4E6EB] text-[#050505] dark:bg-[#4E4F50] dark:text-white shadow-sm">Send</button>
+                                          </div>
+
+                                          {/* 5. Footer: Like, Comment, Share */}
+                                          <div className="px-3.5 py-2.5 flex justify-between text-[12px] border-t bg-white border-gray-200 text-[#65676B] dark:bg-[#242526] dark:border-slate-700 dark:text-slate-400">
+                                            <div className="flex gap-4 font-semibold">
+                                              <span>👍 Like</span>
+                                              <span>💬 Comment</span>
+                                              <span>⤴️ Share</span>
+                                            </div>
+                                          </div>
+
+                                        </div>
+                                      </div>
+
+                                      <button 
+                                        type="button"
+                                        disabled={auditLoading}
+                                        onClick={() => handleAiAudit(ad)}
+                                        className="px-2.5 py-1 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold rounded-lg text-[11px] flex items-center gap-1.5 shadow-sm hover:opacity-90 cursor-pointer shrink-0 disabled:opacity-50"
+                                      >
+                                        <span>✨</span> <span>AI Audit</span>
+                                      </button>
+                                    </div>
+                                  </td>
+
+                                  <td className={`p-3 border-r align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                                    <span className="flex items-center gap-1.5"><span className={`w-2 h-2 rounded-full ${ad.effective_status === 'ACTIVE' ? 'bg-[#31A24C]' : 'bg-slate-400'}`}></span> {ad.effective_status || ad.status}</span>
+                                  </td>
+                                  
+                                  {/* 🌟 ផ្ទាំង Results */}
+                                  <td className={`p-3 border-r text-right align-middle min-w-[150px] ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                                    <div className="font-semibold">{results === "-" ? "-" : formatNumber(results)}</div>
+                                    <div className="text-[10px] text-slate-500 uppercase mt-0.5">Results</div>
+                                  </td>
+
+                                  {/* 🌟 ផ្ទាំង Cost Per Result (CPA) */}
+                                  <td className={`p-3 border-r text-right align-middle min-w-[120px] ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                                    <div className="font-semibold">{cpa ? "$" + cpa.toFixed(2) : "-"}</div>
+                                    <div className="text-[10px] text-slate-500 uppercase mt-0.5">Per Result</div>
+                                  </td>
+
+                                  <td className={`p-3 border-r text-right align-middle text-slate-500 ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Using ad set budget</td>
+                                  
+                                  <td className={`p-3 border-r text-right font-bold align-middle ${theme === 'dark' ? 'border-slate-700 text-white' : 'border-slate-200 text-slate-900'}`}>
+                                    ${Number(spend).toFixed(2)}
+                                  </td>
+                                  
+                                  <td className={`p-3 border-r text-right align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>{formatNumber(impressions)}</td>
+                                  <td className={`p-3 border-r text-right align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>{formatNumber(reach)}</td>
+                                  <td className={`p-3 text-[12px] align-middle min-w-[100px] ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Ongoing</td>
+                                </tr>
+                              );
+                            })
+                          )}
+                        </tbody>
                     </table>
                   </div>
                 )}
