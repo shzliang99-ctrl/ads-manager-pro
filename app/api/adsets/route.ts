@@ -11,7 +11,9 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const accessToken = getAccessToken(request);
-    const campaignId = searchParams.get('campaignId');
+    
+    // 🌟 គាំទ្រទាំង campaignIds (ຫຼາຍ ID) និង campaignId ឬ adAccountId ធម្មតា
+    const campaignIdsParam = searchParams.get('campaignIds') || searchParams.get('campaignId');
     const adAccountId = searchParams.get('adAccountId');
     let datePreset = searchParams.get('datePreset') || 'maximum';
 
@@ -23,26 +25,46 @@ export async function GET(request: Request) {
       throw new Error("Missing Facebook Access Token");
     }
 
-    let url = '';
+    let allAdsets: any[] = [];
 
-    // 🌟 កំណត់ &limit=500 ដើម្បីទាញយក Ad Sets មកបង្ហាញបានច្រើនពេញលេញ
-    if (campaignId) {
-      url = `https://graph.facebook.com/v18.0/${campaignId}/adsets?fields=id,name,status,effective_status,daily_budget,lifetime_budget,end_time,bid_strategy,updated_time,insights.date_preset(${datePreset}){spend,impressions,reach,actions}&limit=500&access_token=${accessToken}`;
-    } else if (adAccountId) {
+    // 🌟 ករណីមាន Campaign IDs ច្រើន (រត់ Loop ប្រមូលទិន្នន័យបញ្ចូលគ្នា)
+    if (campaignIdsParam) {
+      const campaignIds = campaignIdsParam.split(',');
+      
+      for (const campId of campaignIds) {
+        const url = `https://graph.facebook.com/v18.0/${campId}/adsets?fields=id,name,status,effective_status,daily_budget,lifetime_budget,end_time,bid_strategy,updated_time,insights.date_preset(${datePreset}){spend,impressions,reach,actions}&limit=500&access_token=${accessToken}`;
+        
+        const response = await fetch(url, { cache: 'no-store' });
+        const data = await response.json();
+
+        if (data.error) {
+          console.warn(`⚠️ Warning for campaign ${campId}:`, data.error.message);
+          continue; // រំលងបើមាន Campaign ណាមួយខុស ប៉ុន្តែបន្តទាញ Campaign ផ្សេងទៀត
+        }
+
+        if (data.data) {
+          allAdsets = [...allAdsets, ...data.data];
+        }
+      }
+    } 
+    // 🌟 ករណីទាញតាម Ad Account ID ផ្ទាល់
+    else if (adAccountId) {
       const targetAccount = adAccountId.startsWith('act_') ? adAccountId : `act_${adAccountId}`;
-      url = `https://graph.facebook.com/v18.0/${targetAccount}/adsets?fields=id,name,status,effective_status,daily_budget,lifetime_budget,end_time,bid_strategy,updated_time,insights.date_preset(${datePreset}){spend,impressions,reach,actions}&limit=500&access_token=${accessToken}`;
+      const url = `https://graph.facebook.com/v18.0/${targetAccount}/adsets?fields=id,name,status,effective_status,daily_budget,lifetime_budget,end_time,bid_strategy,updated_time,insights.date_preset(${datePreset}){spend,impressions,reach,actions}&limit=500&access_token=${accessToken}`;
+      
+      const response = await fetch(url, { cache: 'no-store' });
+      const data = await response.json();
+
+      if (data.error) {
+        throw new Error(data.error.message);
+      }
+
+      allAdsets = data.data || [];
     } else {
-      throw new Error("Missing Campaign ID or Ad Account ID");
+      throw new Error("Missing Campaign ID(s) or Ad Account ID");
     }
 
-    const response = await fetch(url, { cache: 'no-store' });
-    const data = await response.json();
-
-    if (data.error) {
-      throw new Error(data.error.message);
-    }
-
-    return NextResponse.json({ success: true, adsets: data.data || [] });
+    return NextResponse.json({ success: true, adsets: allAdsets });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 400 });
   }

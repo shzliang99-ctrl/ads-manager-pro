@@ -364,93 +364,6 @@ export default function Home() {
       window.location.href = '/login';
     }
   };
-  
-  // 🌟 ទាញយកទិន្នន័យ Facebook ដែលបានភ្ជាប់ជាមួយគណនីນີ້ (Cross-Device Sync)
-  useEffect(() => {
-    const syncFacebookDataDirectly = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return; // ត្រូវប្រាកដថា User បាន Login
-
-        // 🌟 ទាញទិន្នន័យ Facebook ពី Database ដែលត្រូវនឹង Account ដែលកំពុង Login
-        // ដោយសារយើងបង្រួមតារាងហើយ យើងត្រូវទាញពី customer_subscriptions
-        const { data, error } = await supabase
-          .from('customer_subscriptions')
-          .select('*')
-          .eq('email', user.email) // ភ្ជាប់តាម Email ព្រោះ User ID ក្នុង Auth និង Database អាចខុសគ្នា
-          .single();
-
-        // ប្រសិនបើអតិថិជនមាន Facebook Token ដែលភ្ជាប់ជាមួយគណនីគាត់រួចហើយ
-        if (data && data.access_token) {
-          console.log("✅ ទាញយកសោរហ្វេសប៊ុកពី Profile ជោគជ័យ!");
-          
-          // បញ្ចូល Token និងទិន្នន័យទៅកាន់ Browser កុំព្យូទ័រ/ទូរស័ព្ទណាក៏ដោយ
-          localStorage.setItem('fb_user_token', data.access_token);
-          setIsFbConnected(true);
-          
-          if (data.page_name) setFbPageName(data.page_name);
-          if (data.page_id) {
-             setSelectedPage(data.page_id);
-             localStorage.setItem('selectedPage', data.page_id);
-          }
-          if (data.ad_account_id) {
-             setSelectedAdAccount(data.ad_account_id);
-             localStorage.setItem('selectedAdAccount', data.ad_account_id);
-          }
-          
-          if (typeof fetchAdAccounts === 'function') {
-            fetchAdAccounts();
-          }
-        } else {
-           // បើគណនីនេះមិនទាន់ភ្ជាប់ FB ទេ ត្រូវលុប Token ចាស់ៗចេញពី Browser ការពារការជាប់គាំង
-           localStorage.removeItem('fb_user_token');
-           setIsFbConnected(false);
-           setFbPageName("");
-        }
-      } catch (err) {
-        console.error("❌ Cloud Direct Sync Error:", err);
-      }
-    };
-
-    syncFacebookDataDirectly();
-  }, []);
-
-  // 🌟 ទាញយកទិន្នន័យផ្តាច់មុខតែសម្រាប់គណនីកំពុង Login (១ Account = ១ Token)
-  useEffect(() => {
-    const syncFacebookDataDirectly = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-
-        const localToken = localStorage.getItem('fb_user_token');
-        if (localToken) {
-           setIsFbConnected(true);
-           return;
-        }
-
-        // 🌟 ទាញយកទិន្នន័យ Token ផ្ទាល់ពីតារាង customer_subscriptions តែម្ដង
-        const { data, error } = await supabase
-          .from('customer_subscriptions')
-          .select('*')
-          .eq('email', user.email) // ភ្ជាប់តាម Email របស់ Account ដែលកំពុង Login
-          .single();
-
-        if (data && data.access_token) {
-          console.log("✅ ទាញយកសោរហ្វេសប៊ុកពី Profile ជោគជ័យ!");
-          localStorage.setItem('fb_user_token', data.access_token);
-          setIsFbConnected(true);
-          if (data.page_name) setFbPageName(data.page_name);
-          if (data.page_id) { setSelectedPage(data.page_id); localStorage.setItem('selectedPage', data.page_id); }
-          if (data.ad_account_id) { setSelectedAdAccount(data.ad_account_id); localStorage.setItem('selectedAdAccount', data.ad_account_id); }
-          if (typeof fetchAdAccounts === 'function') fetchAdAccounts();
-        }
-      } catch (err) {
-        console.error("Cloud Sync Error:", err);
-      }
-    };
-
-    syncFacebookDataDirectly();
-  }, []);
 
   // 🌟 កូដថ្មី៖ បង្ខំឱ្យប្រាកដថា User បាន Login មុននឹងអាចឃើញផ្ទាំង Dashboard
   useEffect(() => {
@@ -469,9 +382,19 @@ export default function Home() {
   const [postFilterType, setPostFilterType] = useState("Published posts");
   const [isPostFilterMenuOpen, setIsPostFilterMenuOpen] = useState(false);
 
-  // 1. ដាក់កូដ State នេះនៅកន្លែងប្រកាស States ក្នុង Component Home
-  const [activeTab, setActiveTab] = useState("CREATE");
+  // 🌟 1. ប្រកាស State Tab ធំ ដោយអានពី LocalStorage ភ្លាមៗការពារកុំឱ្យកន្ត្រាក់
+  const [activeTab, setActiveTab] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("activeTab") || "MANAGE";
+    }
+    return "MANAGE";
+  });
   const [isMounted, setIsMounted] = useState(false);
+
+  // 🌟 បន្ថែមទីនេះ៖ ការពារកុំឱ្យគាំង Blank Screen ពេល Refresh
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // 🌟 ឆែកមើលការតភ្ជាប់ Facebook ពី Supabase Database (ការពារ Error JSON 100%)
   useEffect(() => {
@@ -509,16 +432,6 @@ export default function Home() {
     };
     checkSupabaseConnection();
   }, []);
-
-  useEffect(() => {
-    setIsMounted(true);
-    if (typeof window !== "undefined") {
-      const savedTab = localStorage.getItem("activeTab");
-      if (savedTab) {
-        setActiveTab(savedTab);
-      }
-    }
-  }, []);
   
   // 🌟 1. អាន Page ចុងក្រោយពី localStorage មកដាក់ជា Default ភ្លាមៗពេលបើកទំព័រ
   const [pages, setPages] = useState<any[]>([]);
@@ -549,7 +462,7 @@ export default function Home() {
     setIsPageMenuOpen(false);
   };
 
-  // 🌟 វិធីសាស្ត្រទាញយក និងចាក់សោរ Ad Account ចុងក្រោយមិនឱ្យប្ដូរផ្ដេសផ្ដាស
+  // 🌟 វិធីសាស្ត្រចាក់សោរដាច់ខាត៖ ហាមរំលោភបំពាន Account ដែល User បានជ្រើសរើសរួច
   useEffect(() => {
     const token = localStorage.getItem('fb_user_token');
     if (!token) return;
@@ -559,40 +472,24 @@ export default function Home() {
       .then(data => {
         if (data.data && data.data.length > 0) {
           const accList = data.data.map((acc: any) => ({
-            account_id: acc.account_id || acc.id.replace('act_', ''),
-            name: acc.name || `Ad Account (${acc.account_id || acc.id})`
+            account_id: (acc.account_id || acc.id || "").replace('act_', ''),
+            name: acc.name || `Ad Account`
           }));
           
           setAdAccountsList(accList);
 
-          // ១. ឆែកមើលក្នុង localStorage ថាតើធ្លាប់រើស Account ណាទុកមុនពេល Refresh/Verify ទេ?
-          const savedAccount = localStorage.getItem("selectedAdAccount");
-          const existingAccount = accList.find((acc: any) => acc.account_id === savedAccount);
-
-          if (existingAccount) {
-            // ✅ បើមាន៖ គឺចាក់សោរឱ្យវាប្រើ Ad Account ចាស់ហ្នឹងដដែល (មិនប្ដូរទៅណាទេ)
-            setSelectedAdAccount(existingAccount.account_id);
+          // 🌟 ពិនិត្យមើលសិន៖ បើមានការរើស Account រួចហើយ គឺរក្សាទុកវាដាច់ខាត មិនត្រូវអោយប្ដូរទៅណាទេ
+          const currentSelected = localStorage.getItem("selectedAdAccount");
+          if (currentSelected) {
+            setSelectedAdAccount(currentSelected.replace('act_', ''));
           } else {
-            // ❌ បើអត់ទាន់មានទិន្នន័យចាស់សោះ ទើបអនុញ្ញាតឱ្យយក Account ទីមួយ
             setSelectedAdAccount(accList[0].account_id);
             localStorage.setItem("selectedAdAccount", accList[0].account_id);
           }
-        } else {
-          console.log("No Ad Accounts found.");
         }
       })
-      .catch(err => console.error("Error fetching ad accounts directly:", err));
+      .catch(err => console.error("API Error:", err));
   }, [isFbConnected]);
-
-  useEffect(() => {
-    setIsMounted(true);
-    if (typeof window !== "undefined") {
-      const savedTab = localStorage.getItem("activeTab");
-      if (savedTab) {
-        setActiveTab(savedTab);
-      }
-    }
-  }, []);
 
  useEffect(() => {
     // 1. ចាប់យក Token ពី URL ពេលទើប Login មកវិញ
@@ -700,8 +597,17 @@ export default function Home() {
   const [fetchingPosts, setFetchingPosts] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isSuccessModal, setIsSuccessModal] = useState(false); // 🌟 បន្ថែម State សម្រាប់បង្ហាញផ្ទាំងជោគជ័យ និងប៊ូតុង OK
-  const [activeManageTab, setActiveManageTab] = useState('CAMPAIGNS'); // មាន ៣ ជម្រើស: 'CAMPAIGNS', 'ADSETS', 'ADS'
   
+  // 1. ប្រកាស State ធម្មតា (ការពារ Next.js Hydration Error)
+  const [activeManageTab, setActiveManageTab] = useState("CAMPAIGNS");
+  const [selectedAdAccount, setSelectedAdAccount] = useState(() => {
+  if (typeof window !== "undefined") {
+    // 🌟 ព្យាយាមអានយក ID ចុងក្រោយដែលបានរើសក្នុង localStorage មកប្រើភ្លាមៗ
+    return localStorage.getItem("selectedAdAccount") || "1013142813637440";
+  }
+  return "1013142813637440";
+});
+
   const [postIdHistory, setPostIdHistory] = useState<any[]>([]);
 
   // ឱ្យវាទាញយកទិន្នន័យពី localStorage ពេល Component ដំណើរការដំបូង
@@ -724,112 +630,76 @@ export default function Home() {
 
   // 🌟 States សម្រាប់ Ad Account Dropdown
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
-  const [selectedAdAccount, setSelectedAdAccount] = useState("1013142813637440");
+  
   const [adAccountsList, setAdAccountsList] = useState<any[]>([
     { account_id: "1013142813637440", name: "Personal Account" },
     { account_id: "1445624587438136", name: "Business Account" }
   ]);
   
-  // 🌟 មុខងារទាញ Ad Accounts ព្រមទាំង Save ទុកជា String ក្នុង localStorage (Cache)
   const fetchAdAccounts = async () => {
-    // 1. ឆែកមើលក្នុង localStorage ជាមុនសិន ថាតើធ្លាប់មានទិន្នន័យ Save ទុកហើយឬនៅ?
-    const cachedAccounts = localStorage.getItem('cached_ad_accounts');
-    if (cachedAccounts) {
+  // 1. ឆែកមើលក្នុង localStorage មុនគេបង្អស់ បើមាន គឺកំណត់តម្លៃនោះទុកជាគោល
+  const savedAccount = localStorage.getItem('selectedAdAccount');
+  if (savedAccount) {
+    setSelectedAdAccount(savedAccount.replace('act_', ''));
+  }
+
+  const token = localStorage.getItem('fb_user_token');
+  if (!token) return;
+
+  try {
+    const response = await fetch(`/api/adaccounts?access_token=${token}`);
+    const data = await response.json();
+
+    if (data.success && data.accounts) {
+      setAdAccountsList(data.accounts);
+      
+      // 2. 🌟 ពិនិត្យមើល៖ បើក្នុង localStorage គ្មានតម្លៃទេ ទើបអនុញ្ញាតឱ្យយកអាទីមួយមកដាក់
+      const currentSaved = localStorage.getItem('selectedAdAccount');
+      if (!currentSaved && data.accounts.length > 0) {
+        const firstAccountId = data.accounts[0].account_id.replace('act_', '');
+        setSelectedAdAccount(firstAccountId);
+        localStorage.setItem('selectedAdAccount', firstAccountId);
+      }
+    }
+  } catch (error) {
+    console.error("API Error:", error);
+  }
+};
+
+  // 🌟 ទាញយកសោរពី Database ប៉ុន្តែ "ហាម" យកមកជាន់ពីលើ Ad Account ដែលបងកំពុងប្រើប្រាស់ផ្ទាល់
+  useEffect(() => {
+    const syncFacebookDataDirectly = async () => {
       try {
-        const parsedAccounts = JSON.parse(cachedAccounts);
-        if (parsedAccounts && parsedAccounts.length > 0) {
-          setAdAccountsList(parsedAccounts);
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const { data } = await supabase
+          .from('customer_subscriptions')
+          .select('*')
+          .eq('email', user.email)
+          .single();
+
+        if (data && data.access_token) {
+          localStorage.setItem('fb_user_token', data.access_token);
+          setIsFbConnected(true);
           
-          // បើគ្មានទិន្នន័យរើសទុកទេ យកអាដំបូងគេ
-          if (!localStorage.getItem('selectedAdAccount')) {
-            setSelectedAdAccount(parsedAccounts[0].account_id);
-            localStorage.setItem('selectedAdAccount', parsedAccounts[0].account_id);
+          const localPageId = localStorage.getItem('selectedPage');
+          if (!localPageId && data.page_id) {
+             setSelectedPage(data.page_id);
+             localStorage.setItem('selectedPage', data.page_id);
+             if (data.page_name) {
+               setFbPageName(data.page_name);
+               localStorage.setItem('fbPageName', data.page_name);
+             }
           }
-          return; // បើមានក្នុង Cache ហើយ គឺមិនបាច់ហៅ API ទៅ Facebook ទៀតទេ!
         }
-      } catch (e) {
-        console.error("Parse cached accounts error:", e);
+      } catch (err) {
+        console.error("Cloud Sync Error:", err);
       }
-    }
+    };
 
-    // 2. បើគ្មានក្នុង Cache ទើបវាហៅ API ទៅ Facebook មួយដងគត់
-    const token = localStorage.getItem('fb_user_token');
-    if (!token) return;
-
-    try {
-      const response = await fetch(`/api/adaccounts?access_token=${token}`);
-      const data = await response.json();
-
-      if (data.success && data.accounts) {
-        setAdAccountsList(data.accounts);
-        
-        // 🌟 Save ទុកក្នុង localStorage ជាទម្រង់ String ភ្លាមៗ
-        localStorage.setItem('cached_ad_accounts', JSON.stringify(data.accounts));
-
-        if (data.accounts.length > 0) {
-          const firstAccountId = data.accounts[0].account_id;
-          if (!localStorage.getItem('selectedAdAccount')) {
-            setSelectedAdAccount(firstAccountId);
-            localStorage.setItem('selectedAdAccount', firstAccountId);
-          }
-        }
-      } else {
-        console.warn("API Error or Rate Limit:", data.error);
-      }
-    } catch (error) {
-      console.error("API Error:", error);
-    }
-  };
-
-  // 🌟 1. ດຶງຂໍ້ມູນ Pages ໂດຍອັດຕະໂນມັດ ພ້ອມទាំងទាញយក Page ដែលធ្លាប់ Save ទុកក្នុង localStorage មកវិញភ្លាមៗ
-  useEffect(() => {
-    const token = localStorage.getItem('fb_user_token');
-    const tokenParam = token ? `?access_token=${token}` : '';
-
-    fetch(`/api/pages${tokenParam}`)
-      .then(res => res.json())
-      .then(data => {
-        if (data.success && data.pages && data.pages.length > 0) {
-          setPages(data.pages);
-          
-          // 🔍 ឆែកមើលក្នុង localStorage ថាតើធ្លាប់ Save Page ណាទុកមុនពេល Refresh ទេ?
-          const savedPage = localStorage.getItem("selectedPage");
-          
-          // បើមាន Save ទុក ហើយ Page នោះមានក្នុង List របស់ Meta គឺទាញយកមកដាក់វិញភ្លាម
-          if (savedPage && data.pages.find((p: any) => p.id === savedPage)) {
-            setSelectedPage(savedPage);
-          } else {
-            // បើអត់ទាន់មាន ទើបយក Page ទីមួយ
-            setSelectedPage(data.pages[0].id);
-            localStorage.setItem("selectedPage", data.pages[0].id);
-          }
-        }
-      })
-      .catch(err => console.log("Error fetching pages:", err));
-  }, [isFbConnected]);
-
-  // 🌟 2. ດຶງຂໍ້ມູນ Ad Accounts ໂດຍອັດຕະໂນມັດ
-  useEffect(() => {
-    const token = localStorage.getItem('fb_user_token');
-    const tokenParam = token ? `?access_token=${token}` : '';
-
-    fetch(`/api/adaccounts${tokenParam}`)
-      .then(res => res.json())
-      .then(data => {
-        // ຮັບຮອງທັງສອງແບບ ບໍ່ວ່າ API ຈະສົ່ງ 'accounts' ຫຼື 'adAccounts' ມາ
-        const accList = data.accounts || data.adAccounts;
-        if (data.success && accList && accList.length > 0) {
-          setAdAccountsList(accList);
-          const savedAccount = localStorage.getItem("selectedAdAccount");
-          if (savedAccount && accList.find((acc: any) => acc.account_id === savedAccount)) {
-            setSelectedAdAccount(savedAccount);
-          } else {
-            setSelectedAdAccount(accList[0].account_id);
-          }
-        }
-      })
-      .catch(err => console.log("Error fetching ad accounts:", err));
-  }, [isFbConnected]);
+    syncFacebookDataDirectly();
+  }, []);
   
   // 🌟 ឱ្យប្រអប់ Search ចាំ និងរក្សាទុកពាក្យចុងក្រោយជាប់ជានិច្ច ទោះ Refresh ក៏មិនបាត់
   const [interestQuery, setInterestQuery] = useState(() => {
@@ -924,9 +794,50 @@ export default function Home() {
   const [msgFollowUp, setMsgFollowUp] = useState("Hi Seng! We wanted to follow up. Do you have any questions?");
   const [msgTemplateName, setMsgTemplateName] = useState("Start conversations 08/29/26");
 
-  const [selectedCampaigns, setSelectedCampaigns] = useState<string[]>([]);
+  // 🌟 ធ្វើឱ្យប្រព័ន្ធចងចាំ Campaign ដែលបានជ្រើសរើស (Tick) ទោះ Refresh ក៏មិនបាត់
+  const [selectedCampaigns, setSelectedCampaigns] = useState<string[]>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("selectedCampaigns");
+      if (saved) try { return JSON.parse(saved); } catch(e) {}
+    }
+    return [];
+  });
 
-  const [selectedAds, setSelectedAds] = useState<string[]>([]);
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("selectedCampaigns", JSON.stringify(selectedCampaigns));
+    }
+  }, [selectedCampaigns]);
+
+  // 🌟 Master Memory Hook: រត់តែម្តងគត់ពេល Load Page ចប់ ដើម្បីចាក់សោរទិន្នន័យមិនឱ្យលោត
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      // រក្សាទុក Tab (Ads, Adsets...)
+      const savedTab = localStorage.getItem("activeManageTab");
+      if (savedTab) setActiveManageTab(savedTab);
+
+      // រក្សាទុក Ad Account ហើយកាត់ពាក្យ act_ ចេញជានិច្ចការពារ Error មិនស្គាល់គ្នា
+      const savedAcc = localStorage.getItem("selectedAdAccount");
+      if (savedAcc) {
+         setSelectedAdAccount(savedAcc.replace('act_', ''));
+      }
+    }
+  }, []);
+
+  // 🌟 ធ្វើឱ្យប្រព័ន្ធចងចាំ Ads ដែលបានជ្រើសរើស
+  const [selectedAds, setSelectedAds] = useState<string[]>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("selectedAds");
+      if (saved) try { return JSON.parse(saved); } catch(e) {}
+    }
+    return [];
+  });
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("selectedAds", JSON.stringify(selectedAds));
+    }
+  }, [selectedAds]);
 
   // 🌟 ១. Auto-Load ទិន្នន័យ Draft ដែលធ្លាប់បានរក្សាទុកក្នុង LocalStorage ពេលបើកទំព័រដំបូង
   useEffect(() => {
@@ -1723,19 +1634,38 @@ export default function Home() {
   };
 
   const handleToggleStatus = async (id: string, currentStatus: string) => {
-    const newStatus = currentStatus === 'ACTIVE' ? 'PAUSED' : 'ACTIVE';
-    setCampaignsList(prev => prev.map(c => c.id === id ? { ...c, status: newStatus, effective_status: newStatus } : c));
-    try {
-      await fetch('/api/campaigns', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, status: newStatus })
-      });
-    } catch (e) {
-      alert("❌ មានបញ្ហាក្នុងការ Update Status");
+  // កំណត់ស្ថានភាពថ្មី (បើ ACTIVE ទៅ PAUSED បើ PAUSED ទៅ ACTIVE)
+  const newStatus = currentStatus === 'ACTIVE' ? 'PAUSED' : 'ACTIVE';
+  
+  // 1. ធ្វើការ Update UI ជាបណ្ដោះអាសន្នភ្លាមៗ (Optimistic Update)
+  setCampaignsList(prev => prev.map(c => c.id === id ? { ...c, status: newStatus, effective_status: newStatus } : c));
+
+  try {
+    // 2. បាញ់សំណើទៅកាន់ API ខាងក្រោយ
+    const clientToken = localStorage.getItem('fb_user_token');
+    const res = await fetch('/api/campaigns', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        id, 
+        status: newStatus,
+        access_token: clientToken 
+      })
+    });
+    
+    const data = await res.json();
+    
+    if (!data.success) {
+      alert("❌ Facebook បដិសេធការប្ដូរ Status:\n\n" + (data.error || "Unknown error"));
+      // បើបរាជ័យ ត្រូវទាញយកទិន្នន័យពិតប្រាកដពី Facebook មកវិញ
       fetchCampaigns();
     }
-  };
+  } catch (error) {
+    console.error("Error toggling status:", error);
+    alert("❌ មានបញ្ហាតភ្ជាប់ទៅកាន់ Server!");
+    fetchCampaigns();
+  }
+};
 
   // 🌟 មុខងារលុប Ad ជាក់លាក់ដែលបានធីក (Tick) មិនឱ្យប៉ះពាល់ Ad ផ្សេងឡើយ
   const handleDeleteSelectedAds = async () => {
@@ -1791,62 +1721,71 @@ export default function Home() {
     }
   };
 
-  const fetchAds = async () => {
-    setLoadingAds(true);
-    try {
-      const token = localStorage.getItem('fb_user_token');
-      const tokenParam = token ? `&access_token=${token}` : '';
+  // 🌟 1. Function សម្រាប់ទាញយក Ads ទាំងអស់ពី Campaigns ដែលបាន Select (គាំទ្រ Multi-selection)
+const fetchAds = async () => {
+  // បើអត់ទាន់បាន Select Campaign ទេ ឬក៏គ្មាន Campaign ក្នុង List សោះ ឱ្យវាទាញយក Campaign ដំបូងបង្អស់មកបង្គ្រប់កិច្ច
+  let targetIds = selectedCampaigns;
+  if (targetIds.length === 0 && campaignsList.length > 0) {
+    targetIds = [campaignsList[0].id];
+  }
 
-      // 🌟 បើមាន Campaign ដែលបាន Select យកមួយនោះ បើអត់ទេ យក Campaign ដំបូងគេបង្អស់បង្គ្រប់កិច្ច
-      let targetCampaignId = selectedCampaigns.length > 0 ? selectedCampaigns[0] : "";
-      if (!targetCampaignId && campaignsList.length > 0) {
-        targetCampaignId = campaignsList[0].id;
-      }
+  if (targetIds.length === 0) return;
 
-      if (!targetCampaignId) {
-        setLoadingAds(false);
-        return;
-      }
-      
-      let apiDatePreset = selectedDatePreset.toLowerCase();
-      if (apiDatePreset === 'lifetime') apiDatePreset = 'maximum';
-      
-      const res = await fetch(`/api/ads?campaignId=${targetCampaignId}&datePreset=${apiDatePreset}${tokenParam}`);
-      const data = await res.json();
-      
-      if (data.success) {
-        setAdsList(data.ads || []);
-      } else {
-        console.error("Error fetching ads:", data.error);
-      }
-    } catch (err) {
-      console.error("Error fetching ads:", err);
+  setLoadingAds(true);
+  try {
+    const token = localStorage.getItem('fb_user_token');
+    const tokenParam = token ? `&access_token=${token}` : '';
+
+    // 🌟 បញ្ជូន Campaign IDs ទាំងអស់ដែលបាន Select (គั่นដោយសញ្ញាក្បៀស ,)
+    const campIdsString = targetIds.join(',');
+    
+    let apiDatePreset = selectedDatePreset.toLowerCase();
+    if (apiDatePreset === 'lifetime') apiDatePreset = 'maximum';
+    
+    const res = await fetch(`/api/ads?campaignIds=${campIdsString}&datePreset=${apiDatePreset}${tokenParam}`);
+    const data = await res.json();
+    
+    if (data.success) {
+      setAdsList(data.ads || []);
+    } else {
+      console.error("Error fetching ads:", data.error);
     }
-    setLoadingAds(false);
-  };
+  } catch (err) {
+    console.error("Error fetching ads:", err);
+  }
+  setLoadingAds(false);
+};
 
-  const fetchAdsets = async () => {
-    if (selectedCampaigns.length === 0) return;
-    setLoadingAdsets(true);
-    try {
-      // 🌟 ទាញយក Token ពី localStorage
-      const token = localStorage.getItem('fb_user_token');
-      const tokenParam = token ? `&access_token=${token}` : '';
+// 🌟 2. Function សម្រាប់ទាញយក Ad Sets ទាំងអស់ពី Campaigns ដែលបាន Select (គាំទ្រ Multi-selection)
+const fetchAdsets = async () => {
+  let targetIds = selectedCampaigns;
+  if (targetIds.length === 0 && campaignsList.length > 0) {
+    targetIds = [campaignsList[0].id];
+  }
 
-      const targetCampaignId = selectedCampaigns[0];
-      const res = await fetch(`/api/adsets?campaignId=${targetCampaignId}&datePreset=${selectedDatePreset}${tokenParam}`);
-      const data = await res.json();
-      
-      if (data.success) {
-        setAdsetsList(data.adsets || []);
-      } else {
-        console.error("Error fetching ad sets:", data.error);
-      }
-    } catch (err) {
-      console.error("Error fetching ad sets:", err);
+  if (targetIds.length === 0) return;
+
+  setLoadingAdsets(true);
+  try {
+    const token = localStorage.getItem('fb_user_token');
+    const tokenParam = token ? `&access_token=${token}` : '';
+
+    // 🌟 បញ្ជូន Campaign IDs ទាំងអស់ដែលបាន Select (គั่นដោយសញ្ញាក្បៀស ,)
+    const campIdsString = targetIds.join(',');
+    
+    const res = await fetch(`/api/adsets?campaignIds=${campIdsString}&datePreset=${selectedDatePreset}${tokenParam}`);
+    const data = await res.json();
+    
+    if (data.success) {
+      setAdsetsList(data.adsets || []);
+    } else {
+      console.error("Error fetching ad sets:", data.error);
     }
-    setLoadingAdsets(false);
-  };
+  } catch (err) {
+    console.error("Error fetching ad sets:", err);
+  }
+  setLoadingAdsets(false);
+};
 
   // 🌟 Auto fetch Ad Sets ពេលចូល Tab 'ADSETS'
   useEffect(() => {
@@ -2246,9 +2185,11 @@ export default function Home() {
                       <div 
                         key={acc.account_id}
                         onClick={() => {
-                          setSelectedAdAccount(acc.account_id);
+                          const cleanId = acc.account_id.replace('act_', '');
+                          setSelectedAdAccount(cleanId);
+                          localStorage.setItem("selectedAdAccount", cleanId); // 👈 រក្សាទុកអចិន្ត្រៃយ៍
                           setIsAccountMenuOpen(false);
-                          localStorage.setItem("selectedAdAccount", acc.account_id);
+                          fetchCampaigns(); // 👈 ទាញយក Campaign របស់ Account នេះភ្លាម
                         }}
                         className={`p-2.5 rounded-lg border flex items-center justify-between cursor-pointer transition mb-1 ${selectedAdAccount === acc.account_id ? (theme === 'dark' ? 'bg-blue-900/40 border-blue-600' : 'bg-blue-50/60 border-blue-300') : (theme === 'dark' ? 'border-slate-700 hover:bg-[#3A3B3C]' : 'border-slate-200 hover:bg-slate-50')}`}
                       >
@@ -4134,7 +4075,7 @@ export default function Home() {
                     
                     {/* 1. Tab: Campaigns */}
                     <div className={`flex items-center gap-1.5 px-3 py-2 border-t border-l border-r rounded-t-md transition cursor-pointer shrink-0 ${activeManageTab === 'CAMPAIGNS' ? (theme === 'dark' ? 'bg-[#242526] border-slate-700 border-b-[#242526] font-bold text-white -mb-[1px] shadow-sm' : 'bg-white border-slate-300 border-b-white font-bold text-slate-900 -mb-[1px] shadow-sm') : (theme === 'dark' ? 'border-transparent hover:bg-[#3A3B3C]' : 'border-transparent hover:bg-slate-200/60')}`}>
-                      <button onClick={() => setActiveManageTab('CAMPAIGNS')} className="flex items-center gap-1.5 cursor-pointer">
+                      <button onClick={() => { setActiveManageTab('CAMPAIGNS'); localStorage.setItem('activeManageTab', 'CAMPAIGNS'); }} className="flex items-center gap-1.5 cursor-pointer">
                         <span className="text-blue-500 font-bold">📁</span> Campaigns
                       </button>
                       {selectedCampaigns.length > 0 && (
@@ -4147,21 +4088,21 @@ export default function Home() {
 
                     {/* 2. Tab: Ad sets */}
                     <div className={`flex items-center gap-1.5 px-3 py-2 border-t border-l border-r rounded-t-md transition cursor-pointer shrink-0 ${activeManageTab === 'ADSETS' ? (theme === 'dark' ? 'bg-[#242526] border-slate-700 border-b-[#242526] font-bold text-white -mb-[1px] shadow-sm' : 'bg-white border-slate-300 border-b-white font-bold text-slate-900 -mb-[1px] shadow-sm') : (theme === 'dark' ? 'border-transparent hover:bg-[#3A3B3C]' : 'border-transparent hover:bg-slate-200/60')}`}>
-                      <button onClick={() => setActiveManageTab('ADSETS')} className="flex items-center gap-1.5 cursor-pointer">
+                      <button onClick={() => { setActiveManageTab('ADSETS'); localStorage.setItem('activeManageTab', 'ADSETS'); }} className="flex items-center gap-1.5 cursor-pointer">
                         <span className="text-indigo-500 font-bold">⊞</span> {selectedCampaigns.length > 0 ? `Ad sets (${selectedCampaigns.length})` : 'Ad sets'}
                       </button>
                     </div>
 
                     {/* 3. Tab: Ads */}
                     <div className={`flex items-center gap-1.5 px-3 py-2 border-t border-l border-r rounded-t-md transition cursor-pointer shrink-0 ${activeManageTab === 'ADS' ? (theme === 'dark' ? 'bg-[#242526] border-slate-700 border-b-[#242526] font-bold text-white -mb-[1px] shadow-sm' : 'bg-white border-slate-300 border-b-white font-bold text-slate-900 -mb-[1px] shadow-sm') : (theme === 'dark' ? 'border-transparent hover:bg-[#3A3B3C]' : 'border-transparent hover:bg-slate-200/60')}`}>
-                      <button onClick={() => setActiveManageTab('ADS')} className="flex items-center gap-1.5 cursor-pointer">
+                      <button onClick={() => { setActiveManageTab('ADS'); localStorage.setItem('activeManageTab', 'ADS'); }} className="flex items-center gap-1.5 cursor-pointer">
                         <span className="text-sky-500 font-bold">📄</span> {selectedCampaigns.length > 0 ? `Ads (${selectedCampaigns.length})` : 'Ads'}
                       </button>
                     </div>
 
                     {/* 🌟 ប៊ូតុង AI Audit ដាក់ជាប់ Tab Ads ពេលចុចនឹងនាំមក Tab Ads ភ្លាម */}
                     <button 
-                      onClick={() => setActiveManageTab('ADS')}
+                      onClick={() => { setActiveManageTab('ADS'); localStorage.setItem('activeManageTab', 'ADS'); }}
                       className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold rounded-lg text-[11px] shadow-sm animate-pulse shrink-0 cursor-pointer transition mb-1"
                     >
                       <span>✨</span> <span>AI Audit</span>
@@ -4280,6 +4221,7 @@ export default function Home() {
                                         onClick={() => {
                                           setSelectedCampaigns([c.id]);
                                           setActiveManageTab('ADSETS');
+                                          localStorage.setItem('activeManageTab', 'ADSETS'); // 🌟 ថែមបន្ទាត់នេះ
                                         }} 
                                         className="text-[#1877F2] font-semibold cursor-pointer hover:underline truncate max-w-[260px] block"
                                       >
@@ -4607,15 +4549,16 @@ export default function Home() {
                                   <td className={`p-3 border-r align-middle relative ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
                                     <div className="flex items-center justify-between gap-3">
                                       
-                                      <div className="relative flex items-center gap-2.5 min-w-0">
-                                        {/* រូបតូច Thumbnail: ពេលចុច (Click) ឬយកម៉ៅដាក់លើ នឹងលោតផ្ទាំង Preview */}
+                                      {/* 🌟 បន្ថែម class "group" ទីនេះ ដើម្បីឱ្យ hover ដំណើរការបានប្រក្រតី */}
+                                      <div className="relative flex items-center gap-2.5 min-w-0 group">
+                                        
+                                        {/* រូបតូច Thumbnail */}
                                         <div 
                                           onClick={(e) => {
                                             e.stopPropagation();
-                                            // បើចុចលើអត្ថបទ/រូប ឱ្យវា toggle បើកបិទផ្ទាំង Preview លើទូរស័ព្ទ
                                             setActivePreviewAdId(activePreviewAdId === ad.id ? null : ad.id);
                                           }}
-                                          className="w-10 h-10 rounded bg-slate-800 flex items-center justify-center text-white text-xs overflow-hidden shrink-0 shadow-xs cursor-pointer border border-slate-300 dark:border-slate-600"
+                                          className="w-10 h-10 rounded bg-slate-800 flex items-center justify-center text-white text-xs overflow-hidden shrink-0 shadow-xs cursor-pointer border border-slate-300 dark:border-slate-600 relative"
                                         >
                                           {ad.creative?.thumbnail_url || ad.creative?.image_url ? (
                                             <img src={ad.creative.thumbnail_url || ad.creative.image_url} className="w-full h-full object-cover" alt="Ad thumb" />
@@ -4635,11 +4578,11 @@ export default function Home() {
                                         </span>
 
                                         {/* 🚀 ផ្ទាំង Popover ធំ (លោតចេញមកទាំងពេល Hover និងពេល Click/Tap) */}
-                                        <div className={`fixed top-1/2 right-[5%] transform -translate-y-1/2 flex-col w-[340px] rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.4)] border overflow-hidden z-[999999] bg-white dark:bg-[#242526] border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white animate-in fade-in zoom-in-95 duration-200 ${
+                                        <div className={`absolute left-[110%] top-0 flex-col w-[340px] rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.4)] border overflow-hidden z-[999999] bg-white dark:bg-[#242526] border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white animate-in fade-in zoom-in-95 duration-200 ${
                                           activePreviewAdId === ad.id ? 'flex' : 'hidden group-hover:flex'
                                         }`}>
                                           
-                                          {/* ប៊ូតុងបិទ (X) សម្រាប់ជំនួយលើទូរស័ព្ទ */}
+                                          {/* ប៊ូតុងបិទ (X) */}
                                           <button 
                                             type="button" 
                                             onClick={(e) => { e.stopPropagation(); setActivePreviewAdId(null); }}
@@ -4780,6 +4723,7 @@ export default function Home() {
                                           </div>
 
                                         </div>
+
                                       </div>
 
                                       <button 
@@ -4790,6 +4734,7 @@ export default function Home() {
                                       >
                                         <span>✨</span> <span>AI Audit</span>
                                       </button>
+
                                     </div>
                                   </td>
 

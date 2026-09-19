@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 
+// 🌟 Helper function សម្រាប់ទាញយក Token (គាំទ្រទាំង Query Parameters និង Request Body)
 function getAccessToken(request: Request, body?: any) {
   const { searchParams } = new URL(request.url);
   const clientToken = searchParams.get('access_token') || body?.access_token;
@@ -10,7 +11,9 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const accessToken = getAccessToken(request);
-    const campaignId = searchParams.get('campaignId');
+    
+    // 🌟 គាំទ្រទាំង campaignIds (ຫຼາຍ ID) និង campaignId ធម្មតា ឬ adAccountId
+    const campaignIdsParam = searchParams.get('campaignIds') || searchParams.get('campaignId');
     const adAccountId = searchParams.get('adAccountId');
     let datePreset = searchParams.get('datePreset') || 'maximum'; 
 
@@ -23,30 +26,34 @@ export async function GET(request: Request) {
     let allAds: any[] = [];
     const creativeFields = 'id,name,body,image_url,thumbnail_url,object_story_spec,asset_feed_spec,effective_object_story_id,object_story_id';
 
-    if (campaignId) {
-      const adSetsRes = await fetch(`https://graph.facebook.com/v18.0/${campaignId}/adsets?fields=id&access_token=${accessToken}`);
-      const adSetsData = await adSetsRes.json();
-      
-      let adSetIds = [campaignId]; 
-      if (adSetsData.data && adSetsData.data.length > 0) {
-        adSetIds = adSetsData.data.map((adset: any) => adset.id);
-      }
+    // 🌟 ត្រូវប្រាកដថា Loop នេះប្រមូលយក Ads គ្រប់ Campaign ទាំងអស់មកដាក់ក្នុង allAds
+    if (campaignIdsParam) {
+      const campaignIds = campaignIdsParam.split(',');
+      allAds = []; // សម្អាតចោលជាមុនសិន
 
-      for (const id of adSetIds) {
-        const adsRes = await fetch(`https://graph.facebook.com/v18.0/${id}/ads?fields=id,name,status,effective_status,creative{${creativeFields}},insights.date_preset(${datePreset}).level(ad){spend,impressions,reach,actions}&limit=500&access_token=${accessToken}`);
-        const adsData = await adsRes.json();
+      for (const campId of campaignIds) {
+        const url = `https://graph.facebook.com/v18.0/${campId}/ads?fields=id,name,status,effective_status,creative{${creativeFields}},insights.date_preset(${datePreset}).level(ad){spend,impressions,reach,actions}&limit=500&access_token=${accessToken}`;
         
-        if (adsData.data && Array.isArray(adsData.data)) {
-          for (const ad of adsData.data) {
-            if (!allAds.some(existing => existing.id === ad.id)) allAds.push(ad);
+        const response = await fetch(url, { cache: 'no-store' });
+        const data = await response.json();
+
+        if (data.data && Array.isArray(data.data)) {
+          for (const ad of data.data) {
+            // បញ្ចូលទាំងអស់ដោយមិនបាច់ទប់ស្កាត់ការជាន់គ្នាខ្លាំងពេក ដើម្បីធានាថាមិនបាត់ Ads របស់ Campaign ទី២ ឬទី៣
+            allAds.push(ad);
           }
         }
       }
+    }
 
-      if (allAds.length === 0) {
-        const directAdsRes = await fetch(`https://graph.facebook.com/v18.0/${campaignId}/ads?fields=id,name,status,effective_status,creative{${creativeFields}},insights.date_preset(${datePreset}).level(ad){spend,impressions,reach,actions}&limit=500&access_token=${accessToken}`);
+        // បើរកអត់ឃើញតាម Ad Sets ទេ ទាញទិសដៅផ្ទាល់ពី Campaign តែម្ដង
+        const directAdsRes = await fetch(`https://graph.facebook.com/v18.0/${campId}/ads?fields=id,name,status,effective_status,creative{${creativeFields}},insights.date_preset(${datePreset}).level(ad){spend,impressions,reach,actions}&limit=500&access_token=${accessToken}`);
         const directAdsData = await directAdsRes.json();
-        if (directAdsData.data) allAds = directAdsData.data;
+        if (directAdsData.data && Array.isArray(directAdsData.data)) {
+          for (const ad of directAdsData.data) {
+            if (!allAds.some(existing => existing.id === ad.id)) allAds.push(ad);
+          }
+        }
       }
 
     } else if (adAccountId) {
@@ -56,7 +63,7 @@ export async function GET(request: Request) {
       const data = await response.json();
       allAds = data.data || [];
     } else {
-      throw new Error("Missing Campaign ID or Ad Account ID");
+      throw new Error("Missing Campaign ID(s) or Ad Account ID");
     }
 
     // 🌟 ជំហានពិសេស៖ បង្ខំឱ្យ API រត់ទៅទាញយក "រូបភាពច្រើនសន្លឹក" ចេញពី Post ផ្ទាល់ សម្រាប់គ្រប់ Ads ទាំងអស់!
@@ -72,7 +79,6 @@ export async function GET(request: Request) {
 
       for (const chunk of chunkedIds) {
         const idsParam = chunk.join(',');
-        // 🌟 ជំនួសបន្ទាត់ postUrl នេះ (ថែម attachments{media,subattachments{media}} ដើម្បីកុំឱ្យចន្លោះរូប)
         const postUrl = `https://graph.facebook.com/v18.0/?ids=${idsParam}&fields=id,message,full_picture,attachments{media,subattachments{media}}&access_token=${accessToken}`;
         const postRes = await fetch(postUrl);
         const postData = await postRes.json();
