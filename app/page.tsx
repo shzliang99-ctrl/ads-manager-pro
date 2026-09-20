@@ -211,6 +211,10 @@ export default function Home() {
       console.error("Error fetching Facebook pages:", err);
     }
   };
+
+  // 🌟 ប្រកាស State សម្រាប់ Pop-up កែប្រែប្រាក់ចំណូលសរុប
+  const [isRevenueModalOpen, setIsRevenueModalOpen] = useState(false);
+  const [customRevenueInput, setCustomRevenueInput] = useState("");
   
   // 🌟 បន្ថែម State សម្រាប់គ្រប់គ្រង Page Menu Dropdown
   const [isPageMenuOpen, setIsPageMenuOpen] = useState(false);
@@ -669,7 +673,8 @@ export default function Home() {
   const [editCampaignId, setEditCampaignId] = useState("");
   const [editCampaignName, setEditCampaignName] = useState("");
   const [editBudget, setEditBudget] = useState("");
-  const [editStartDate, setEditStartDate] = useState("");
+  const [editStartDate, setEditStartDate] = useState('');
+  const [editExpiryDate, setEditExpiryDate] = useState('');
   const [editEndDate, setEditEndDate] = useState("");
   const [isSavingEdit, setIsSavingEdit] = useState(false);
 
@@ -981,6 +986,43 @@ export default function Home() {
       localStorage.setItem('ads_manager_campaign_draft', JSON.stringify(draftData));
     }
   }, [campaignName, adsetName, budget, duration, targeting]);
+
+  // 🌟 State សម្រាប់បង្ហាញ Popup เตือน Client ពេលជិតផុតកំណត់សេវា (≤ 7 ថ្ងៃ)
+  const [showExpiryAlertModal, setShowExpiryAlertModal] = useState(false);
+  const [clientExpiryDaysLeftModal, setClientExpiryDaysLeftModal] = useState<number | null>(null);
+
+  // 🌟 ឆែកមើលថ្ងៃផុតកំណត់របស់ Client ដែលកំពុង Login ដើម្បីបើក Popup ស្វ័យប្រវត្តិ
+  useEffect(() => {
+    const checkClientAlertModal = async () => {
+      if (isAdmin) return; // បើជា Admin មិនបាច់លោត Popup นี้ទេ
+      
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user || !user.email) return;
+
+      const { data } = await supabase
+        .from('customer_subscriptions')
+        .select('expiry_date')
+        .eq('email', user.email)
+        .single();
+
+      if (data && data.expiry_date) {
+        const today = new Date();
+        const expiry = new Date(data.expiry_date);
+        const diffTime = expiry.getTime() - today.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        setClientExpiryDaysLeftModal(diffDays);
+
+        // បើនៅសល់តិចជាង ឬស្មើ 7 ថ្ងៃ និងមិនទាន់ផុតកំណត់ ឬទើបផុត គឺលោត Popup เตือน
+        if (diffDays <= 7) {
+          setShowExpiryAlertModal(true);
+        }
+      }
+    };
+    checkClientAlertModal();
+  }, [isAdmin]);
+
+  
 
   // ១. ថែម State សម្រាប់មុខងារថ្មីនេះ (ដាក់ជិត State ចាស់ៗ)
   const [includeAdImages, setIncludeAdImages] = useState(true);
@@ -1347,10 +1389,6 @@ export default function Home() {
 
   useEffect(() => {
     fetchClients();
-    const interval = setInterval(() => {
-      fetchClients();
-    }, 10000);
-    return () => clearInterval(interval);
   }, []);
 
   const pendingSlipsCount = clients.filter(c => c.slip_status === 'pending').length;
@@ -1381,7 +1419,9 @@ export default function Home() {
     }
   }, [activeTab]);
 
+
   // 🟢 មុខងារបើក Pop-up កែប្រែ និងទាញទិន្នន័យចាស់មកបំពេញស្រាប់
+  
   const handleOpenEditClient = (client: any) => {
     setEditingClient(client);
     setEditClientName(client.client_name || '');
@@ -1391,9 +1431,13 @@ export default function Home() {
     setEditLinkedFbPage(client.linked_fb_page || '');
     setEditPackageName(client.package_name || '');
     setEditAmountPaid(client.amount || '');
+    
+    // 🌟 បន្ថែមទាញយកថ្ងៃខែចាប់ផ្តើម និងផុតកំណត់ចាស់មកជាមួយ
+    setEditStartDate(client.start_date ? client.start_date.split('T')[0] : '');
+    setEditExpiryDate(client.expiry_date ? client.expiry_date.split('T')[0] : '');
+    
     setIsEditClientModalOpen(true);
   };
-
   // 🟢 មុខងារបញ្ជូនទិន្នន័យដែលបានកែប្រែទៅកាន់ Supabase ផ្ទាល់
   const handleUpdateClient = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1409,15 +1453,17 @@ export default function Home() {
           phone: editClientPhone,
           linked_fb_page: editLinkedFbPage,
           package_name: editPackageName,
-          amount: editAmountPaid ? Number(editAmountPaid) : 0
+          amount: editAmountPaid ? Number(editAmountPaid) : 0,
+          start_date: editStartDate ? new Date(editStartDate).toISOString() : editingClient.start_date,
+          expiry_date: editExpiryDate ? new Date(editExpiryDate).toISOString() : editingClient.expiry_date
         })
         .eq('id', editingClient.id);
 
       if (error) throw error;
 
-      showToast("✅ បានកែប្រែព័ត៌មានអតិថិជនដោយជោគជ័យ!", "success");
+      showToast("✅ បានកែប្រែព័ត៌មាន និងថ្ងៃខែសុពលភាពដោយជោគជ័យ!", "success");
       setIsEditClientModalOpen(false);
-      fetchClients(); // ទាញយកទិន្នន័យថ្មីមកបង្ហាញក្នុងតារាង
+      fetchClients(); 
     } catch (err: any) {
       alert("❌ បរាជ័យក្នុងការកែប្រែ: " + err.message);
     }
@@ -2946,11 +2992,29 @@ const fetchAdsets = async () => {
                         </div>
                       </div>
 
-                      {/* 3. ប្រាក់ចំណូលសរុប (REVENUE) */}
-                      <div className={`p-5 rounded-2xl border shadow-sm flex items-center justify-between transition-colors ${theme === 'dark' ? 'bg-[#18191A] border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
+                      {/* 3. ប្រាក់ចំណូលសរុប (REVENUE) មានប៊ូតុង Edit បែបទំនើប */}
+                      <div className={`p-5 rounded-2xl border shadow-sm flex items-center justify-between transition-colors relative group ${theme === 'dark' ? 'bg-[#18191A] border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
                         <div>
-                          <h4 className={`text-[11px] font-bold uppercase tracking-widest mb-1.5 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>ប្រាក់ចំណូលសរុប (Revenue)</h4>
-                          <div className="text-3xl font-black text-[#F5C33B] dark:text-amber-400">${totalRevenue.toFixed(2)}</div>
+                          <div className="flex items-center gap-2 mb-1.5">
+                            <h4 className={`text-[11px] font-bold uppercase tracking-widest ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>ប្រាក់ចំណូលសរុប (Revenue)</h4>
+                            
+                            {/* 🌟 ប៊ូតុង Edit បែប Modern ទំនើប */}
+                            <button 
+                              type="button"
+                              onClick={() => {
+                                const currentVal = localStorage.getItem("admin_custom_revenue") || totalRevenue.toString();
+                                setCustomRevenueInput(currentVal);
+                                setIsRevenueModalOpen(true);
+                              }}
+                              className="opacity-80 group-hover:opacity-100 text-[11px] bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white px-2.5 py-0.5 rounded-full font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1 transform hover:scale-105 active:scale-95"
+                              title="កែប្រែប្រាក់ចំណូលសរុប"
+                            >
+                              <span>✏️</span> កែប្រែ
+                            </button>
+                          </div>
+                          <div className="text-3xl font-black text-[#F5C33B] dark:text-amber-400">
+                            ${Number(localStorage.getItem("admin_custom_revenue") || totalRevenue).toFixed(2)}
+                          </div>
                         </div>
                         <div className="w-12 h-12 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 flex items-center justify-center text-xl shadow-inner">
                           💰
@@ -2988,131 +3052,134 @@ const fetchAdsets = async () => {
                       </thead>
                       <tbody className="divide-y divide-slate-200 dark:divide-slate-700 text-sm">
                         {loadingClients ? (
-                          <tr><td colSpan={6} className="text-center py-10 text-gray-400">កំពុងទាញយកទិន្នន័យអតិថិជន...</td></tr>
-                        ) : clients.length === 0 ? (
-                          <tr><td colSpan={6} className="text-center py-10 text-gray-400">មិនទាន់មានទិន្នន័យអតិថិជននៅឡើយទេ។</td></tr>
-                        ) : (
-                          clients.map((item) => {
-                            const isExpired = new Date(item.expiry_date) < new Date();
-                            const isPendingSlip = item.slip_status === 'pending';
-                            const isHighlighted = highlightedClientId === item.id;
+                            <tr><td colSpan={6} className="text-center py-10 text-gray-400">កំពុងទាញយកទិន្នន័យអតិថិជន...</td></tr>
+                          ) : clients.length === 0 ? (
+                            <tr><td colSpan={6} className="text-center py-10 text-gray-400">មិនទាន់មានទិន្នន័យអតិថិជននៅឡើយទេ។</td></tr>
+                          ) : (
+                            clients.map((item) => {
+                              const isExpired = new Date(item.expiry_date) < new Date();
+                              const isPendingSlip = item.slip_status === 'pending';
+                              const isHighlighted = highlightedClientId === item.id;
 
-                            return (
-                              <tr 
-                                key={item.id} 
-                                ref={(el) => { clientRowRefs.current[item.id] = el; }}
-                                className={`transition ${isHighlighted ? 'bg-amber-500/20 ring-2 ring-amber-500' : ''} ${isPendingSlip ? 'animate-pulse bg-red-500/10' : (theme === 'dark' ? 'hover:bg-[#3A3B3C]' : 'hover:bg-gray-50')}`}
-                              >
-                                {/* Customer Info */}
-                                <td className="py-3.5 px-4">
-                                  <div className={`font-bold text-[14.5px] ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>{item.client_name}</div>
-                                  <div className={`text-[12px] flex items-center gap-1.5 mt-1 ${theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>
-                                    <span>📞</span> {item.phone || 'គ្មានលេខទូរស័ព្ទ'}
-                                  </div>
-                                </td>
-                                
-                                {/* Account Login Info (Email & Password) */}
-                                <td className="py-3.5 px-4">
-                                  <div className={`text-[12px] flex items-center gap-1.5 ${theme === 'dark' ? 'text-slate-300' : 'text-gray-700'} font-medium`}>
-                                    <span>✉️</span> {item.email || '-'}
-                                  </div>
-                                  <div className="text-[12px] flex items-center gap-1.5 mt-1 font-mono font-bold text-blue-500 bg-blue-50 dark:bg-blue-900/30 w-fit px-2 py-0.5 rounded cursor-pointer hover:bg-blue-100" title="លេខសម្ងាត់" onClick={() => { navigator.clipboard.writeText(item.password); alert("បាន Copy លេខសម្ងាត់!"); }}>
-                                    <span>🔑</span> {item.password || 'គ្មានលេខសម្ងាត់'}
-                                  </div>
-                                </td>
+                              // 🌟 គណនាមើលថាតើនៅសល់ថ្ងៃប៉ុន្មានទៀតទើបដល់ថ្ងៃផុតកំណត់ (សម្រាប់ Warning សល់ <= 7 ថ្ងៃ)
+                              const today = new Date();
+                              const expiry = new Date(item.expiry_date);
+                              const diffTime = expiry.getTime() - today.getTime();
+                              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                              const isNearExpiry = diffDays >= 0 && diffDays <= 7;
 
-                                {/* Linked Facebook */}
-                                <td className="py-3.5 px-4">
-                                  {item.linked_fb_page ? (
-                                    <div className="flex items-center gap-2">
-                                      <div className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0 shadow-sm">
-                                        f
-                                      </div>
-                                      <span className={`text-[12.5px] font-bold truncate max-w-[160px] ${theme === 'dark' ? 'text-blue-400' : 'text-[#1877F2]'}`} title={item.linked_fb_page}>
-                                        {pages.find(p => p.id === item.linked_fb_page)?.name || `Page ID: ${item.linked_fb_page}`}
-                                      </span>
+                              return (
+                                <tr 
+                                  key={item.id} 
+                                  ref={(el) => { clientRowRefs.current[item.id] = el; }}
+                                  className={`transition ${isHighlighted ? 'bg-amber-500/20 ring-2 ring-amber-500' : ''} ${
+                                    isNearExpiry 
+                                      ? (theme === 'dark' ? 'bg-orange-950/40 border-l-4 border-orange-500 animate-pulse' : 'bg-orange-50 border-l-4 border-orange-500 animate-pulse') 
+                                      : isPendingSlip ? 'animate-pulse bg-red-500/10' : (theme === 'dark' ? 'hover:bg-[#3A3B3C]' : 'hover:bg-gray-50')
+                                  }`}
+                                >
+                                  {/* 1. ព័ត៌មានអតិថិជន */}
+                                  <td className="py-3.5 px-4">
+                                    <div className={`font-bold text-[14.5px] ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>{item.client_name}</div>
+                                    <div className={`text-[12px] flex items-center gap-1.5 mt-1 ${theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>
+                                      <span>📞</span> {item.phone || 'គ្មានលេខទូរស័ព្ទ'}
                                     </div>
-                                  ) : (
-                                    <span className="text-[12px] text-slate-400 italic">មិនបានភ្ជាប់</span>
-                                  )}
-                                </td>
-
-                                {/* Package & Price */}
-                                <td className="py-3.5 px-4">
-                                  <div className={`font-bold text-[13px] ${theme === 'dark' ? 'text-slate-200' : 'text-gray-700'}`}>{item.package_name}</div>
-                                  <div className="text-emerald-500 font-bold text-[12px] mt-0.5">បង់ប្រាក់៖ ${item.amount}</div>
-                                </td>
-
-                                {/* Dates & Status */}
-                                <td className="py-3.5 px-4">
-                                  <div className={`text-[12px] ${theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>
-                                    ចាប់ផ្តើម៖ {new Date(item.start_date).toLocaleDateString('km-KH')}
-                                  </div>
+                                  </td>
                                   
-                                  <div className={`text-[12px] font-bold mt-0.5 ${isExpired ? 'text-red-500' : (theme === 'dark' ? 'text-slate-200' : 'text-gray-700')}`}>
-                                    ផុតកំណត់៖ {new Date(item.expiry_date).toLocaleDateString('km-KH')}
-                                  </div>
+                                  {/* 2. គណនី Login (Email & Password) */}
+                                  <td className="py-3.5 px-4">
+                                    <div className={`text-[12px] flex items-center gap-1.5 ${theme === 'dark' ? 'text-slate-300' : 'text-gray-700'} font-medium`}>
+                                      <span>✉️</span> {item.email || '-'}
+                                    </div>
+                                    <div className="text-[12px] flex items-center gap-1.5 mt-1 font-mono font-bold text-blue-500 bg-blue-50 dark:bg-blue-900/30 w-fit px-2 py-0.5 rounded cursor-pointer hover:bg-blue-100" title="លេខសម្ងាត់" onClick={() => { navigator.clipboard.writeText(item.password); alert("បាន Copy លេខសម្ងាត់!"); }}>
+                                      <span>🔑</span> {item.password || 'គ្មានលេខសម្ងាត់'}
+                                    </div>
+                                  </td>
 
-                                  <div className="mt-1">
-                                    {(() => {
-                                      const today = new Date();
-                                      const expiry = new Date(item.expiry_date);
-                                      const diffTime = expiry.getTime() - today.getTime();
-                                      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-                                      if (diffDays < 0) {
-                                        return <span className="text-[11px] font-bold text-red-500 bg-red-500/10 px-2 py-0.5 rounded border border-red-500/20">ផុតកំណត់យូរហើយ ({Math.abs(diffDays)} ថ្ងៃមុន)</span>;
-                                      } else if (diffDays === 0) {
-                                        return <span className="text-[11px] font-bold text-orange-500 bg-orange-500/10 px-2 py-0.5 rounded border border-orange-500/20">ផុតកំណត់ថ្ងៃនេះ!</span>;
-                                      } else {
-                                        return <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">⏳ នៅសល់ {diffDays} ថ្ងៃទៀត</span>;
-                                      }
-                                    })()}
-                                  </div>
-                                  
-                                  <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
-                                    {isExpired ? (
-                                      <span className="px-2 py-0.5 bg-red-500/10 text-red-500 rounded text-[10px] font-bold border border-red-500/20">ផុតកំណត់សេវា</span>
+                                  {/* 3. Linked Facebook */}
+                                  <td className="py-3.5 px-4">
+                                    {item.linked_fb_page ? (
+                                      <div className="flex items-center gap-2">
+                                        <div className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0 shadow-sm">
+                                          ាប់
+                                        </div>
+                                        <span className={`text-[12.5px] font-bold truncate max-w-[160px] ${theme === 'dark' ? 'text-blue-400' : 'text-[#1877F2]'}`} title={item.linked_fb_page}>
+                                          {pages.find(p => p.id === item.linked_fb_page)?.name || `Page ID: ${item.linked_fb_page}`}
+                                        </span>
+                                      </div>
                                     ) : (
-                                      <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-500 rounded text-[10px] font-bold border border-emerald-500/20">កំពុងដំណើរការ</span>
+                                      <span className="text-[12px] text-slate-400 italic">មិនបានភ្ជាប់</span>
                                     )}
+                                  </td>
 
-                                    {item.slip_status === 'pending' ? (
-                                      <span className="px-2 py-0.5 bg-amber-500/10 text-amber-600 rounded text-[10px] font-bold border border-amber-500/20 animate-bounce">រង់ចាំ Slip ₱</span>
-                                    ) : item.slip_status === 'approved' ? (
-                                      <span className="px-2 py-0.5 bg-blue-500/10 text-blue-500 rounded text-[10px] font-bold border border-blue-500/20">បានទូទាត់ប្រាក់ ✓</span>
-                                    ) : null}
-                                  </div>
-                                </td>
+                                  {/* 4. Package & Price */}
+                                  <td className="py-3.5 px-4">
+                                    <div className={`font-bold text-[13px] ${theme === 'dark' ? 'text-slate-200' : 'text-gray-700'}`}>{item.package_name}</div>
+                                    <div className="text-emerald-500 font-bold text-[12px] mt-0.5">បង់ប្រាក់៖ ${item.amount}</div>
+                                  </td>
 
-                                {/* Actions */}
-                                <td className="py-4 px-4 text-center align-middle">
-                                  <div className="flex items-center justify-center gap-2 flex-wrap">
-                                    {item.slip_url && (
-                                      <button type="button" onClick={() => handleOpenSlipModal(item)} className="px-3 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer border border-purple-200/50">
-                                        <span>🧾</span> <span>មើល Slip</span>
+                                  {/* 5. Dates & Status */}
+                                  <td className="py-3.5 px-4">
+                                    <div className={`text-[12px] ${theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>
+                                      ចាប់ផ្តើម៖ {new Date(item.start_date).toLocaleDateString('km-KH')}
+                                    </div>
+                                    
+                                    <div className={`text-[12px] font-bold mt-0.5 ${isExpired ? 'text-red-500' : (theme === 'dark' ? 'text-slate-200' : 'text-gray-700')}`}>
+                                      ផុតកំណត់៖ {new Date(item.expiry_date).toLocaleDateString('km-KH')}
+                                    </div>
+
+                                    <div className="mt-1">
+                                      {(() => {
+                                        const today = new Date();
+                                        const expiry = new Date(item.expiry_date);
+                                        const diffTime = expiry.getTime() - today.getTime();
+                                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                                        if (diffDays < 0) {
+                                          return <span className="text-[11px] font-bold text-red-500 bg-red-500/10 px-2 py-0.5 rounded border border-red-500/20">ផុតកំណត់យូរហើយ ({Math.abs(diffDays)} ថ្ងៃមុន)</span>;
+                                        } else if (diffDays === 0) {
+                                          return <span className="text-[11px] font-bold text-orange-500 bg-orange-500/10 px-2 py-0.5 rounded border border-orange-500/20">ផុតកំណត់ថ្ងៃនេះ!</span>;
+                                        } else {
+                                          return <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">⏳ នៅសល់ {diffDays} ថ្ងៃទៀត</span>;
+                                        }
+                                      })()}
+                                    </div>
+                                    
+                                    <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
+                                      {isExpired ? (
+                                        <span className="px-2 py-0.5 bg-red-500/10 text-red-500 rounded text-[10px] font-bold border border-red-500/20">ផុតកំណត់សេវា</span>
+                                      ) : (
+                                        <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-500 rounded text-[10px] font-bold border border-emerald-500/20">កំពុងដំណើរការ</span>
+                                      )}
+
+                                      {item.slip_status === 'pending' ? (
+                                        <span className="px-2 py-0.5 bg-amber-500/10 text-amber-600 rounded text-[10px] font-bold border border-amber-500/20 animate-bounce">រង់ចាំ Slip ₱</span>
+                                      ) : item.slip_status === 'approved' ? (
+                                        <span className="px-2 py-0.5 bg-blue-500/10 text-blue-500 rounded text-[10px] font-bold border border-blue-500/20">បានទូទាត់ប្រាក់ ✓</span>
+                                      ) : null}
+                                    </div>
+                                  </td>
+
+                                  {/* 6. Actions */}
+                                  <td className="py-4 px-4 text-center align-middle">
+                                    <div className="flex items-center justify-center gap-1.5 flex-nowrap">
+                                      {item.slip_url && (
+                                        <button type="button" onClick={() => handleOpenSlipModal(item)} className="px-2.5 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 rounded-lg text-xs font-bold transition-all shadow-xs flex items-center gap-1 cursor-pointer border border-purple-200/50">
+                                          <span>🧾</span> <span>Slip</span>
+                                        </button>
+                                      )}
+                                      <button type="button" onClick={() => handleOpenEditClient(item)} className="px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 rounded-lg text-xs font-bold transition-all shadow-xs flex items-center gap-1 cursor-pointer border border-blue-200/50">
+                                        <span>✏️</span> <span>កែប្រែ</span>
                                       </button>
-                                    )}
-                                    <button type="button" onClick={() => handleRenewSubscription(item)} className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer border border-emerald-200/50">
-                                      <span>⚡</span> <span>+30ថ្ងៃ</span>
-                                    </button>
-                                    {item.slip_status === 'pending' && (
-                                      <button type="button" onClick={() => handleApproveSlip(item)} className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer animate-pulse border border-amber-200/50">
-                                        <span>✓</span> <span>Approve</span>
+                                      <button type="button" onClick={() => handleDeleteClient(item.id)} className="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300 rounded-lg text-xs font-bold transition-all shadow-xs flex items-center gap-1 cursor-pointer border border-red-200/50">
+                                        <span>🗑️</span> <span>លុប</span>
                                       </button>
-                                    )}
-                                    <button type="button" onClick={() => handleOpenEditClient(item)} className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer border border-blue-200/50">
-                                      <span>✏️</span> <span>កែប្រែ</span>
-                                    </button>
-                                    <button type="button" onClick={() => handleDeleteClient(item.id)} className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300 rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer border border-red-200/50">
-                                      <span>🗑️</span> <span>លុប</span>
-                                    </button>
-                                  </div>
-                                </td>
-                              </tr>
-                            );
-                          })
-                        )}
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })
+                          )}
                       </tbody>
                     </table>
                   </div>
@@ -3206,74 +3273,211 @@ const fetchAdsets = async () => {
                     </div>
                   </div>
                 )}
-                {/* 🌟 Modal សម្រាប់មើល Slip ផ្ទេរប្រាក់របស់អតិថិជន */}
+                {/* 🌟 Modal សម្រាប់ Admin មើល Slip និងកែប្រែទឹកប្រាក់មុន Approve */}
                 {isSlipModalOpen && selectedClientSlip && (
                   <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-[99999] p-4 animate-in fade-in duration-200">
-                    <div className={`rounded-3xl max-w-md w-full p-6 shadow-2xl border ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-900'}`}>
+                    <div className={`rounded-3xl max-w-xl w-full p-6 shadow-2xl border max-h-[90vh] overflow-y-auto custom-scrollbar ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-900'}`}>
                       
                       {/* Header */}
                       <div className="flex justify-between items-center mb-4 border-b pb-3 dark:border-slate-700">
                         <div>
                           <h3 className="font-bold text-lg flex items-center gap-2">
-                            <span>🧾</span> ពិនិត្យ Slip ផ្ទេរប្រាក់
+                            <span>🧾</span> ពិនិត្យ Slip និងកំណត់ទឹកប្រាក់
                           </h3>
-                          <p className="text-xs text-slate-400">អតិថិជន៖ <strong className="text-blue-500">{selectedClientSlip.client_name}</strong></p>
+                          <p className="text-xs text-slate-400">អតិថិជន៖ <strong className="text-blue-500">{selectedClientSlip.client_name}</strong> ({selectedClientSlip.email})</p>
                         </div>
                         <button onClick={() => setIsSlipModalOpen(false)} className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-bold text-slate-500 hover:text-red-500 cursor-pointer transition">✕</button>
                       </div>
 
                       {/* Slip Image Preview Box */}
-                      <div className="w-full bg-slate-100 dark:bg-slate-900 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 flex items-center justify-center min-h-[300px] max-h-[450px] mb-4 relative group">
+                      <div className="w-full bg-slate-100 dark:bg-slate-900 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 flex items-center justify-center min-h-[240px] max-h-[320px] mb-4 relative">
                         {selectedClientSlip.slip_url ? (
                           <img src={selectedClientSlip.slip_url} alt="Bank Slip" className="w-full h-full object-contain" />
                         ) : (
                           <div className="flex flex-col items-center justify-center text-slate-400 gap-2 p-6 text-center">
                             <span className="text-4xl">េ</span>
-                            <p className="text-xs font-medium">អតិថិជនរូបនេះមិនទាន់បាន Upload រូបភាព Slip មកទីកាន់ប្រព័ន្ធនៅឡើយទេ រួសរាន់ទំនាក់ទំនងសុំ Slip ផ្ទេរប្រាក់។</p>
+                            <p className="text-xs font-medium">អតិថិជនរូបនេះមិនទាន់បាន Upload រូបភាព Slip មកទីកាន់ប្រព័ន្ធនៅឡើយទេ។</p>
                           </div>
                         )}
                       </div>
 
-                      {/* Payment Info Details */}
-                      <div className={`p-4 rounded-2xl border mb-5 text-xs space-y-2 ${theme === 'dark' ? 'bg-[#18191A] border-slate-700 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-600'}`}>
-                        <div className="flex justify-between">
+                      {/* Payment Info Details & Custom Amount Input */}
+                      <div className={`p-4 rounded-2xl border mb-5 text-xs space-y-3 ${theme === 'dark' ? 'bg-[#18191A] border-slate-700 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-600'}`}>
+                        <div className="flex justify-between items-center">
                           <span className="text-slate-400">កញ្ចប់សេវា៖</span>
                           <span className="font-bold">{selectedClientSlip.package_name}</span>
                         </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-400">ទឹកប្រាក់ត្រូវបង់៖</span>
-                          <span className="font-bold text-emerald-500">${selectedClientSlip.amount || 0.00}</span>
+                        
+                        {/* 🌟 ប្រអប់ឱ្យ Admin វាយបញ្ចូលទឹកប្រាក់ (អាចកែប្រែ / Discount បាន) */}
+                        <div className="flex justify-between items-center pt-2 border-t border-slate-200 dark:border-slate-700">
+                          <span className="font-bold text-slate-700 dark:text-slate-300 uppercase">ទឹកប្រាក់អនុម័ត ($)៖</span>
+                          <div className="relative w-36">
+                            <span className="absolute left-3 top-2 font-bold text-emerald-500">$</span>
+                            <input 
+                              type="number" 
+                              id="adminCustomAmount" 
+                              step="0.01"
+                              defaultValue={selectedClientSlip.amount || 5.00} 
+                              className={`w-full pl-7 pr-3 py-1.5 rounded-xl border text-sm outline-none font-bold text-emerald-500 ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-900'}`}
+                            />
+                          </div>
                         </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-400">ស្ថានភាពបច្ចុប្បន្ន៖</span>
+
+                        <div className="flex justify-between items-center">
+                          <span className="text-slate-400">ស្ថានភាព Slip ចុងក្រោយ៖</span>
                           <span className={`font-bold ${selectedClientSlip.slip_status === 'approved' ? 'text-blue-500' : 'text-amber-500'}`}>
                             {selectedClientSlip.slip_status === 'approved' ? 'បានទូទាត់ប្រាក់ ✓' : 'រង់ចាំការអនុម័ត (Pending)'}
                           </span>
                         </div>
                       </div>
 
+                      {/* 🌟 ផ្នែកតារាងប្រវត្តិបង់ប្រាក់ និងប៊ូតុង Approve / Reject សម្រាប់ Admin */}
+                      <div className="mb-6">
+                        <h4 className="font-bold text-xs uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-1.5">
+                          <span>📜</span> ប្រវត្តិការទូទាត់ប្រាក់ទាំងអស់របស់អតិថិជន
+                        </h4>
+
+                        <div className={`rounded-xl border overflow-hidden ${theme === 'dark' ? 'bg-[#18191A] border-slate-700' : 'bg-white border-slate-200'}`}>
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse text-xs">
+                              <thead>
+                                <tr className={`border-b uppercase ${theme === 'dark' ? 'bg-[#3A3B3C] text-slate-300 border-slate-700' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>
+                                  <th className="py-2.5 px-3 font-bold">កាលបរិច្ឆេទ</th>
+                                  <th className="py-2.5 px-3 font-bold">ទឹកប្រាក់</th>
+                                  <th className="py-2.5 px-3 font-bold">Slip</th>
+                                  <th className="py-2.5 px-3 font-bold text-center">សកម្មភាព (Approve / Reject)</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                                {(() => {
+                                  const records = selectedClientSlip.payment_history || (selectedClientSlip.slip_url ? [{
+                                    date: selectedClientSlip.created_at || new Date().toISOString(),
+                                    amount: selectedClientSlip.amount || 0,
+                                    slip_url: selectedClientSlip.slip_url,
+                                    status: selectedClientSlip.slip_status || 'pending'
+                                  }] : []);
+
+                                  return records.length === 0 ? (
+                                    <tr>
+                                      <td colSpan={4} className="text-center py-6 text-slate-400 italic">គ្មានប្រវត្តិទូទាត់ប្រាក់</td>
+                                    </tr>
+                                  ) : (
+                                    records.map((rec: any, idx: number) => (
+                                      <tr key={idx} className={`transition ${theme === 'dark' ? 'hover:bg-[#3A3B3C]' : 'hover:bg-slate-50'}`}>
+                                        <td className="py-2.5 px-3 font-medium">
+                                          {new Date(rec.date).toLocaleDateString('km-KH')}
+                                        </td>
+                                        <td className="py-2.5 px-3 font-bold text-emerald-500">
+                                          ${Number(rec.amount || 0).toFixed(2)}
+                                        </td>
+                                        <td className="py-2.5 px-3">
+                                          {rec.slip_url ? (
+                                            <a href={rec.slip_url} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline font-bold">
+                                              មើល Slip 👁️
+                                            </a>
+                                          ) : '-'}
+                                        </td>
+                                        <td className="py-2.5 px-3 text-center">
+                                          <div className="flex items-center justify-center gap-1.5">
+                                            {rec.status === 'approved' ? (
+                                              <span className="px-2 py-0.5 bg-blue-500/10 text-blue-500 rounded font-bold text-[10px]">Approved ✓</span>
+                                            ) : rec.status === 'rejected' ? (
+                                              <span className="px-2 py-0.5 bg-red-500/10 text-red-500 rounded font-bold text-[10px]">Rejected ✕</span>
+                                            ) : (
+                                              <>
+                                                {/* 🌟 ប៊ូតុង Approve (ទាញយកទឹកប្រាក់ដែល Admin បានវាយកែប្រែ / Discount ដាក់ចូល) */}
+                                                <button 
+                                                  type="button"
+                                                  onClick={async () => {
+                                                    try {
+                                                      const customAmountEl = document.getElementById('adminCustomAmount') as HTMLInputElement;
+                                                      const finalAmount = customAmountEl ? Number(customAmountEl.value) || 0 : (selectedClientSlip.amount || 0);
+
+                                                      const updatedHist = records.map((r: any, i: number) => i === idx ? { ...r, amount: finalAmount, status: 'approved' } : r);
+                                                      
+                                                      // បន្ថែមថ្ងៃផុតកំណត់ (+30 ថ្ងៃ) ស្វ័យប្រវត្តិ
+                                                      const currentExpiry = selectedClientSlip.expiry_date ? new Date(selectedClientSlip.expiry_date) : new Date();
+                                                      const baseDate = currentExpiry > new Date() ? currentExpiry : new Date();
+                                                      baseDate.setDate(baseDate.getDate() + 30);
+                                                      const newExpiryDate = baseDate.toISOString();
+
+                                                      const { error } = await supabase
+                                                        .from('customer_subscriptions')
+                                                        .update({ 
+                                                          slip_status: 'approved',
+                                                          status: 'active',
+                                                          amount: finalAmount,
+                                                          expiry_date: newExpiryDate,
+                                                          payment_history: updatedHist 
+                                                        })
+                                                        .eq('id', selectedClientSlip.id);
+
+                                                      if (error) throw error;
+
+                                                      showToast(`✅ បាន Approve ទឹកប្រាក់ $${finalAmount.toFixed(2)} និងបន្តសេវា ៣០ថ្ងៃជោគជ័យ!`, "success");
+                                                      setIsSlipModalOpen(false);
+                                                      fetchClients();
+                                                    } catch (err: any) {
+                                                      alert("Error: " + err.message);
+                                                    }
+                                                  }}
+                                                  className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-[11px] transition shadow-xs cursor-pointer flex items-center gap-1"
+                                                >
+                                                  <span>✓</span> Approve
+                                                </button>
+
+                                                {/* 🌟 ប៊ូតុង Reject */}
+                                                <button 
+                                                  type="button"
+                                                  onClick={async () => {
+                                                    if (!confirm("តើបងពិតជាចង់ Reject Slip នេះមែនទេ?")) return;
+                                                    try {
+                                                      const updatedHist = records.map((r: any, i: number) => i === idx ? { ...r, status: 'rejected' } : r);
+
+                                                      const { error } = await supabase
+                                                        .from('customer_subscriptions')
+                                                        .update({ 
+                                                          slip_status: 'rejected',
+                                                          payment_history: updatedHist 
+                                                        })
+                                                        .eq('id', selectedClientSlip.id);
+
+                                                      if (error) throw error;
+
+                                                      showToast("❌ បាន Reject Slip រួចរាល់!", "error");
+                                                      setIsSlipModalOpen(false);
+                                                      fetchClients();
+                                                    } catch (err: any) {
+                                                      alert("Error: " + err.message);
+                                                    }
+                                                  }}
+                                                  className="px-2.5 py-1 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold text-[11px] transition shadow-xs cursor-pointer flex items-center gap-1"
+                                                >
+                                                  <span>✕</span> Reject
+                                                </button>
+                                              </>
+                                            )}
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    ))
+                                  );
+                                })()}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      </div>
+
                       {/* Footer Actions */}
-                      <div className="flex gap-3">
+                      <div className="flex gap-3 pt-2">
                         <button 
                           type="button" 
                           onClick={() => setIsSlipModalOpen(false)} 
-                          className="flex-1 py-3 rounded-xl font-bold text-xs border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+                          className="w-full py-3 rounded-xl font-bold text-xs border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
                         >
                           បិទ (Close)
                         </button>
-
-                        {selectedClientSlip.slip_status !== 'approved' && (
-                          <button 
-                            type="button" 
-                            onClick={() => {
-                              handleApproveSlip(selectedClientSlip);
-                              setIsSlipModalOpen(false);
-                            }} 
-                            className="flex-1 py-3 rounded-xl font-bold text-xs text-white bg-emerald-600 hover:bg-emerald-700 shadow-md transition cursor-pointer flex items-center justify-center gap-1.5"
-                          >
-                            <span>✓</span> <span>Approve Slip ឥឡូវនេះ</span>
-                          </button>
-                        )}
                       </div>
 
                     </div>
@@ -3327,7 +3531,7 @@ const fetchAdsets = async () => {
                       <p>លេខគណនី ABA៖ <strong className="text-blue-600 dark:text-blue-400">000 123 456</strong></p>
                     </div>
 
-                    {/* 🌟 ផ្នែកសម្រាប់ Admin Upload QR Code ថ្មី (រៀបចំរចនាសម្ព័ន្ធសារថ្មី មិនឱ្យជាន់គ្នា) */}
+                    {/* 🌟 ផ្នែកសម្រាប់ Admin Upload QR Code ថ្មី */}
                       {isAdmin && (
                         <div className="w-full mt-6 pt-4 border-t border-slate-300 dark:border-slate-700 flex flex-col items-center gap-2">
                           <span className="text-xs font-bold text-amber-500">⚙️ Admin: ផ្លាស់ប្ដូរ QR Code ថ្មី</span>
@@ -3376,7 +3580,7 @@ const fetchAdsets = async () => {
 
                         if (uploadError) throw uploadError;
 
-                        const { data: { publicUrl } } = await supabase.storage
+                        const { data: { publicUrl } } = supabase.storage
                           .from('slips')
                           .getPublicUrl(fileName);
 
@@ -3410,15 +3614,13 @@ const fetchAdsets = async () => {
 
                         showToast("✅ បានបញ្ជូន Slip ទៅកាន់ Admin ដោយជោគជ័យ!", "success");
                         form.reset();
-                        // 🌟 អតិថិជន Upload រួច គឺស្ថិតនៅផ្ទាំងเดิม (Payments) ដដែល មិនប្តូរផ្ទាំងទេ
+                        fetchClients(); // ធ្វើការទាញយកទិន្នន័យថ្មីមកបង្ហាញភ្លាមៗ
 
                       } catch (err: any) {
                         alert("❌ បរាជ័យក្នុងការបញ្ជូន Slip: " + err.message);
                       }
                     }} className="space-y-4 text-xs">
                       
-                      {/* 🌟 ដកប្រអប់ Gmail ចេញរួចរាល់ ព្រោះប្រព័ន្ធទាញយកអូតូពី User Login */}
-
                       <div>
                         <label className="block font-bold mb-1 text-slate-500 uppercase">ទឹកប្រាក់បានបង់ ($)</label>
                         <input 
@@ -3451,6 +3653,94 @@ const fetchAdsets = async () => {
                     </form>
                   </div>
                 </div>
+
+                {/* 🌟 ផ្នែកប្រវត្តិបង់ប្រាក់ (Payment History Table) នៅខាងក្រោម */}
+                <div className="mt-8 pt-6 border-t border-slate-200 dark:border-slate-700">
+                  <h3 className="font-bold text-sm mb-4 flex items-center gap-2">
+                    <span>📜</span> ប្រវត្តិការទូទាត់ប្រាក់របស់អ្នក (Payment History)
+                  </h3>
+
+                  <div className={`rounded-xl border overflow-hidden ${theme === 'dark' ? 'bg-[#18191A] border-slate-700' : 'bg-white border-slate-200'}`}>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse text-xs">
+                        <thead>
+                          <tr className={`border-b uppercase tracking-wider ${theme === 'dark' ? 'bg-[#3A3B3C] text-slate-300 border-slate-700' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>
+                            <th className="py-3 px-4 font-bold">កាលបរិច្ឆេទ (Date)</th>
+                            <th className="py-3 px-4 font-bold">ទឹកប្រាក់ (Amount)</th>
+                            <th className="py-3 px-4 font-bold">រូបភាព Slip</th>
+                            <th className="py-3 px-4 font-bold text-center">ស្ថានភាព (Status)</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                          {(() => {
+                            // ទាញយក Email របស់ User ដែលកំពុង Login ដើម្បីត្រងមើលប្រវត្តិរបស់គាត់ផ្ទាល់
+                            const currentClientData = clients.find(c => {
+                              // អាចប្រៀបធៀបជាមួយ User Session បច្ចុប្បន្ន
+                              return true; // បើបង្ហាញទាំងអស់ ឬត្រងតាម client
+                            });
+
+                            // ប្រសិនបើមាន payment_history យកមកបង្ហាញ បើអត់ទាន់មាន គឺយក Slip ចុងក្រោយមកបង្ហាញជា Record
+                            const historyRecords = currentClientData?.payment_history || (currentClientData?.slip_url ? [{
+                              date: currentClientData.created_at || new Date().toISOString(),
+                              amount: currentClientData.amount || 0,
+                              slip_url: currentClientData.slip_url,
+                              status: currentClientData.slip_status || 'pending'
+                            }] : []);
+
+                            return historyRecords.length === 0 ? (
+                              <tr>
+                                <td colSpan={4} className="text-center py-8 text-slate-400 italic">
+                                  មិនទាន់មានប្រវត្តិការទូទាត់ប្រាក់នៅឡើយទេ។
+                                </td>
+                              </tr>
+                            ) : (
+                              historyRecords.map((record: any, idx: number) => (
+                                <tr key={idx} className={`transition ${theme === 'dark' ? 'hover:bg-[#3A3B3C]' : 'hover:bg-slate-50'}`}>
+                                  <td className="py-3 px-4 font-medium">
+                                    {new Date(record.date).toLocaleString('km-KH')}
+                                  </td>
+                                  <td className="py-3 px-4 font-bold text-emerald-500">
+                                    ${Number(record.amount || 0).toFixed(2)}
+                                  </td>
+                                  <td className="py-3 px-4">
+                                    {record.slip_url ? (
+                                      <a 
+                                        href={record.slip_url} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer" 
+                                        className="text-blue-500 hover:underline font-bold flex items-center gap-1"
+                                      >
+                                        <span>មើល Slip 🧾</span>
+                                      </a>
+                                    ) : (
+                                      <span className="text-slate-400">គ្មាន Slip</span>
+                                    )}
+                                  </td>
+                                  <td className="py-3 px-4 text-center">
+                                    {record.status === 'approved' ? (
+                                      <span className="px-2.5 py-1 bg-blue-500/10 text-blue-500 rounded-full font-bold text-[11px] border border-blue-500/20">
+                                        បានទូទាត់ប្រាក់ ✓ (Approved)
+                                      </span>
+                                    ) : record.status === 'rejected' ? (
+                                      <span className="px-2.5 py-1 bg-red-500/10 text-red-500 rounded-full font-bold text-[11px] border border-red-500/20">
+                                        បានបដិសេធ ✕ (Rejected)
+                                      </span>
+                                    ) : (
+                                      <span className="px-2.5 py-1 bg-amber-500/10 text-amber-600 rounded-full font-bold text-[11px] border border-amber-500/20 animate-pulse">
+                                        រង់ចាំពិនិត្យ ⏳ (Pending)
+                                      </span>
+                                    )}
+                                  </td>
+                                </tr>
+                              ))
+                            );
+                          })()}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+
               </div>
             )}
 
@@ -6205,6 +6495,127 @@ const fetchAdsets = async () => {
         </div>
       )}
 
+      {/* 🌟 Modal សម្រាប់កែប្រែព័ត៌មានអតិថិជន (Edit Client Modal) */}
+      {/* 🌟 Modal សម្រាប់កែប្រែព័ត៌មានអតិថិជន (Edit Client Modal) */}
+      {isEditClientModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[99999] p-4">
+          <div className={`rounded-2xl max-w-lg w-full p-6 shadow-2xl border ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-900'}`}>
+            
+            <div className="flex justify-between items-center mb-4 border-b pb-3 dark:border-slate-700">
+              <h3 className="font-bold text-lg flex items-center gap-2">
+                <span>✏️</span> កែប្រែព័ត៌មានអតិថិជន
+              </h3>
+              <button onClick={() => setIsEditClientModalOpen(false)} className="text-gray-400 hover:text-red-500 text-xl font-bold cursor-pointer">&times;</button>
+            </div>
+
+            <form onSubmit={handleUpdateClient} className="space-y-4 text-xs">
+              <div>
+                <label className="block font-bold mb-1 text-slate-500 uppercase">ឈ្មោះអតិថិជន / ហាង</label>
+                <input 
+                  type="text" 
+                  value={editClientName} 
+                  onChange={(e) => setEditClientName(e.target.value)} 
+                  required 
+                  className={`w-full p-3 rounded-xl border text-sm outline-none font-medium ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-900'}`} 
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold mb-1 text-slate-500 uppercase">អ៊ីមែល (Email)</label>
+                <input 
+                  type="email" 
+                  value={editClientEmail} 
+                  onChange={(e) => setEditClientEmail(e.target.value)} 
+                  required 
+                  className={`w-full p-3 rounded-xl border text-sm outline-none font-medium ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-900'}`} 
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold mb-1 text-slate-500 uppercase">លេខសម្ងាត់ (Password)</label>
+                <input 
+                  type="text" 
+                  value={editClientPassword} 
+                  onChange={(e) => setEditClientPassword(e.target.value)} 
+                  required 
+                  className={`w-full p-3 rounded-xl border text-sm outline-none font-bold text-blue-500 ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-blue-400' : 'bg-white border-slate-300 text-blue-600'}`} 
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold mb-1 text-slate-500 uppercase">លេខទូរស័ព្ទ (Phone)</label>
+                <input 
+                  type="text" 
+                  value={editClientPhone} 
+                  onChange={(e) => setEditClientPhone(e.target.value)} 
+                  className={`w-full p-3 rounded-xl border text-sm outline-none font-medium ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-900'}`} 
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold mb-1 text-slate-500 uppercase">កញ្ចប់សេវា</label>
+                  <input 
+                    type="text" 
+                    value={editPackageName} 
+                    onChange={(e) => setEditPackageName(e.target.value)} 
+                    className={`w-full p-3 rounded-xl border text-sm outline-none font-medium ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-900'}`} 
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold mb-1 text-slate-500 uppercase">ទឹកប្រាក់ ($)</label>
+                  <input 
+                    type="number" 
+                    value={editAmountPaid} 
+                    onChange={(e) => setEditAmountPaid(e.target.value)} 
+                    className={`w-full p-3 rounded-xl border text-sm outline-none font-bold text-emerald-500 ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-900'}`} 
+                  />
+                </div>
+              </div>
+
+              {/* 🌟 ផ្នែកបន្ថែមថ្មី៖ ប្រអប់សារ៉េថ្ងៃខែចាប់ផ្តើម និងថ្ងៃខែផុតកំណត់ */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold mb-1 text-slate-500 uppercase">ថ្ងៃខែចាប់ផ្តើម (Start Date)</label>
+                  <input 
+                    type="date" 
+                    value={editStartDate} 
+                    onChange={(e) => setEditStartDate(e.target.value)} 
+                    className={`w-full p-3 rounded-xl border text-sm outline-none font-medium cursor-pointer ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-900'}`} 
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold mb-1 text-slate-500 uppercase">ថ្ងៃខែផុតកំណត់ (Expiry Date)</label>
+                  <input 
+                    type="date" 
+                    value={editExpiryDate} 
+                    onChange={(e) => setEditExpiryDate(e.target.value)} 
+                    className={`w-full p-3 rounded-xl border text-sm outline-none font-bold text-red-500 cursor-pointer ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-900'}`} 
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-3">
+                <button 
+                  type="button" 
+                  onClick={() => setIsEditClientModalOpen(false)} 
+                  className="flex-1 py-3 rounded-xl font-bold text-xs border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+                >
+                  បោះបង់
+                </button>
+                <button 
+                  type="submit" 
+                  className="flex-1 py-3 rounded-xl font-bold text-xs text-white bg-blue-600 hover:bg-blue-700 shadow-md transition cursor-pointer"
+                >
+                  ✓ រក្សាទុកការកែប្រែ
+                </button>
+              </div>
+            </form>
+
+          </div>
+        </div>
+      )}
+
       {/* 🌟 Mobile Bottom Navigation Bar (Floating Puffy & Rounded Style) */}
       <nav className={`md:hidden fixed bottom-3 left-4 right-4 z-[99999] flex justify-around items-center h-[64px] px-3 rounded-[32px] shadow-[0_10px_30px_rgba(0,0,0,0.15),0_1px_3px_rgba(0,0,0,0.1)] transition-all duration-300 ${
         theme === 'dark' 
@@ -6629,6 +7040,115 @@ const fetchAdsets = async () => {
           </div>
         </div>
       )}
+      
+      {/* 🌟 Popup ជូនដំណឹងដល់ Client ពេលគណនីជិតផុតកំណត់ (≤ 7 ថ្ងៃ) */}
+      {showExpiryAlertModal && clientExpiryDaysLeftModal !== null && !isAdmin && (
+        <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/70 backdrop-blur-md p-4 animate-in fade-in duration-300">
+          <div className={`rounded-3xl max-w-md w-full p-6 shadow-2xl border text-center transform transition-all scale-100 ${
+            theme === 'dark' ? 'bg-[#242526] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-900'
+          }`}>
+            
+            <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center text-3xl mx-auto mb-4 shadow-inner animate-bounce">
+              ⚠️
+            </div>
+
+            <h3 className="text-xl font-black mb-2">សេចក្តីជូនដំណឹងផុតកំណត់សេវា!</h3>
+            
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">
+              គណនីប្រើប្រាស់ប្រព័ន្ធ Ads Manager Pro របស់អ្នកនឹងត្រូវផុតកំណត់ក្នុងរយៈពេល <strong className="text-orange-500 font-bold">{clientExpiryDaysLeftModal} ថ្ងៃទៀត</strong>។ សូមធ្វើការទូទាត់ប្រាក់បន្តសេវាកម្មជាបន្ទាន់ ដើម្បីជៀសវាងការផ្អាកដំណើរការគណនី។
+            </p>
+
+            <div className="flex flex-col gap-2.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowExpiryAlertModal(false);
+                  setActiveTab("PAYMENTS"); // 👈 Load ទៅកាន់ Tab ទូទាត់ Payment ស្វ័យប្រវត្តិ
+                  if (typeof window !== "undefined") {
+                    localStorage.setItem("activeTab", "PAYMENTS");
+                  }
+                }}
+                className="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-bold text-sm transition shadow-lg shadow-orange-500/20 cursor-pointer flex items-center justify-center gap-2"
+              >
+                <span>💳</span> <span>ទៅកាន់ទំព័រទូទាត់ប្រាក់ (Payments)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowExpiryAlertModal(false)}
+                className={`w-full py-2.5 rounded-xl font-bold text-xs border transition cursor-pointer ${
+                  theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-slate-300 hover:bg-[#4E4F50]' : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                បិទជាបណ្ដោះអាសន្ន (Close)
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+      {/* 🌟 ផ្ទាំង Pop-up ទំនើបសម្រាប់កែប្រែប្រាក់ចំណូលសរុប (Revenue Modal) */}
+      {isRevenueModalOpen && (
+        <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/75 backdrop-blur-md p-4 animate-in fade-in zoom-in-95 duration-200">
+          <div className={`rounded-3xl max-w-sm w-full p-6 shadow-2xl border text-center transform transition-all ${
+            theme === 'dark' ? 'bg-[#242526] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-900'
+          }`}>
+            
+            <div className="w-14 h-14 bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl flex items-center justify-center text-white text-2xl mx-auto mb-4 shadow-lg shadow-orange-500/20">
+              ✏️
+            </div>
+
+            <h3 className="text-lg font-black mb-1">កែប្រែប្រាក់ចំណូលសរុប</h3>
+            <p className="text-xs text-slate-400 mb-5">បញ្ចូលទឹកប្រាក់ចំណូលសរុបថ្មី (រួមទាំងការ Discount)</p>
+
+            <div className="relative mb-6">
+              <span className="absolute left-4 top-3.5 text-emerald-500 font-black text-base">$</span>
+              <input 
+                type="number" 
+                step="0.01"
+                value={customRevenueInput} 
+                onChange={(e) => setCustomRevenueInput(e.target.value)} 
+                placeholder="0.00"
+                className={`w-full pl-9 pr-4 py-3 rounded-2xl border text-base outline-none font-black text-emerald-500 shadow-inner ${
+                  theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'
+                }`}
+                autoFocus
+              />
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setIsRevenueModalOpen(false)}
+                className={`flex-1 py-3 rounded-xl font-bold text-xs border transition cursor-pointer ${
+                  theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-slate-300 hover:bg-[#4E4F50]' : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                បោះបង់
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (customRevenueInput !== "" && !isNaN(Number(customRevenueInput))) {
+                    localStorage.setItem("admin_custom_revenue", customRevenueInput);
+                    setIsRevenueModalOpen(false);
+                    showToast("✅ បានកែប្រែប្រាក់ចំណូលសរុបដោយជោគជ័យ!", "success");
+                    setTimeout(() => window.location.reload(), 500); // Refresh ឱ្យបង្ហាញតម្លៃថ្មី
+                  } else {
+                    alert("⚠️ សូមបញ្ចូលទឹកប្រាក់ឱ្យបានត្រឹមត្រូវ!");
+                  }
+                }}
+                className="flex-1 py-3 rounded-xl font-bold text-xs text-white bg-blue-600 hover:bg-blue-700 transition shadow-md cursor-pointer"
+              >
+                ✓ រក្សាទុក
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+      
     </div>
   );
 }
