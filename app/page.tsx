@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react"; // 👈 ថែម useRef ត្រង់នេះ
 import { supabase } from "@/lib/supabase";
 
 const translations = {
@@ -1327,11 +1327,33 @@ export default function Home() {
   const [selectedClientSlip, setSelectedClientSlip] = useState<any>(null);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false); // សម្រាប់អតិថិជនបង់ប្រាក់
 
-  // 🌟 States & Functions សម្រាប់គ្រប់គ្រងអតិថិជន (Subscriptions / CRM)
+  // 🌟 States សម្រាប់ Clients និង Pending Slips Count
   const [clients, setClients] = useState<any[]>([]);
   const [loadingClients, setLoadingClients] = useState(false);
   const [showSubModal, setShowSubModal] = useState(false);
 
+  const clientRowRefs = useRef<{ [key: string]: HTMLTableRowElement | null }>({});
+  const [highlightedClientId, setHighlightedClientId] = useState<string | null>(null);
+
+  const fetchClients = async () => {
+    setLoadingClients(true);
+    const { data, error } = await supabase
+      .from('customer_subscriptions')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (!error) setClients(data || []);
+    setLoadingClients(false);
+  };
+
+  useEffect(() => {
+    fetchClients();
+    const interval = setInterval(() => {
+      fetchClients();
+    }, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const pendingSlipsCount = clients.filter(c => c.slip_status === 'pending').length;
   // 🌟 States បន្ថែមសម្រាប់កែប្រែ (Edit Client)
   const [isEditClientModalOpen, setIsEditClientModalOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<any>(null);
@@ -1352,16 +1374,6 @@ export default function Home() {
   const [packageName, setPackageName] = useState('១ ខែ (Standard)');
   const [durationDays, setDurationDays] = useState(30);
   const [amountPaid, setAmountPaid] = useState('');
-
-  const fetchClients = async () => {
-    setLoadingClients(true);
-    const { data, error } = await supabase
-      .from('customer_subscriptions')
-      .select('*')
-      .order('created_at', { ascending: false });
-    if (!error) setClients(data || []);
-    setLoadingClients(false);
-  };
 
   useEffect(() => {
     if (activeTab === 'SUBSCRIPTIONS') {
@@ -2528,22 +2540,47 @@ const fetchAdsets = async () => {
               <span className="text-lg leading-none">✨</span> <span className="text-[13.5px]">{t.aiCopywriter}</span>
             </button>
 
-            {/* 🌟 បង្ហាញ Tab គ្រប់គ្រងអតិថិជន เฉพาะ Admin តែប៉ុណ្ណោះ */}
             {isAdmin && (
               <button 
                 onClick={() => handleTabChange("SUBSCRIPTIONS")}
-                className={`w-full text-left px-4 py-3.5 rounded-xl font-bold transition-all flex items-center gap-3 cursor-pointer ${activeTab === "SUBSCRIPTIONS" ? "bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md" : (theme === 'dark' ? 'text-slate-300 hover:bg-[#3A3B3C] hover:text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900')}`}
+                className={`w-full text-left px-4 py-3.5 rounded-xl font-bold transition-all flex items-center justify-between cursor-pointer relative ${
+                  activeTab === "SUBSCRIPTIONS" 
+                    ? "bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md" 
+                    : (theme === 'dark' ? 'text-slate-300 hover:bg-[#3A3B3C] hover:text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900')
+                }`}
               >
-                <span className="text-lg leading-none">📋</span> <span className="text-[13.5px]">{t.subscriptions}</span>
+                <div className="flex items-center gap-3 relative">
+                  <span className="text-lg leading-none relative">
+                    📋
+                    {/* 🌟 ដាក់សញ្ញា Notification Dot ពណ៌ក្រហម (Facebook Style) នៅលើ Icon ផ្ទាល់ */}
+                    {pendingSlipsCount > 0 && (
+                      <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-600 border-2 border-white dark:border-[#242526] rounded-full animate-ping"></span>
+                    )}
+                    {pendingSlipsCount > 0 && (
+                      <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-600 border-2 border-white dark:border-[#242526] rounded-full"></span>
+                    )}
+                  </span> 
+                  <span className="text-[13.5px]">{t.subscriptions}</span>
+                </div>
+
+                {/* 🌟 ផ្នែកតួលេខចំនួន Slip រង់ចាំនៅខាងស្ដាំប៊ូតុង (Facebook Notification Counter Style) */}
+                {pendingSlipsCount > 0 ? (
+                  <span className="px-2 py-0.5 bg-red-600 text-white font-black text-[11px] rounded-full shadow-md flex items-center justify-center animate-bounce">
+                    {pendingSlipsCount} ថ្មី
+                  </span>
+                ) : (
+                  <span className="text-xs opacity-40">0</span>
+                )}
               </button>
             )}
+
             {/* 🌟 Tab គ្រប់គ្រងការទូទាត់ (Payments) - បើកបង្ហាញជូនគ្រប់អតិថិជនទាំងអស់ */}
-              <button 
-                onClick={() => handleTabChange("PAYMENTS")}
-                className={`w-full text-left px-4 py-3.5 rounded-xl font-bold transition-all flex items-center gap-3 cursor-pointer ${activeTab === "PAYMENTS" ? "bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-md" : (theme === 'dark' ? 'text-slate-300 hover:bg-[#3A3B3C] hover:text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900')}`}
-              >
-                <span className="text-lg leading-none">💳</span> <span className="text-[13.5px]">ការទូទាត់ (Payments)</span>
-              </button>
+            <button 
+              onClick={() => handleTabChange("PAYMENTS")}
+              className={`w-full text-left px-4 py-3.5 rounded-xl font-bold transition-all flex items-center gap-3 cursor-pointer ${activeTab === "PAYMENTS" ? "bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-md" : (theme === 'dark' ? 'text-slate-300 hover:bg-[#3A3B3C] hover:text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900')}`}
+            >
+              <span className="text-lg leading-none">💳</span> <span className="text-[13.5px]">ការទូទាត់ (Payments)</span>
+            </button>
          </div>
 
          {/* ២. ផ្នែកបាតក្រោម៖ ប៊ូតុង Setting និង Logout ជាប់ស្អិតជាមួយគ្នា */}
@@ -2827,19 +2864,47 @@ const fetchAdsets = async () => {
               <div className={`p-6 rounded-xl shadow-sm border w-full max-w-7xl mx-auto my-6 animate-in fade-in duration-300 transition-colors ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-900'}`}>
                 
                 {/* Header */}
-                <div className="flex justify-between items-center mb-6">
-                  <div>
-                    <h1 className={`text-xl font-bold flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
-                      <span className="p-1.5 bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 rounded-lg text-lg">👥</span> 
-                      គ្រប់គ្រងគណនី និងកញ្ចប់សេវាអតិថិជន
-                    </h1>
-                    <p className={`text-sm mt-1.5 ${theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>បង្កើតគណនីភ្ជាប់ជាមួយ Facebook Page និងតាមដានទិន្នន័យអតិថិជនរបស់អ្នក</p>
-                  </div>
-                  <button onClick={() => setShowSubModal(true)} className="px-5 py-2.5 bg-[#1877F2] hover:bg-[#166FE5] text-white font-bold rounded-xl transition shadow-md cursor-pointer flex items-center gap-2">
-                    <span className="text-lg leading-none">+</span> <span className="hidden sm:inline">បង្កើតគណនីថ្មីអោយអតិថិជន</span>
-                  </button>
-                </div>
+            <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
+              <div>
+                <h1 className={`text-xl font-bold flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
+                  <span className="p-1.5 bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 rounded-lg text-lg">👥</span> 
+                  គ្រប់គ្រងគណនី និងកញ្ចប់សេវាអតិថិជន
+                </h1>
+                <p className={`text-sm mt-1.5 ${theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>បង្កើតគណនីភ្ជាប់ជាមួយ Facebook Page និងតាមដានទិន្នន័យអតិថិជនរបស់អ្នក</p>
+              </div>
 
+              {/* 🌟 ផ្ទាំង Alert ពណ៌ទឹកក្រូចអណ្តែតនៅខាងស្តាំលើ (Clean title) */}
+              {isAdmin && pendingSlipsCount > 0 && (
+                <div className="fixed top-20 right-6 z-[999999] animate-in slide-in-from-top-5 fade-in duration-300">
+                  <div 
+                    onClick={() => {
+                      setActiveTab("SUBSCRIPTIONS");
+                      const firstPending = clients.find(c => c.slip_status === 'pending');
+                      if (firstPending) {
+                        setHighlightedClientId(firstPending.id);
+                        setTimeout(() => {
+                          const el = clientRowRefs.current[firstPending.id];
+                          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }, 200);
+                      }
+                    }}
+                    className="flex items-center gap-3 px-5 py-3.5 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-bold rounded-2xl shadow-2xl border border-orange-400/50 backdrop-blur-md cursor-pointer transition-transform hover:scale-105 active:scale-95"
+                    title="Click to check new slips"
+                  >
+                    <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-base shrink-0 shadow-inner">
+                      🔔
+                    </div>
+                    <div className="flex flex-col text-left">
+                      <span className="text-[13.5px] tracking-wide">មាន Slip ថ្មីរង់ចាំ Approve!</span>
+                      <span className="text-[11px] opacity-90 font-normal">ចំនួន {pendingSlipsCount} ភ័ស្តុតាងទូទាត់ប្រាក់</span>
+                    </div>
+                    <span className="w-6 h-6 bg-white text-orange-600 rounded-full font-black text-xs flex items-center justify-center shadow-md ml-2 animate-bounce">
+                      {pendingSlipsCount}
+                    </span>
+                  </div>
+                </div>
+              )}
+            
                 {/* 🌟 ផ្នែក Dashboard Statistic Cards ទាំង ៤ (ដាក់ពីលើតារាង) */}
                 {(() => {
                   const totalClients = clients.length;
@@ -2922,10 +2987,15 @@ const fetchAdsets = async () => {
                         ) : (
                           clients.map((item) => {
                             const isExpired = new Date(item.expiry_date) < new Date();
-                            const linkedPageObj = pages.find(p => p.id === item.linked_fb_page);
+                            const isPendingSlip = item.slip_status === 'pending';
+                            const isHighlighted = highlightedClientId === item.id;
 
                             return (
-                              <tr key={item.id} className={`transition ${theme === 'dark' ? 'hover:bg-[#3A3B3C]' : 'hover:bg-gray-50'}`}>
+                              <tr 
+                                key={item.id} 
+                                ref={(el) => { clientRowRefs.current[item.id] = el; }}
+                                className={`transition ${isHighlighted ? 'bg-amber-500/20 ring-2 ring-amber-500' : ''} ${isPendingSlip ? 'animate-pulse bg-red-500/10' : (theme === 'dark' ? 'hover:bg-[#3A3B3C]' : 'hover:bg-gray-50')}`}
+                              >
                                 {/* Customer Info */}
                                 <td className="py-3.5 px-4">
                                   <div className={`font-bold text-[14.5px] ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>{item.client_name}</div>
@@ -2952,7 +3022,6 @@ const fetchAdsets = async () => {
                                         f
                                       </div>
                                       <span className={`text-[12.5px] font-bold truncate max-w-[160px] ${theme === 'dark' ? 'text-blue-400' : 'text-[#1877F2]'}`} title={item.linked_fb_page}>
-                                        {/* 🌟 ឆែករកមើលក្នុង pages បើរកមិនឃើញ គឺបង្ហាញ Page ID ជំនួសភ្លាម ធានាថាមិនចេញថា "មិនបានភ្ជាប់" ទៀតទេ */}
                                         {pages.find(p => p.id === item.linked_fb_page)?.name || `Page ID: ${item.linked_fb_page}`}
                                       </span>
                                     </div>
@@ -2977,7 +3046,6 @@ const fetchAdsets = async () => {
                                     ផុតកំណត់៖ {new Date(item.expiry_date).toLocaleDateString('km-KH')}
                                   </div>
 
-                                  {/* 🌟 បន្ថែមការគណនាចំនួនថ្ងៃនៅសល់នៅទីនេះ */}
                                   <div className="mt-1">
                                     {(() => {
                                       const today = new Date();
@@ -3002,7 +3070,6 @@ const fetchAdsets = async () => {
                                       <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-500 rounded text-[10px] font-bold border border-emerald-500/20">កំពុងដំណើរការ</span>
                                     )}
 
-                                    {/* បង្ហាញស្ថានភាព Slip ទឹកប្រាក់ */}
                                     {item.slip_status === 'pending' ? (
                                       <span className="px-2 py-0.5 bg-amber-500/10 text-amber-600 rounded text-[10px] font-bold border border-amber-500/20 animate-bounce">រង់ចាំ Slip ₱</span>
                                     ) : item.slip_status === 'approved' ? (
@@ -3014,59 +3081,25 @@ const fetchAdsets = async () => {
                                 {/* Actions */}
                                 <td className="py-4 px-4 text-center align-middle">
                                   <div className="flex items-center justify-center gap-2 flex-wrap">
-                                    
-                                    {/* 🌟 ១. ប៊ូតុងមើល Slip (មានរូបតំណាង Receipt ពណ៌ม่วงទន់ភ្លន់) */}
-                                    <button 
-                                      type="button"
-                                      onClick={() => handleOpenSlipModal(item)} 
-                                      className="px-3 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer active:scale-95 border border-purple-200/50 dark:border-purple-800/50"
-                                      title="ពិនិត្យមើល Slip ផ្ទេរប្រាក់"
-                                    >
-                                      <span className="text-sm">🧾</span> <span>មើល Slip</span>
-                                    </button>
-
-                                    {/* 🌟 ២. ប៊ូតុងបន្តសេវា (+30 Days) */}
-                                    <button 
-                                      type="button"
-                                      onClick={() => handleRenewSubscription(item)} 
-                                      className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer active:scale-95 border border-emerald-200/50 dark:border-emerald-800/50"
-                                      title="បន្តសេវាប្រចាំខែ ៣០ថ្ងៃ"
-                                    >
-                                      <span className="text-sm">⚡</span> <span>+30ថ្ងៃ</span>
-                                    </button>
-
-                                    {/* 🌟 ៣. ប៊ូតុង Approve Slip (បង្ហាញលុះត្រាតែមាន Status ជា pending) */}
-                                    {item.slip_status === 'pending' && (
-                                      <button 
-                                        type="button"
-                                        onClick={() => handleApproveSlip(item)} 
-                                        className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer animate-pulse active:scale-95 border border-amber-200/50 dark:border-amber-800/50"
-                                        title="អនុម័ត Slip ប្រាក់"
-                                      >
-                                        <span className="text-sm">✓</span> <span>Approve</span>
+                                    {item.slip_url && (
+                                      <button type="button" onClick={() => handleOpenSlipModal(item)} className="px-3 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer border border-purple-200/50">
+                                        <span>🧾</span> <span>មើល Slip</span>
                                       </button>
                                     )}
-
-                                    {/* 🌟 ៤. ប៊ូតុងកែប្រែ (Edit) */}
-                                    <button 
-                                      type="button"
-                                      onClick={() => handleOpenEditClient(item)} 
-                                      className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer active:scale-95 border border-blue-200/50 dark:border-blue-800/50"
-                                      title="កែប្រែព័ត៌មានអតិថិជន"
-                                    >
-                                      <span className="text-sm">✏️</span> <span>កែប្រែ</span>
+                                    <button type="button" onClick={() => handleRenewSubscription(item)} className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer border border-emerald-200/50">
+                                      <span>⚡</span> <span>+30ថ្ងៃ</span>
                                     </button>
-
-                                    {/* 🌟 ៥. ប៊ូតុងលុប (Delete) */}
-                                    <button 
-                                      type="button"
-                                      onClick={() => handleDeleteClient(item.id)} 
-                                      className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300 rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer active:scale-95 border border-red-200/50 dark:border-red-800/50"
-                                      title="លុបអតិថិជន"
-                                    >
-                                      <span className="text-sm">🗑️</span> <span>លុប</span>
+                                    {item.slip_status === 'pending' && (
+                                      <button type="button" onClick={() => handleApproveSlip(item)} className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer animate-pulse border border-amber-200/50">
+                                        <span>✓</span> <span>Approve</span>
+                                      </button>
+                                    )}
+                                    <button type="button" onClick={() => handleOpenEditClient(item)} className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer border border-blue-200/50">
+                                      <span>✏️</span> <span>កែប្រែ</span>
                                     </button>
-
+                                    <button type="button" onClick={() => handleDeleteClient(item.id)} className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300 rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer border border-red-200/50">
+                                      <span>🗑️</span> <span>លុប</span>
+                                    </button>
                                   </div>
                                 </td>
                               </tr>
@@ -3287,18 +3320,22 @@ const fetchAdsets = async () => {
                       <p>លេខគណនី ABA៖ <strong className="text-blue-600 dark:text-blue-400">000 123 456</strong></p>
                     </div>
 
-                    {/* 🌟 ផ្នែកសម្រាប់ Admin Upload QR Code ថ្មី (បង្ហាញលុះត្រាតែជា Admin) */}
-                    {isAdmin && (
-                      <div className={`w-full pt-4 border-t text-left ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-                        <label className="block text-xs font-bold text-amber-500 mb-1.5 uppercase">⚙️ Admin: ផ្លាស់ប្ដូរ QR Code ហាង</label>
-                        <input 
-                          type="file" 
-                          accept="image/*" 
-                          onChange={handleUploadAdminQR}
-                          className="w-full text-[11px] text-slate-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:bg-amber-50 file:text-amber-700 hover:file:bg-amber-100 cursor-pointer"
-                        />
-                      </div>
-                    )}
+                    {/* 🌟 ផ្នែកសម្រាប់ Admin Upload QR Code ថ្មី (រៀបចំរចនាសម្ព័ន្ធសារថ្មី មិនឱ្យជាន់គ្នា) */}
+                      {isAdmin && (
+                        <div className="w-full mt-6 pt-4 border-t border-slate-300 dark:border-slate-700 flex flex-col items-center gap-2">
+                          <span className="text-xs font-bold text-amber-500">⚙️ Admin: ផ្លាស់ប្ដូរ QR Code ថ្មី</span>
+                          <label className="cursor-pointer bg-amber-50 hover:bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800 px-4 py-2 rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-2">
+                            <span>📁</span>
+                            <span>ជ្រើសរើសរូបភាព QR ថ្មី</span>
+                            <input 
+                              type="file" 
+                              accept="image/*" 
+                              onChange={handleUploadAdminQR} 
+                              className="hidden" 
+                            />
+                          </label>
+                        </div>
+                      )}
                   </div>
 
                   {/* ផ្នែកខាងស្តាំ៖ Form សម្រាប់អតិថិជន Upload Slip */}
@@ -3308,7 +3345,6 @@ const fetchAdsets = async () => {
                     <form onSubmit={async (e) => {
                       e.preventDefault();
                       const form = e.currentTarget;
-                      const clientEmailInput = (form.elements.namedItem('clientEmail') as HTMLInputElement).value;
                       const amountInput = (form.elements.namedItem('amount') as HTMLInputElement).value;
                       const fileInput = form.elements.namedItem('slipFile') as HTMLInputElement;
 
@@ -3319,8 +3355,13 @@ const fetchAdsets = async () => {
 
                       try {
                         const file = fileInput.files[0];
-                        
-                        // 1. Upload Slip រូបភាពទៅ Supabase Storage (Bucket: slips)
+                        const { data: { user } } = await supabase.auth.getUser();
+                        if (!user || !user.email) {
+                          alert("❌ រកមិនឃើញគណនី Login ទេ សូម Login ម្ដងទៀត។");
+                          return window.location.href = '/login';
+                        }
+                        const clientEmailInput = user.email.trim().toLowerCase();
+
                         const fileName = `slip_${Date.now()}_${file.name}`;
                         const { error: uploadError } = await supabase.storage
                           .from('slips')
@@ -3328,40 +3369,48 @@ const fetchAdsets = async () => {
 
                         if (uploadError) throw uploadError;
 
-                        // 2. យក Public URL របស់ Slip នោះ
-                        const { data: { publicUrl } } = supabase.storage
+                        const { data: { publicUrl } } = await supabase.storage
                           .from('slips')
                           .getPublicUrl(fileName);
 
-                        // 3. Update ចូលទៅកាន់តារាង customer_subscriptions
+                        const { data: oldData } = await supabase
+                          .from('customer_subscriptions')
+                          .select('payment_history')
+                          .eq('email', clientEmailInput)
+                          .single();
+
+                        const existingHistory = oldData?.payment_history || [];
+                        const newPaymentRecord = {
+                          date: new Date().toISOString(),
+                          amount: Number(amountInput) || 0,
+                          slip_url: publicUrl,
+                          status: 'pending'
+                        };
+
+                        const updatedHistory = [newPaymentRecord, ...existingHistory];
+
                         const { error } = await supabase
                           .from('customer_subscriptions')
                           .update({ 
                             slip_url: publicUrl,
                             slip_status: 'pending',
-                            amount: Number(amountInput) || 0
+                            amount: Number(amountInput) || 0,
+                            payment_history: updatedHistory
                           })
                           .eq('email', clientEmailInput);
 
                         if (error) throw error;
 
-                        showToast("✅ បានបញ្ជូន Slip ទៅកាន់ Admin ដោយជោគជ័យ! សូមរង់ចាំការផ្ទៀងផ្ទាត់។", "success");
+                        showToast("✅ បានបញ្ជូន Slip ទៅកាន់ Admin ដោយជោគជ័យ!", "success");
                         form.reset();
+                        // 🌟 អតិថិជន Upload រួច គឺស្ថិតនៅផ្ទាំងเดิม (Payments) ដដែល មិនប្តូរផ្ទាំងទេ
+
                       } catch (err: any) {
                         alert("❌ បរាជ័យក្នុងការបញ្ជូន Slip: " + err.message);
                       }
                     }} className="space-y-4 text-xs">
                       
-                      <div>
-                        <label className="block font-bold mb-1 text-slate-500 uppercase">អ៊ីមែលគណនីអតិថិជន (Email)</label>
-                        <input 
-                          type="email" 
-                          name="clientEmail" 
-                          required 
-                          placeholder="email របស់អតិថិជន..." 
-                          className={`w-full p-3 rounded-xl border text-sm outline-none font-medium ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-900'}`} 
-                        />
-                      </div>
+                      {/* 🌟 ដកប្រអប់ Gmail ចេញរួចរាល់ ព្រោះប្រព័ន្ធទាញយកអូតូពី User Login */}
 
                       <div>
                         <label className="block font-bold mb-1 text-slate-500 uppercase">ទឹកប្រាក់បានបង់ ($)</label>
@@ -3392,13 +3441,9 @@ const fetchAdsets = async () => {
                       >
                         📤 បញ្ជូន Slip ជូន Admin
                       </button>
-
                     </form>
-
                   </div>
-
                 </div>
-
               </div>
             )}
 
