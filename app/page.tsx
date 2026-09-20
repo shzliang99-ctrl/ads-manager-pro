@@ -1217,6 +1217,17 @@ export default function Home() {
   const [clients, setClients] = useState<any[]>([]);
   const [loadingClients, setLoadingClients] = useState(false);
   const [showSubModal, setShowSubModal] = useState(false);
+
+  // 🌟 States បន្ថែមសម្រាប់កែប្រែ (Edit Client)
+  const [isEditClientModalOpen, setIsEditClientModalOpen] = useState(false);
+  const [editingClient, setEditingClient] = useState<any>(null);
+  const [editClientName, setEditClientName] = useState('');
+  const [editClientEmail, setEditClientEmail] = useState('');
+  const [editClientPassword, setEditClientPassword] = useState('');
+  const [editClientPhone, setEditClientPhone] = useState('');
+  const [editLinkedFbPage, setEditLinkedFbPage] = useState('');
+  const [editPackageName, setEditPackageName] = useState('');
+  const [editAmountPaid, setEditAmountPaid] = useState('');
   
   // States ថ្មីសម្រាប់ Profile និង Account អតិថិជន (មាន Password)
   const [clientName, setClientName] = useState('');
@@ -1243,6 +1254,92 @@ export default function Home() {
       fetchClients();
     }
   }, [activeTab]);
+
+  // 🟢 មុខងារបើក Pop-up កែប្រែ និងទាញទិន្នន័យចាស់មកបំពេញស្រាប់
+  const handleOpenEditClient = (client: any) => {
+    setEditingClient(client);
+    setEditClientName(client.client_name || '');
+    setEditClientEmail(client.email || '');
+    setEditClientPassword(client.password || '');
+    setEditClientPhone(client.phone || '');
+    setEditLinkedFbPage(client.linked_fb_page || '');
+    setEditPackageName(client.package_name || '');
+    setEditAmountPaid(client.amount || '');
+    setIsEditClientModalOpen(true);
+  };
+
+  // 🟢 មុខងារបញ្ជូនទិន្នន័យដែលបានកែប្រែទៅកាន់ Supabase ផ្ទាល់
+  const handleUpdateClient = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingClient) return;
+
+    try {
+      const { error } = await supabase
+        .from('customer_subscriptions')
+        .update({
+          client_name: editClientName,
+          email: editClientEmail,
+          password: editClientPassword,
+          phone: editClientPhone,
+          linked_fb_page: editLinkedFbPage,
+          package_name: editPackageName,
+          amount: editAmountPaid ? Number(editAmountPaid) : 0
+        })
+        .eq('id', editingClient.id);
+
+      if (error) throw error;
+
+      showToast("✅ បានកែប្រែព័ត៌មានអតិថិជនដោយជោគជ័យ!", "success");
+      setIsEditClientModalOpen(false);
+      fetchClients(); // ទាញយកទិន្នន័យថ្មីមកបង្ហាញក្នុងតារាង
+    } catch (err: any) {
+      alert("❌ បរាជ័យក្នុងការកែប្រែ: " + err.message);
+    }
+  };
+
+  // 🟢 មុខងារបន្តអាយុកាលសេវាស្វ័យប្រវត្តិ (+៣០ ថ្ងៃ)
+  const handleRenewSubscription = async (client: any) => {
+    if (!confirm(`តើបងពិតជាចង់បន្តសេវាកម្មជូនអតិថិជន "${client.client_name}" ចំនួន ៣០ថ្ងៃ បន្ថែមទៀតមែនទេ?`)) return;
+
+    try {
+      const currentExpiry = client.expiry_date ? new Date(client.expiry_date) : new Date();
+      const baseDate = currentExpiry > new Date() ? currentExpiry : new Date();
+      baseDate.setDate(baseDate.getDate() + 30);
+      const newExpiryDate = baseDate.toISOString();
+
+      const { error } = await supabase
+        .from('customer_subscriptions')
+        .update({ 
+          expiry_date: newExpiryDate,
+          status: 'active' 
+        })
+        .eq('id', client.id);
+
+      if (error) throw error;
+
+      showToast(`✅ បានបន្តសេវាជូន ${client.client_name} រយៈពេល ៣០ថ្ងៃដោយជោគជ័យ!`, "success");
+      fetchClients(); 
+    } catch (err: any) {
+      alert("❌ បរាជ័យក្នុងការបន្តសេវា: " + err.message);
+    }
+  };
+
+  // 🟢 មុខងារអនុម័ត Slip ទឹកប្រាក់ (Approve Slip)
+  const handleApproveSlip = async (client: any) => {
+    try {
+      const { error } = await supabase
+        .from('customer_subscriptions')
+        .update({ slip_status: 'approved' })
+        .eq('id', client.id);
+
+      if (error) throw error;
+
+      showToast(`✅ បានអនុម័ត Slip របស់ ${client.client_name} រួចរាល់! ប្រាក់បានបញ្ចូលក្នុងចំណូលសរុប។`, "success");
+      fetchClients(); 
+    } catch (err: any) {
+      alert("❌ បរាជ័យ: " + err.message);
+    }
+  };
 
   // 🌟 កូដថ្មីដែលបញ្ជូនទិន្នន័យទៅឱ្យ API ធ្វើការងារទាំង ២ ខាងលើ
   const handleAddClient = async (e: React.FormEvent) => {
@@ -2600,8 +2697,10 @@ const fetchAdsets = async () => {
                 {(() => {
                   const totalClients = clients.length;
                   const activeClients = clients.filter(c => new Date(c.expiry_date) >= new Date()).length;
-                  const totalRevenue = clients.reduce((sum, c) => sum + (Number(c.amount) || 0), 0);
-                  const pendingSlips = clients.filter(c => c.slip_status === 'pending').length || 0; 
+                  const totalRevenue = clients
+                    .filter(c => c.slip_status === 'approved') // គណនាតែប្រាក់ណាដែលអនុម័តរួច
+                    .reduce((sum, c) => sum + (Number(c.amount) || 0), 0);
+                  const pendingSlips = clients.filter(c => c.slip_status === 'pending').length || 0;
 
                   return (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -2727,20 +2826,70 @@ const fetchAdsets = async () => {
                                   <div className={`text-[12px] font-bold mt-0.5 ${isExpired ? 'text-red-500' : (theme === 'dark' ? 'text-slate-200' : 'text-gray-700')}`}>
                                     ផុតកំណត់៖ {new Date(item.expiry_date).toLocaleDateString('km-KH')}
                                   </div>
-                                  <div className="mt-1.5">
+                                  
+                                  <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
                                     {isExpired ? (
                                       <span className="px-2 py-0.5 bg-red-500/10 text-red-500 rounded text-[10px] font-bold border border-red-500/20">ផុតកំណត់សេវា</span>
                                     ) : (
                                       <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-500 rounded text-[10px] font-bold border border-emerald-500/20">កំពុងដំណើរការ</span>
                                     )}
+
+                                    {/* បង្ហាញស្ថានភាព Slip ទឹកប្រាក់ */}
+                                    {item.slip_status === 'pending' ? (
+                                      <span className="px-2 py-0.5 bg-amber-500/10 text-amber-600 rounded text-[10px] font-bold border border-amber-500/20 animate-bounce">រង់ចាំ Slip ₱</span>
+                                    ) : item.slip_status === 'approved' ? (
+                                      <span className="px-2 py-0.5 bg-blue-500/10 text-blue-500 rounded text-[10px] font-bold border border-blue-500/20">បានទូទាត់ប្រាក់ ✓</span>
+                                    ) : null}
                                   </div>
                                 </td>
 
                                 {/* Actions */}
-                                <td className="py-3.5 px-4 text-center">
-                                  <button onClick={() => handleDeleteClient(item.id)} className="px-3.5 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 rounded-lg text-xs font-bold transition cursor-pointer dark:bg-red-950/40 dark:hover:bg-red-900/60 dark:text-red-400">
-                                    លុប
-                                  </button>
+                                <td className="py-4 px-4 text-center align-middle">
+                                  <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                                    
+                                    {/* 🌟 ប៊ូតុងបន្តសេវា (+30 Days) */}
+                                    <button 
+                                      type="button"
+                                      onClick={() => handleRenewSubscription(item)} 
+                                      className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1 cursor-pointer active:scale-95"
+                                      title="បន្តសេវាប្រចាំខែ ៣០ថ្ងៃ"
+                                    >
+                                      <span>⚡</span> <span>+30ថ្ងៃ</span>
+                                    </button>
+
+                                    {/* 🌟 ប៊ូតុង Approve Slip (បង្ហាញពេលរង់ចាំ Slip) */}
+                                    {item.slip_status === 'pending' && (
+                                      <button 
+                                        type="button"
+                                        onClick={() => handleApproveSlip(item)} 
+                                        className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1 cursor-pointer animate-pulse active:scale-95"
+                                        title="អនុម័ត Slip ប្រាក់"
+                                      >
+                                        <span>ុក</span> <span>Approve</span>
+                                      </button>
+                                    )}
+
+                                    {/* 🌟 ប៊ូតុងកែប្រែ (Edit) */}
+                                    <button 
+                                      type="button"
+                                      onClick={() => handleOpenEditClient(item)} 
+                                      className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1 cursor-pointer active:scale-95"
+                                      title="កែប្រែព័ត៌មាន"
+                                    >
+                                      <span>✏️</span> <span>កែប្រែ</span>
+                                    </button>
+
+                                    {/* 🌟 ប៊ូតុងលុប (Delete) */}
+                                    <button 
+                                      type="button"
+                                      onClick={() => handleDeleteClient(item.id)} 
+                                      className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300 rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1 cursor-pointer active:scale-95"
+                                      title="លុបអតិថិជន"
+                                    >
+                                      <span>🗑️</span> <span>លុប</span>
+                                    </button>
+
+                                  </div>
                                 </td>
                               </tr>
                             );
@@ -2835,6 +2984,71 @@ const fetchAdsets = async () => {
                           </button>
                         </div>
                         
+                      </form>
+                    </div>
+                  </div>
+                )}
+                {/* 🌟 Modal សម្រាប់កែប្រែព័ត៌មានអតិថិជន (Edit Client Modal) */}
+                {isEditClientModalOpen && (
+                  <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className={`rounded-2xl max-w-2xl w-full p-6 shadow-2xl animate-in fade-in zoom-in duration-200 ${theme === 'dark' ? 'bg-[#242526] border border-slate-700' : 'bg-white'}`}>
+                      <div className="flex justify-between items-center mb-5 border-b pb-3 dark:border-slate-700">
+                        <h2 className={`text-lg font-bold flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
+                          <span className="bg-blue-100 text-blue-600 p-1.5 rounded-lg text-sm">✏️</span> កែប្រែព័ត៌មានអតិថិជន
+                        </h2>
+                        <button type="button" onClick={() => setIsEditClientModalOpen(false)} className="text-gray-400 hover:text-red-500 text-xl font-bold cursor-pointer">&times;</button>
+                      </div>
+
+                      <form onSubmit={handleUpdateClient} className="space-y-5">
+                        <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-[#18191A] border-slate-700' : 'bg-blue-50/50 border-blue-100'}`}>
+                          <h3 className={`text-[13px] font-bold mb-3 uppercase tracking-wider ${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'}`}>គណនី និងព័ត៌មាន</h3>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-xs font-bold mb-1.5">អ៊ីមែល (Gmail)</label>
+                              <input type="email" required value={editClientEmail} onChange={(e) => setEditClientEmail(e.target.value)} className="w-full px-3.5 py-2.5 border rounded-xl text-sm outline-none font-medium bg-transparent" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold mb-1.5">លេខសម្ងាត់ (Password)</label>
+                              <input type="text" required value={editClientPassword} onChange={(e) => setEditClientPassword(e.target.value)} className="w-full px-3.5 py-2.5 border rounded-xl text-sm outline-none font-bold bg-transparent text-blue-500" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold mb-1.5">ឈ្មោះអតិថិជន / ហាង</label>
+                              <input type="text" value={editClientName} onChange={(e) => setEditClientName(e.target.value)} required className="w-full px-3.5 py-2.5 border rounded-xl text-sm outline-none bg-transparent" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold mb-1.5">លេខទូរស័ព្ទ</label>
+                              <input type="text" value={editClientPhone} onChange={(e) => setEditClientPhone(e.target.value)} className="w-full px-3.5 py-2.5 border rounded-xl text-sm outline-none bg-transparent" />
+                            </div>
+                            <div className="md:col-span-2">
+                              <label className="block text-xs font-bold mb-1.5">ភ្ជាប់ទៅ Facebook Page</label>
+                              <select value={editLinkedFbPage} onChange={(e) => setEditLinkedFbPage(e.target.value)} className="w-full px-3.5 py-2.5 border rounded-xl text-sm outline-none bg-transparent cursor-pointer">
+                                <option value="">-- មិនទាន់ភ្ជាប់ --</option>
+                                {pages.map(p => (
+                                  <option key={p.id} value={p.id}>{p.name}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold mb-1.5">កញ្ចប់សេវា</label>
+                              <select value={editPackageName} onChange={(e) => setEditPackageName(e.target.value)} className="w-full px-3.5 py-2.5 border rounded-xl text-sm outline-none bg-transparent cursor-pointer">
+                                <option value="១ ខែ (Standard)">កញ្ចប់ ១ ខែ</option>
+                                <option value="៣ ខែ (Pro)">កញ្ចប់ ៣ ខែ</option>
+                                <option value="១ ឆ្នាំ (VIP)">កញ្ចប់ ១ ឆ្នាំ</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold mb-1.5">ទឹកប្រាក់ ($)</label>
+                              <input type="number" value={editAmountPaid} onChange={(e) => setEditAmountPaid(e.target.value)} className="w-full px-3.5 py-2.5 border rounded-xl text-sm outline-none font-bold bg-transparent" />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex justify-end gap-3 pt-2">
+                          <button type="button" onClick={() => setIsEditClientModalOpen(false)} className="px-5 py-2.5 font-bold rounded-xl text-sm border cursor-pointer">បោះបង់</button>
+                          <button type="submit" className="px-8 py-2.5 bg-blue-600 text-white font-bold rounded-xl text-sm hover:bg-blue-700 transition cursor-pointer shadow-md">
+                            ✓ រក្សាទុកការកែប្រែ
+                          </button>
+                        </div>
                       </form>
                     </div>
                   </div>
