@@ -12,7 +12,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const accessToken = getAccessToken(request);
     
-    // 🌟 គាំទ្រទាំង campaignIds (ຫຼາຍ ID) និង campaignId ធម្មតា ឬ adAccountId
+    // 🌟 គាំទ្រทั้ง campaignIds (ຫຼາຍ ID) និង campaignId ធម្មតា ឬ adAccountId
     const campaignIdsParam = searchParams.get('campaignIds') || searchParams.get('campaignId');
     const adAccountId = searchParams.get('adAccountId');
     let datePreset = searchParams.get('datePreset') || 'maximum'; 
@@ -26,7 +26,7 @@ export async function GET(request: Request) {
     let allAds: any[] = [];
     const creativeFields = 'id,name,body,image_url,thumbnail_url,object_story_spec,asset_feed_spec,effective_object_story_id,object_story_id';
 
-    // 🌟 ត្រូវប្រាកដថា Loop នេះប្រមូលយក Ads គ្រប់ Campaign ទាំងអស់មកដាក់ក្នុង allAds
+    // 🌟 ត្រូវប្រាកដថា Loop នេះប្រមូលយក Ads គ្រប់ Campaign ទាំងអស់មកដាក់ក្នុង allAds យ៉ាងត្រឹមត្រូវ
     if (campaignIdsParam) {
       const campaignIds = campaignIdsParam.split(',');
       allAds = []; // សម្អាតចោលជាមុនសិន
@@ -39,23 +39,13 @@ export async function GET(request: Request) {
 
         if (data.data && Array.isArray(data.data)) {
           for (const ad of data.data) {
-            // បញ្ចូលទាំងអស់ដោយមិនបាច់ទប់ស្កាត់ការជាន់គ្នាខ្លាំងពេក ដើម្បីធានាថាមិនបាត់ Ads របស់ Campaign ទី២ ឬទី៣
-            allAds.push(ad);
+            // បញ្ចូលទាំងអស់ដោយមិនឱ្យជាន់គ្នាធានាថាមិនបាត់ Ads
+            if (!allAds.some(existing => existing.id === ad.id)) {
+              allAds.push(ad);
+            }
           }
         }
       }
-    }
-
-        // បើរកអត់ឃើញតាម Ad Sets ទេ ទាញទិសដៅផ្ទាល់ពី Campaign តែម្ដង
-        const directAdsRes = await fetch(`https://graph.facebook.com/v18.0/${campId}/ads?fields=id,name,status,effective_status,creative{${creativeFields}},insights.date_preset(${datePreset}).level(ad){spend,impressions,reach,actions}&limit=500&access_token=${accessToken}`);
-        const directAdsData = await directAdsRes.json();
-        if (directAdsData.data && Array.isArray(directAdsData.data)) {
-          for (const ad of directAdsData.data) {
-            if (!allAds.some(existing => existing.id === ad.id)) allAds.push(ad);
-          }
-        }
-      }
-
     } else if (adAccountId) {
       const targetAccount = adAccountId.startsWith('act_') ? adAccountId : `act_${adAccountId}`;
       const url = `https://graph.facebook.com/v18.0/${targetAccount}/ads?fields=id,name,status,effective_status,creative{${creativeFields}},insights.date_preset(${datePreset}).level(ad){spend,impressions,reach,actions}&limit=500&access_token=${accessToken}`;
