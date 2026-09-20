@@ -359,15 +359,17 @@ export default function Home() {
     const token = localStorage.getItem('fb_user_token');
     if (!token) return;
 
-    fetch(`https://graph.facebook.com/v18.0/me/accounts?access_token=${token}`)
+    // 🌟 បន្ថែម ?fields=id,name,picture ដើម្បីឱ្យ Facebook បោះ Logo មកជាមួយ
+    fetch(`https://graph.facebook.com/v18.0/me/accounts?fields=id,name,picture&access_token=${token}`)
       .then(res => res.json())
       .then(data => {
         if (data.data) {
-          setFacebookPages(data.data); // ញាត់ចូល state សម្រាប់ឱ្យ Dropdown ទាញយកទៅបង្ហាញ
+          setFacebookPages(data.data);
+          setPages(data.data);
         }
       })
-      .catch(err => console.error("Error fetching pages for dropdown:", err));
-  }, []); // 👈 ដាក់ជា Array ទទេ [ ] កុំឱ្យវាឆែក variable មុនពេលប្រកាស
+      .catch(err => console.error("Error fetching pages:", err));
+  }, []);
 
   // 🌟 មុខងារ AI Auto-Fill វិភាគ និងបំពេញទិន្នន័យទាំង Targeting & Placements ស្វ័យប្រវត្តិ ១០០%
   const handleAiAutoFill = async () => {
@@ -3846,39 +3848,83 @@ const fetchAdsets = async () => {
                       <input type="text" value={adName} onChange={(e) => saveParam("adName", e.target.value, setAdName)} className={`w-full border rounded-xl p-3 outline-none focus:border-blue-500 font-semibold ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'}`} placeholder="New Engagement Ad" />
                     </div>
 
-                    <div>
-                      <label className={`block text-sm font-semibold mb-1.5 ${theme === 'dark' ? 'text-slate-300' : 'text-slate-600'}`}>Identity</label>
-                      <div className={`border rounded-xl overflow-visible relative p-3 ${theme === 'dark' ? 'border-slate-700 bg-[#18191A]' : 'border-slate-200 bg-white'}`}>
-                        <div className={`text-sm font-bold mb-2 ${theme === 'dark' ? 'text-slate-200' : 'text-slate-800'}`}>Facebook Page</div>
-                        
-                        {/* 🌟 ប្រអប់ Select សម្រាប់ជ្រើសរើស Facebook Page យ៉ាងរលូន */}
-                        <select 
-                          value={selectedPage} 
-                          onChange={(e) => {
-                            const pageId = e.target.value;
-                            setSelectedPage(pageId);
-                            localStorage.setItem("selectedPage", pageId);
-                            const selectedObj = facebookPages.find(p => p.id === pageId);
-                            if (selectedObj) {
-                              setFbPageName(selectedObj.name);
-                              localStorage.setItem("fbPageName", selectedObj.name);
-                            }
-                          }}
-                          className={`w-full border rounded-xl p-3 outline-none cursor-pointer text-sm font-bold ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-900'}`}
-                        >
-                          <option value="">Select a Page...</option>
-                          {facebookPages && facebookPages.length > 0 ? (
-                            facebookPages.map((page: any) => (
-                              <option key={page.id} value={page.id}>
-                                {page.name}
-                              </option>
-                            ))
-                          ) : (
-                            <option value="" disabled>គ្មាន Page ត្រូវបង្ហាញ (សូម Connect Facebook)</option>
-                          )}
-                        </select>
-
+                    {/* 🌟 Custom Dropdown ទំនើបបង្ហាញទាំង Logo Page និងឈ្មោះ */}
+                    <div className="relative">
+                      <div 
+                        onClick={() => setIsPageMenuOpen(!isPageMenuOpen)}
+                        className={`p-3 flex justify-between items-center cursor-pointer border rounded-xl transition ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-900'}`}
+                      >
+                        <div className="flex items-center gap-3 flex-1 min-w-0 pr-2">
+                          {/* ឆែករកមើល Logo ពី pages ឬ facebookPages */}
+                          {(() => {
+                            const currentSelectedPage = pages.find(p => p.id === selectedPage) || facebookPages.find(p => p.id === selectedPage);
+                            return currentSelectedPage?.picture?.data?.url ? (
+                              <img src={currentSelectedPage.picture.data.url} className="w-7 h-7 rounded-full object-cover shrink-0 border" alt="Page Logo" />
+                            ) : (
+                              <div className="w-7 h-7 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold shrink-0">f</div>
+                            );
+                          })()}
+                          
+                          <span className="font-bold text-sm truncate block flex-1 min-w-0">
+                            {selectedPage ? (pages.find(p => p.id === selectedPage)?.name || facebookPages.find(p => p.id === selectedPage)?.name || "Selected Page") : "Select a Page..."}
+                          </span>
+                        </div>
+                        <span className="text-xs text-blue-500 shrink-0 font-bold">▼</span>
                       </div>
+
+                      {/* Menu List ធ្លាក់ចុះ */}
+                      {isPageMenuOpen && (
+                        <>
+                          <div className="fixed inset-0 z-40" onClick={() => setIsPageMenuOpen(false)}></div>
+                          <div className={`absolute top-[110%] left-0 w-full border rounded-xl shadow-2xl z-50 max-h-60 overflow-y-auto p-1.5 flex flex-col gap-1 ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-white' : 'bg-white border-slate-300'}`}>
+                            {pages && pages.length > 0 ? (
+                              pages.map((page: any) => (
+                                <div 
+                                  key={page.id} 
+                                  onClick={() => {
+                                    setSelectedPage(page.id);
+                                    localStorage.setItem("selectedPage", page.id);
+                                    setFbPageName(page.name);
+                                    localStorage.setItem("fbPageName", page.name);
+                                    setIsPageMenuOpen(false);
+                                  }}
+                                  className={`p-2.5 rounded-lg flex items-center gap-3 cursor-pointer transition ${selectedPage === page.id ? 'bg-blue-600 text-white font-bold' : (theme === 'dark' ? 'hover:bg-[#3A3B3C]' : 'hover:bg-slate-100')}`}
+                                >
+                                  {page.picture?.data?.url ? (
+                                    <img src={page.picture.data.url} className="w-7 h-7 rounded-full object-cover shrink-0 border border-slate-200" alt="Page Logo" />
+                                  ) : (
+                                    <div className="w-7 h-7 bg-[#1877F2] text-white rounded-full flex items-center justify-center text-xs font-bold shrink-0">f</div>
+                                  )}
+                                  <span className="text-sm truncate">{page.name}</span>
+                                </div>
+                              ))
+                            ) : facebookPages && facebookPages.length > 0 ? (
+                              facebookPages.map((page: any) => (
+                                <div 
+                                  key={page.id} 
+                                  onClick={() => {
+                                    setSelectedPage(page.id);
+                                    localStorage.setItem("selectedPage", page.id);
+                                    setFbPageName(page.name);
+                                    localStorage.setItem("fbPageName", page.name);
+                                    setIsPageMenuOpen(false);
+                                  }}
+                                  className={`p-2.5 rounded-lg flex items-center gap-3 cursor-pointer transition ${selectedPage === page.id ? 'bg-blue-600 text-white font-bold' : (theme === 'dark' ? 'hover:bg-[#3A3B3C]' : 'hover:bg-slate-100')}`}
+                                >
+                                  {page.picture?.data?.url ? (
+                                    <img src={page.picture.data.url} className="w-8 h-8 rounded-full object-cover shrink-0 border" alt="Logo" />
+                                  ) : (
+                                    <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold shrink-0">f</div>
+                                  )}
+                                  <span className="text-sm truncate">{page.name}</span>
+                                </div>
+                              ))
+                            ) : (
+                              <div className="p-3 text-xs text-slate-400 text-center">គ្មាន Page ត្រូវបង្ហាញទេ (សូម Connect Facebook)</div>
+                            )}
+                          </div>
+                        </>
+                      )}
                     </div>
 
                     <div>
