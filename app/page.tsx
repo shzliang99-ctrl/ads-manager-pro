@@ -382,24 +382,33 @@ export default function Home() {
     window.location.href = `https://www.facebook.com/v18.0/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&scope=${scope}&state=${safeState}&response_type=code`;
   };
 
-  
-
-  // 🌟 មុខងារទាញយក Facebook Pages មកដាក់បង្ហាញក្នុង Dropdown ស្វ័យប្រវត្តិ
+  // 🌟 មុខងារទាញយក Facebook Pages មកដាក់បង្ហាញក្នុង Dropdown យ៉ាងរលូន
   useEffect(() => {
     const token = localStorage.getItem('fb_user_token');
     if (!token) return;
 
-    // 🌟 បន្ថែម ?fields=id,name,picture ដើម្បីឱ្យ Facebook បោះ Logo មកជាមួយ
-    fetch(`https://graph.facebook.com/v18.0/me/accounts?fields=id,name,picture&access_token=${token}`)
+    fetch(`https://graph.facebook.com/v18.0/me/accounts?fields=id,name,picture,access_token&access_token=${token}`)
       .then(res => res.json())
       .then(data => {
-        if (data.data) {
+        if (data.data && data.data.length > 0) {
           setFacebookPages(data.data);
           setPages(data.data);
+
+          const savedPageId = localStorage.getItem("selectedPage");
+          const targetPage = savedPageId && data.data.find((p: any) => p.id === savedPageId) 
+            ? data.data.find((p: any) => p.id === savedPageId) 
+            : data.data[0];
+
+          if (targetPage) {
+            setSelectedPage(targetPage.id);
+            localStorage.setItem("selectedPage", targetPage.id);
+            setFbPageName(targetPage.name);
+            localStorage.setItem("fbPageName", targetPage.name);
+          }
         }
       })
       .catch(err => console.error("Error fetching pages:", err));
-  }, []);
+  }, []); 
 
   // 🌟 មុខងារ AI Auto-Fill វិភាគ និងបំពេញទិន្នន័យទាំង Targeting & Placements ស្វ័យប្រវត្តិ ១០០%
   const handleAiAutoFill = async () => {
@@ -1892,13 +1901,16 @@ export default function Home() {
         
         // 🌟 ឆែកមើល Error រឿងអត់មានប៊ូតុង ឬ Invalid Creative
         if (data.error && (data.error.includes("ប៊ូតុង") || data.error.includes("Creative") || data.error.includes("message"))) {
-          // បង្កើត Link ភ្ជាប់ទៅកាន់ Meta Ads Manager ផ្ទាល់របស់អ្នកប្រើប្រាស់
-          const adAccountClean = selectedAdAccount?.replace('act_', '');
-          const adsManagerUrl = `https://adsmanager.facebook.com/adsmanager/manage/ads?act=${adAccountClean}`;
           
-          // បង្ហាញ Error Modal ព្រមទាំងភ្ជាប់ Link
-          setCustomError("⚠️ ផុសនេះមានបញ្ហា (ឧ. ជារូបភាពច្រើនសន្លឹក មិនអាចដាក់ប៊ូតុង Send Message បាន)។\n\nសូមចុច OK ដើម្បីបើកផ្ទាំង Meta Ads Manager រួចចុច Publish ជាការស្រេច!");
-          setErrorActionUrl(adsManagerUrl);
+          // 🌟 ប្រើប្រាស់ Link ចូលទៅកាន់ Facebook Page ផ្ទាល់ (ធានាថាមិន Error 100%)
+        const pageIdClean = selectedPage; 
+        
+        // ទម្រង់ Link ស្តង់ដាររបស់ Facebook Page
+        const directPostUrl = `https://www.facebook.com/${pageIdClean}`;
+        
+        setCustomError("⚠️ ផុសនេះមានបញ្ហា (ឧ. ជារូបភាពច្រើនសន្លឹក មិនអាចដាក់ប៊ូតុង Send Message បាន)។\n\nសូមចុច OK ដើម្បីបើកទៅកាន់ Facebook Page របស់បង រួចធ្វើការកែសម្រួល Post នោះជាការស្រេច!");
+        setErrorActionUrl(directPostUrl);
+
         } else {
           alert("❌ បរាជ័យពី Facebook ក្នុងការ Boost:\n\n" + data.error);
         }
