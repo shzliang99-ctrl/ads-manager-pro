@@ -2493,15 +2493,13 @@ const fetchAdsets = async () => {
                 <span className="text-lg leading-none">📋</span> <span className="text-[13.5px]">{t.subscriptions}</span>
               </button>
             )}
-            {/* 🌟 Tab គ្រប់គ្រងការទូទាត់ (Payments) */}
-            {isAdmin && (
+            {/* 🌟 Tab គ្រប់គ្រងការទូទាត់ (Payments) - បើកបង្ហាញជូនគ្រប់អតិថិជនទាំងអស់ */}
               <button 
                 onClick={() => handleTabChange("PAYMENTS")}
                 className={`w-full text-left px-4 py-3.5 rounded-xl font-bold transition-all flex items-center gap-3 cursor-pointer ${activeTab === "PAYMENTS" ? "bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-md" : (theme === 'dark' ? 'text-slate-300 hover:bg-[#3A3B3C] hover:text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900')}`}
               >
                 <span className="text-lg leading-none">💳</span> <span className="text-[13.5px]">ការទូទាត់ (Payments)</span>
               </button>
-            )}
          </div>
 
          {/* ២. ផ្នែកបាតក្រោម៖ ប៊ូតុង Setting និង Logout ជាប់ស្អិតជាមួយគ្នា */}
