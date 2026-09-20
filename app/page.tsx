@@ -169,6 +169,24 @@ export default function Home() {
       alert("❌ បរាជ័យក្នុងការ Upload: " + err.message);
     }
   };
+  // 🌟 State សម្រាប់ເກັບបញ្ជី Facebook Pages របស់អ្នកប្រើប្រាស់
+  const [facebookPages, setFacebookPages] = useState<any[]>([]);
+
+  // 🌟 Function សម្រាប់ទាញយក Facebook Pages របស់អ្នកប្រើប្រាស់
+  const fetchFacebookPages = async (token: string) => {
+    try {
+      const res = await fetch(`https://graph.facebook.com/v18.0/me/accounts?access_token=${token}`);
+      const data = await res.json();
+      
+      if (data.data) {
+        setFacebookPages(data.data); // ទុកក្នុង state សម្រាប់បង្ហាញក្នុង Dropdown
+      } else {
+        console.error("No pages found or error:", data);
+      }
+    } catch (err) {
+      console.error("Error fetching Facebook pages:", err);
+    }
+  };
   
   // 🌟 បន្ថែម State សម្រាប់គ្រប់គ្រង Page Menu Dropdown
   const [isPageMenuOpen, setIsPageMenuOpen] = useState(false);
@@ -335,6 +353,21 @@ export default function Home() {
     
     window.location.href = `https://www.facebook.com/v18.0/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&scope=${scope}&state=${safeState}&response_type=code`;
   };
+
+  // 🌟 មុខងារទាញយក Facebook Pages មកដាក់បង្ហាញក្នុង Dropdown ស្វ័យប្រវត្តិ
+  useEffect(() => {
+    const token = localStorage.getItem('fb_user_token');
+    if (!token) return;
+
+    fetch(`https://graph.facebook.com/v18.0/me/accounts?access_token=${token}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.data) {
+          setFacebookPages(data.data); // ញាត់ចូល state សម្រាប់ឱ្យ Dropdown ទាញយកទៅបង្ហាញ
+        }
+      })
+      .catch(err => console.error("Error fetching pages for dropdown:", err));
+  }, []); // 👈 ដាក់ជា Array ទទេ [ ] កុំឱ្យវាឆែក variable មុនពេលប្រកាស
 
   // 🌟 មុខងារ AI Auto-Fill វិភាគ និងបំពេញទិន្នន័យទាំង Targeting & Placements ស្វ័យប្រវត្តិ ១០០%
   const handleAiAutoFill = async () => {
@@ -3815,28 +3848,36 @@ const fetchAdsets = async () => {
 
                     <div>
                       <label className={`block text-sm font-semibold mb-1.5 ${theme === 'dark' ? 'text-slate-300' : 'text-slate-600'}`}>Identity</label>
-                      <div className={`border rounded-xl overflow-visible relative ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-                        <div className={`p-3 border-b text-sm font-bold ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-700 text-slate-200' : 'bg-slate-50 border-slate-200 text-slate-800'}`}>Facebook Page</div>
-                        <div onClick={() => setIsPageMenuOpen(!isPageMenuOpen)} className={`p-3 flex justify-between items-center cursor-pointer transition relative overflow-hidden ${theme === 'dark' ? 'bg-[#242526] hover:bg-[#3A3B3C]' : 'bg-white hover:bg-blue-50'}`}>
-                          <div className="flex items-center gap-3 flex-1 min-w-0 pr-2">
-                            {selectedPageData?.picture?.data?.url ? <img src={selectedPageData.picture.data.url} className={`w-8 h-8 rounded-full object-cover border shrink-0 ${theme === 'dark' ? 'border-slate-600' : 'border-slate-100'}`} /> : <div className="w-8 h-8 bg-slate-400 rounded-full shrink-0"></div>}
-                            <span className={`font-bold text-sm truncate block flex-1 min-w-0 ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>{selectedPageData ? selectedPageData.name : "Select a Page..."}</span>
-                          </div>
-                          <span className="text-xs text-[#1877F2] shrink-0">▼</span>
-                        </div>
-                        {isPageMenuOpen && (
-                          <>
-                            <div className="fixed inset-0 z-40" onClick={(e) => {e.stopPropagation(); setIsPageMenuOpen(false)}}></div>
-                            <div className={`absolute top-[100%] left-0 w-full border rounded-xl shadow-xl z-50 max-h-60 overflow-y-auto mt-1 ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-white' : 'bg-white border-slate-300'}`}>
-                              {pages.map(p => (
-                                <div key={p.id} onClick={(e) => { e.stopPropagation(); setSelectedPage(p.id); setIsPageMenuOpen(false); }} className={`p-3 flex items-center gap-3 cursor-pointer border-b transition ${theme === 'dark' ? 'border-slate-700 hover:bg-[#3A3B3C]' : 'border-slate-50 hover:bg-blue-50'}`}>
-                                  {p.picture?.data?.url ? <img src={p.picture.data.url} className="w-9 h-9 rounded-full object-cover shrink-0" /> : <div className="w-9 h-9 bg-slate-400 rounded-full shrink-0"></div>}
-                                  <span className="text-sm font-bold truncate">{p.name}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </>
-                        )}
+                      <div className={`border rounded-xl overflow-visible relative p-3 ${theme === 'dark' ? 'border-slate-700 bg-[#18191A]' : 'border-slate-200 bg-white'}`}>
+                        <div className={`text-sm font-bold mb-2 ${theme === 'dark' ? 'text-slate-200' : 'text-slate-800'}`}>Facebook Page</div>
+                        
+                        {/* 🌟 ប្រអប់ Select សម្រាប់ជ្រើសរើស Facebook Page យ៉ាងរលូន */}
+                        <select 
+                          value={selectedPage} 
+                          onChange={(e) => {
+                            const pageId = e.target.value;
+                            setSelectedPage(pageId);
+                            localStorage.setItem("selectedPage", pageId);
+                            const selectedObj = facebookPages.find(p => p.id === pageId);
+                            if (selectedObj) {
+                              setFbPageName(selectedObj.name);
+                              localStorage.setItem("fbPageName", selectedObj.name);
+                            }
+                          }}
+                          className={`w-full border rounded-xl p-3 outline-none cursor-pointer text-sm font-bold ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-900'}`}
+                        >
+                          <option value="">Select a Page...</option>
+                          {facebookPages && facebookPages.length > 0 ? (
+                            facebookPages.map((page: any) => (
+                              <option key={page.id} value={page.id}>
+                                {page.name}
+                              </option>
+                            ))
+                          ) : (
+                            <option value="" disabled>គ្មាន Page ត្រូវបង្ហាញ (សូម Connect Facebook)</option>
+                          )}
+                        </select>
+
                       </div>
                     </div>
 
