@@ -2864,47 +2864,54 @@ const fetchAdsets = async () => {
               <div className={`p-6 rounded-xl shadow-sm border w-full max-w-7xl mx-auto my-6 animate-in fade-in duration-300 transition-colors ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-900'}`}>
                 
                 {/* Header */}
-            <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
-              <div>
-                <h1 className={`text-xl font-bold flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
-                  <span className="p-1.5 bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 rounded-lg text-lg">👥</span> 
-                  គ្រប់គ្រងគណនី និងកញ្ចប់សេវាអតិថិជន
-                </h1>
-                <p className={`text-sm mt-1.5 ${theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>បង្កើតគណនីភ្ជាប់ជាមួយ Facebook Page និងតាមដានទិន្នន័យអតិថិជនរបស់អ្នក</p>
-              </div>
+                <div className="flex justify-between items-center mb-6 flex-wrap gap-4 relative">
+                  <div>
+                    <h1 className={`text-xl font-bold flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
+                      <span className="p-1.5 bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 rounded-lg text-lg">👥</span> 
+                      គ្រប់គ្រងគណនី និងកញ្ចប់សេវាអតិថិជន
+                    </h1>
+                    <p className={`text-sm mt-1.5 ${theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>បង្កើតគណនីភ្ជាប់ជាមួយ Facebook Page និងតាមដានទិន្នន័យអតិថិជនរបស់អ្នក</p>
+                  </div>
 
-              {/* 🌟 ផ្ទាំង Alert ពណ៌ទឹកក្រូចអណ្តែតនៅខាងស្តាំលើ (Clean title) */}
-              {isAdmin && pendingSlipsCount > 0 && (
-                <div className="fixed top-20 right-6 z-[999999] animate-in slide-in-from-top-5 fade-in duration-300">
-                  <div 
-                    onClick={() => {
-                      setActiveTab("SUBSCRIPTIONS");
-                      const firstPending = clients.find(c => c.slip_status === 'pending');
-                      if (firstPending) {
-                        setHighlightedClientId(firstPending.id);
-                        setTimeout(() => {
-                          const el = clientRowRefs.current[firstPending.id];
-                          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        }, 200);
-                      }
-                    }}
-                    className="flex items-center gap-3 px-5 py-3.5 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-bold rounded-2xl shadow-2xl border border-orange-400/50 backdrop-blur-md cursor-pointer transition-transform hover:scale-105 active:scale-95"
-                    title="Click to check new slips"
-                  >
-                    <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-base shrink-0 shadow-inner">
-                      🔔
+                  {/* 🌟 ផ្ទាំង Alert ពណ៌ទឹកក្រូចអណ្តែតនៅខាងស្តាំលើ (Floating Top-Right) */}
+                  {isAdmin && pendingSlipsCount > 0 && (
+                    <div className="fixed top-20 right-6 z-[999999] animate-in slide-in-from-top-5 fade-in duration-300">
+                      <div 
+                        onClick={() => {
+                          setActiveTab("SUBSCRIPTIONS");
+                          const firstPending = clients.find(c => c.slip_status === 'pending');
+                          if (firstPending) {
+                            setHighlightedClientId(firstPending.id);
+                            setTimeout(() => {
+                              const el = clientRowRefs.current[firstPending.id];
+                              if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            }, 200);
+                          }
+                        }}
+                        className="flex items-center gap-3 px-5 py-3.5 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-bold rounded-2xl shadow-2xl border border-orange-400/50 backdrop-blur-md cursor-pointer transition-transform hover:scale-105 active:scale-95"
+                        title="Click to check new slips"
+                      >
+                        <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-base shrink-0 shadow-inner">
+                          🔔
+                        </div>
+                        <div className="flex flex-col text-left">
+                          <span className="text-[13.5px] tracking-wide">មាន Slip ថ្មីរង់ចាំ Approve!</span>
+                          <span className="text-[11px] opacity-90 font-normal">ចំនួន {pendingSlipsCount} ភ័ស្តុតាងទូទាត់ប្រាក់</span>
+                        </div>
+                        <span className="w-6 h-6 bg-white text-orange-600 rounded-full font-black text-xs flex items-center justify-center shadow-md ml-2 animate-bounce">
+                          {pendingSlipsCount}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex flex-col text-left">
-                      <span className="text-[13.5px] tracking-wide">មាន Slip ថ្មីរង់ចាំ Approve!</span>
-                      <span className="text-[11px] opacity-90 font-normal">ចំនួន {pendingSlipsCount} ភ័ស្តុតាងទូទាត់ប្រាក់</span>
-                    </div>
-                    <span className="w-6 h-6 bg-white text-orange-600 rounded-full font-black text-xs flex items-center justify-center shadow-md ml-2 animate-bounce">
-                      {pendingSlipsCount}
-                    </span>
+                  )}
+                  
+                  <div className="flex items-center gap-3">
+                    <button onClick={() => setShowSubModal(true)} className="px-5 py-2.5 bg-[#1877F2] hover:bg-[#166FE5] text-white font-bold rounded-xl transition shadow-md cursor-pointer flex items-center gap-2">
+                      <span className="text-lg leading-none">+</span> <span className="hidden sm:inline">បង្កើតគណនីថ្មីអោយអតិថិជន</span>
+                    </button>
                   </div>
                 </div>
-              )}
-            
+
                 {/* 🌟 ផ្នែក Dashboard Statistic Cards ទាំង ៤ (ដាក់ពីលើតារាង) */}
                 {(() => {
                   const totalClients = clients.length;
