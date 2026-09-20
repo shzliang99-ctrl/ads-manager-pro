@@ -53,6 +53,28 @@ export default function Home() {
   }, []);
 
   const [activePreviewAdId, setActivePreviewAdId] = useState<string | null>(null);
+  
+  useEffect(() => {
+    const fetchClientExpiry = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user || !user.email) return;
+
+      const { data, error } = await supabase
+        .from('customer_subscriptions')
+        .select('expiry_date')
+        .eq('email', user.email)
+        .single();
+
+      if (data && data.expiry_date) {
+        const today = new Date();
+        const expiry = new Date(data.expiry_date);
+        const diffTime = expiry.getTime() - today.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        setClientExpiryDaysLeft(diffDays);
+      }
+    };
+    fetchClientExpiry();
+  }, []);
 
   // 🌟 State សម្រាប់ Toast Notifications
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
@@ -119,6 +141,8 @@ export default function Home() {
       </div>
     );
   };
+
+  const [clientExpiryDaysLeft, setClientExpiryDaysLeft] = useState<number | null>(null);
 
   // 🌟 State និង Function សម្រាប់ទាញយក និង Upload Admin QR Code
   const [adminQrUrl, setAdminQrUrl] = useState("");
@@ -2297,6 +2321,26 @@ const fetchAdsets = async () => {
         {/* ផ្នែកទី៣៖ Controls (Language, Theme, Ad Account, Reporting) */}
         <div className="flex items-center flex-wrap gap-2 ml-auto lg:ml-0">
           
+          {/* 🌟 ដាក់ Badge បង្ហាញថ្ងៃសេវាកម្មនៅសល់នៅទីនេះ (ស្ថិតនៅពីលើ Language Dropdown) */}
+          {clientExpiryDaysLeft !== null && (
+            <div className={`px-3 h-8 flex items-center gap-1.5 rounded-full text-xs font-bold border shadow-xs ${
+              clientExpiryDaysLeft < 0 
+                ? 'bg-red-500/10 border-red-500/30 text-red-500' 
+                : clientExpiryDaysLeft <= 3 
+                ? 'bg-amber-500/10 border-amber-500/30 text-amber-600 animate-pulse' 
+                : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600'
+            }`}>
+              <span>⏳</span>
+              <span>
+                {clientExpiryDaysLeft < 0 
+                  ? `ផុតកំណត់សេវា (${Math.abs(clientExpiryDaysLeft)} ថ្ងៃមុន)` 
+                  : clientExpiryDaysLeft === 0 
+                  ? 'ផុតកំណត់ថ្ងៃនេះ!' 
+                  : `សេវាកម្មនៅសល់៖ ${clientExpiryDaysLeft} ថ្ងៃ`}
+              </span>
+            </div>
+          )}
+
           {/* 🌟 Language Dropdown (ខ្មែរ / English) */}
           <div className="relative">
             <button 
@@ -2341,7 +2385,7 @@ const fetchAdsets = async () => {
             )}
           </div>
 
-          {/* ប៊ូតុងផ្លាស់ប្តូរ យប់/ថ្ងៃ */}
+          {/* ប៊ូតុងផ្លាស់ប្តូរ យប់/ថ្ងៃ (នៅជាប់ខាងក្រោម Language Dropdown) */}
           <button 
             onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} 
             className={`w-8 h-8 flex items-center justify-center rounded-full text-base shadow-sm transition-all cursor-pointer ${theme === 'dark' ? 'bg-slate-700 hover:bg-slate-600' : 'bg-slate-100 hover:bg-slate-200'}`}
@@ -2925,9 +2969,30 @@ const fetchAdsets = async () => {
 
                                 {/* Dates & Status */}
                                 <td className="py-3.5 px-4">
-                                  <div className={`text-[12px] ${theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>ចាប់ផ្តើម៖ {new Date(item.start_date).toLocaleDateString('km-KH')}</div>
+                                  <div className={`text-[12px] ${theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>
+                                    ចាប់ផ្តើម៖ {new Date(item.start_date).toLocaleDateString('km-KH')}
+                                  </div>
+                                  
                                   <div className={`text-[12px] font-bold mt-0.5 ${isExpired ? 'text-red-500' : (theme === 'dark' ? 'text-slate-200' : 'text-gray-700')}`}>
                                     ផុតកំណត់៖ {new Date(item.expiry_date).toLocaleDateString('km-KH')}
+                                  </div>
+
+                                  {/* 🌟 បន្ថែមការគណនាចំនួនថ្ងៃនៅសល់នៅទីនេះ */}
+                                  <div className="mt-1">
+                                    {(() => {
+                                      const today = new Date();
+                                      const expiry = new Date(item.expiry_date);
+                                      const diffTime = expiry.getTime() - today.getTime();
+                                      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                                      if (diffDays < 0) {
+                                        return <span className="text-[11px] font-bold text-red-500 bg-red-500/10 px-2 py-0.5 rounded border border-red-500/20">ផុតកំណត់យូរហើយ ({Math.abs(diffDays)} ថ្ងៃមុន)</span>;
+                                      } else if (diffDays === 0) {
+                                        return <span className="text-[11px] font-bold text-orange-500 bg-orange-500/10 px-2 py-0.5 rounded border border-orange-500/20">ផុតកំណត់ថ្ងៃនេះ!</span>;
+                                      } else {
+                                        return <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">⏳ នៅសល់ {diffDays} ថ្ងៃទៀត</span>;
+                                      }
+                                    })()}
                                   </div>
                                   
                                   <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
