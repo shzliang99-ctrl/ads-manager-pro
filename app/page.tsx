@@ -382,6 +382,8 @@ export default function Home() {
     window.location.href = `https://www.facebook.com/v18.0/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&scope=${scope}&state=${safeState}&response_type=code`;
   };
 
+  
+
   // 🌟 មុខងារទាញយក Facebook Pages មកដាក់បង្ហាញក្នុង Dropdown ស្វ័យប្រវត្តិ
   useEffect(() => {
     const token = localStorage.getItem('fb_user_token');
@@ -640,6 +642,32 @@ export default function Home() {
         .catch(err => console.log("API Error:", err));
     }
   }, []);
+
+  // 🌟 Auto-fetch Facebook Pages ស្វ័យប្រវត្តិពេលបើកទំព័រ
+  useEffect(() => {
+    const token = localStorage.getItem('fb_user_token');
+    if (!token) return;
+
+    // ហៅ Graph API ទាញយក Pages មកផ្ទុកទុកក្នុង State ភ្លាមៗ
+    fetch(`https://graph.facebook.com/v18.0/me/accounts?fields=id,name,picture,access_token&access_token=${token}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.data && data.data.length > 0) {
+          setFacebookPages(data.data);
+          setPages(data.data);
+
+          // បើគ្មាន Page ណាត្រូវបានជ្រើសរើសទេ យក Page ទី១ ដាក់ជា Default
+          const savedPageId = localStorage.getItem("selectedPage");
+          if (!savedPageId || !data.data.find((p: any) => p.id === savedPageId)) {
+            setSelectedPage(data.data[0].id);
+            localStorage.setItem("selectedPage", data.data[0].id);
+            setFbPageName(data.data[0].name);
+            localStorage.setItem("fbPageName", data.data[0].name);
+          }
+        }
+      })
+      .catch(err => console.error("Error auto-fetching pages:", err));
+  }, [isFbConnected]);
 
 
   const [adsList, setAdsList] = useState<any[]>([]);
