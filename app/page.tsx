@@ -5231,36 +5231,53 @@ const fetchAdsets = async () => {
 
                                   <td className={`p-3 border-r align-middle min-w-[120px] ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
                                     {(() => {
-                                      const ins = getInsights(c);
-                                      const hasAds = ins && (Number(ins.impressions) > 0 || Number(ins.spend) > 0 || Number(ins.reach) > 0);
-                                      const status = c.effective_status || c.status;
+                              const ins = getInsights(c);
+                              const hasAds = ins && (Number(ins.impressions) > 0 || Number(ins.spend) > 0 || Number(ins.reach) > 0);
+                              
+                              // 🌟 ចាប់យក Status ទាំងអស់ពី Facebook API មកទម្រង់អក្សរធំ
+                              const status = (c.effective_status || c.status || "").toUpperCase();
 
-                                      if (status === 'ACTIVE' && !hasAds) {
-                                        return (
-                                          <span className="flex items-center gap-1.5 font-medium text-slate-500">
-                                            <span className="w-2 h-2 rounded-full bg-slate-400"></span> No ads
-                                          </span>
-                                        );
-                                      } else if (status === 'ACTIVE') {
-                                        return (
-                                          <span className="flex items-center gap-1.5 font-medium text-[#31A24C]">
-                                            <span className="w-2 h-2 rounded-full bg-[#31A24C]"></span> Active
-                                          </span>
-                                        );
-                                      } else if (status === 'PAUSED' || status === 'OFF') {
-                                        return (
-                                          <span className="flex items-center gap-1.5 font-medium text-slate-500">
-                                            <span className="w-2 h-2 rounded-full bg-[#BCC0C4]"></span> Off
-                                          </span>
-                                        );
-                                      } else {
-                                        return (
-                                          <span className="flex items-center gap-1.5 font-medium text-slate-400">
-                                            <span className="w-2 h-2 rounded-full bg-slate-400"></span> {status}
-                                          </span>
-                                        );
-                                      }
-                                    })()}
+                              // 1. ករណី Facebook កំពុងពិនិត្យ (Review)
+                              if (status.includes('REVIEW') || status.includes('PENDING') || status === 'IN_REVIEW' || status === 'PENDING_REVIEW') {
+                                return (
+                                  <span className="flex items-center gap-1.5 font-medium text-amber-500">
+                                    <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span> In review
+                                  </span>
+                                );
+                              } 
+                              // 2. ករណីលុបចោល
+                              else if (status.includes('DELETED')) {
+                                return (
+                                  <span className="flex items-center gap-1.5 font-medium text-red-500">
+                                    <span className="w-2 h-2 rounded-full bg-red-500"></span> Deleted
+                                  </span>
+                                );
+                              } 
+                              // 3. ករណីដំណើរការធម្មតា Active
+                              else if (status === 'ACTIVE') {
+                                return (
+                                  <span className="flex items-center gap-1.5 font-medium text-[#31A24C]">
+                                    <span className="w-2 h-2 rounded-full bg-[#31A24C]"></span> Active
+                                  </span>
+                                );
+                              } 
+                              // 4. ករណីបិទ Off
+                              else if (status === 'PAUSED' || status === 'OFF') {
+                                return (
+                                  <span className="flex items-center gap-1.5 font-medium text-slate-500">
+                                    <span className="w-2 h-2 rounded-full bg-[#BCC0C4]"></span> Off
+                                  </span>
+                                );
+                              } 
+                              // 5. ករណីទូទៅផ្សេងទៀត
+                              else {
+                                return (
+                                  <span className="flex items-center gap-1.5 font-medium text-slate-400">
+                                    <span className="w-2 h-2 rounded-full bg-slate-400"></span> {status ? status.toLowerCase() : 'Unknown'}
+                                  </span>
+                                );
+                              }
+                            })()}
                                   </td>
 
                                   <td className={`p-3 border-r align-middle min-w-[140px] ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
