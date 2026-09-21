@@ -5476,11 +5476,11 @@ const fetchAdsets = async () => {
                   )}
 
                   {/* ========================================================= */}
-                {/* 3. TABLE: ADS */}
-                {/* ========================================================= */}
-                {activeManageTab === 'ADS' && (
+                  {/* 3. TABLE: ADS */}
+                  {/* ========================================================= */}
+                  {activeManageTab === 'ADS' && (
                   <div className="w-full overflow-x-auto">
-                    <table className="w-full text-left border-collapse min-w-[1500px]">
+                    <table className="w-full text-left border-collapse min-w-[1650px]">
                       <thead className={`sticky top-0 z-20 shadow-[0_1px_0_0_rgba(0,0,0,0.1)] ${theme === 'dark' ? 'bg-[#18191A] text-slate-400' : 'bg-[#F5F6F8] text-[#65676B]'}`}>
                         <tr className="text-[12px]">
                           <th className={`p-3 border-r w-10 text-center ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
@@ -5502,6 +5502,12 @@ const fetchAdsets = async () => {
                           <th className={`p-3 border-r min-w-[120px] font-bold ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Delivery</th>
                           <th className={`p-3 border-r min-w-[140px] font-bold text-right ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Results</th>
                           <th className={`p-3 border-r min-w-[120px] font-bold text-right ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Cost per result</th>
+                          
+                          {/* 🌟 ជួរឈរ AI CPA Badge & Tooltip ៥ កម្រិត */}
+                          <th className={`p-3 border-r min-w-[150px] font-bold text-blue-600 dark:text-blue-400 ${theme === 'dark' ? 'border-slate-700 bg-blue-950/20' : 'border-slate-200 bg-blue-50/50'}`}>
+                            ការវាយតម្លៃ AI (CPA)
+                          </th>
+
                           <th className={`p-3 border-r min-w-[120px] font-bold text-right ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Budget</th>
                           <th className={`p-3 border-r min-w-[120px] font-bold text-right ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Amount spent</th>
                           <th className={`p-3 border-r min-w-[100px] font-bold text-right ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Impressions</th>
@@ -5510,280 +5516,288 @@ const fetchAdsets = async () => {
                         </tr>
                       </thead>
                       <tbody className={`text-[13px] ${theme === 'dark' ? 'text-slate-300' : 'text-[#050505]'}`}>
-                          {loadingAds ? (
-                            <tr><td colSpan={11} className="p-10 text-center text-slate-500">កំពុងទាញយកបញ្ជី Ads...</td></tr>
-                          ) : adsList.length === 0 ? (
-                            <tr><td colSpan={11} className="p-10 text-center text-slate-500">រកមិនឃើញ Ads ក្រោម Campaign នេះទេ</td></tr>
-                          ) : (
-                            adsList.map((ad) => {
-                              const ins = ad.insights && ad.insights.data && ad.insights.data.length > 0 ? ad.insights.data[0] : null;
-                              
-                              // 🌟 ១. ទាញយក Objective ពី Campaign មេ ដើម្បីដឹងថាវាជាប្រភេទផ្ញើសារ ឬប្រភេទផ្សេង
-                              const parentCamp = campaignsList.find(c => c.id === selectedCampaigns[0]);
-                              const objective = parentCamp?.objective || 'OUTCOME_ENGAGEMENT';
+                        {loadingAds ? (
+                          <tr><td colSpan={12} className="p-10 text-center text-slate-500">កំពុងទាញយកបញ្ជី Ads...</td></tr>
+                        ) : adsList.length === 0 ? (
+                          <tr><td colSpan={12} className="p-10 text-center text-slate-500">រកមិនឃើញ Ads ក្រោម Campaign នេះទេ</td></tr>
+                        ) : (
+                          adsList.map((ad) => {
+                            const ins = ad.insights && ad.insights.data && ad.insights.data.length > 0 ? ad.insights.data[0] : null;
+                            
+                            const parentCamp = campaignsList.find(c => c.id === (ad.campaign_id || selectedCampaigns[0])) || campaignsList[0];
+                            const objective = parentCamp?.objective || 'OUTCOME_ENGAGEMENT';
+                            const results = getResults(ins, objective);
 
-                              // 🌟 ២. ប្រើប្រាស់រូបមន្តទាញយក Results ដូចគ្នានឹងផ្ទាំង Campaign ធានាថាទិន្នន័យស៊ីគ្នា ១០០%
-                              const results = getResults(ins, objective);
+                            const spend = ins?.spend || 0;
+                            const impressions = ins?.impressions || 0;
+                            const reach = ins?.reach || 0;
+                            
+                            const cpa = (results !== "-" && spend && Number(results) > 0) ? (Number(spend) / Number(results)) : null;
+                            const isAdSelected = selectedAds.includes(ad.id);
 
-                              const spend = ins?.spend || 0;
-                              const impressions = ins?.impressions || 0;
-                              const reach = ins?.reach || 0;
-                              
-                              // គណនា CPA ថ្មីដោយផ្អែកលើ Results ត្រឹមត្រូវ
-                              const cpa = (results !== "-" && spend && Number(results) > 0) ? (Number(spend) / Number(results)) : null;
-                              const isAdSelected = selectedAds.includes(ad.id);
+                            return (
+                              <tr key={ad.id} className={`border-b transition min-h-[48px] ${theme === 'dark' ? (isAdSelected ? 'bg-blue-900/30 border-slate-700' : 'border-slate-700 hover:bg-[#3A3B3C]') : (isAdSelected ? 'bg-[#EBF5FF] border-slate-200' : 'border-slate-200 hover:bg-slate-50')}`}>
+                                
+                                {/* Checkbox */}
+                                <td className={`p-3 border-r text-center align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                                  <input 
+                                    type="checkbox" 
+                                    checked={isAdSelected}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        setSelectedAds([...selectedAds, ad.id]);
+                                      } else {
+                                        setSelectedAds(selectedAds.filter(id => id !== ad.id));
+                                      }
+                                    }}
+                                    className="w-3.5 h-3.5 accent-[#1877F2] cursor-pointer" 
+                                  />
+                                </td>
+                                
+                                {/* Status Toggle */}
+                                <td className={`p-3 border-r text-center align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                                  <div 
+                                    onClick={() => handleToggleAdStatus(ad.id, ad.status)}
+                                    className={`w-8 h-4 rounded-full mx-auto relative cursor-pointer transition-colors ${ad.status === 'ACTIVE' ? 'bg-[#1877F2]' : 'bg-[#BCC0C4]'}`}
+                                  >
+                                    <div className={`w-3.5 h-3.5 bg-white rounded-full absolute top-[1px] transition-all ${ad.status === 'ACTIVE' ? 'right-[2px]' : 'left-[2px]'}`}></div>
+                                  </div>
+                                </td>
 
-                              return (
-                                <tr key={ad.id} className={`border-b transition min-h-[48px] ${theme === 'dark' ? (isAdSelected ? 'bg-blue-900/30 border-slate-700' : 'border-slate-700 hover:bg-[#3A3B3C]') : (isAdSelected ? 'bg-[#EBF5FF] border-slate-200' : 'border-slate-200 hover:bg-slate-50')}`}>
-                                  {/* Checkbox */}
-                                  <td className={`p-3 border-r text-center align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-                                    <input 
-                                      type="checkbox" 
-                                      checked={isAdSelected}
-                                      onChange={(e) => {
-                                        if (e.target.checked) {
-                                          setSelectedAds([...selectedAds, ad.id]);
-                                        } else {
-                                          setSelectedAds(selectedAds.filter(id => id !== ad.id));
-                                        }
-                                      }}
-                                      className="w-3.5 h-3.5 accent-[#1877F2] cursor-pointer" 
-                                    />
-                                  </td>
-                                  
-                                  {/* Status Toggle */}
-                                  <td className={`p-3 border-r text-center align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-                                    <div 
-                                      onClick={() => handleToggleAdStatus(ad.id, ad.status)}
-                                      className={`w-8 h-4 rounded-full mx-auto relative cursor-pointer transition-colors ${ad.status === 'ACTIVE' ? 'bg-[#1877F2]' : 'bg-[#BCC0C4]'}`}
-                                    >
-                                      <div className={`w-3.5 h-3.5 bg-white rounded-full absolute top-[1px] transition-all ${ad.status === 'ACTIVE' ? 'right-[2px]' : 'left-[2px]'}`}></div>
-                                    </div>
-                                  </td>
+                                {/* 🌟 ជួរឈរ Ad Name (Update ធំចុងក្រោយ: ប្រព័ន្ធបូមរូបភាព Ultimate Grid 100%) */}
+                                <td className={`p-3 border-r align-middle relative hover:z-[60] ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                                  <div className="flex items-center justify-between gap-3">
+                                    
+                                    <div className="relative group/preview flex items-center gap-2.5 min-w-0">
+                                      <div className="w-10 h-10 rounded bg-slate-800 flex items-center justify-center text-white text-xs overflow-hidden shrink-0 shadow-xs cursor-pointer border border-slate-300 dark:border-slate-600">
+                                        {ad.creative?.thumbnail_url || ad.creative?.image_url ? (
+                                          <img src={ad.creative.thumbnail_url || ad.creative.image_url} className="w-full h-full object-cover" alt="Ad thumb" />
+                                        ) : (
+                                          '👟'
+                                        )}
+                                      </div>
 
-                                  {/* ជួរឈរ Ad Name (Update: គាំទ្រទាំង Hover លើ PC និង Tap/Click លើ Mobile) */}
-                                  <td className={`p-3 border-r align-middle relative ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-                                    <div className="flex items-center justify-between gap-3">
-                                      
-                                      {/* 🌟 បន្ថែម class "group" ទីនេះ ដើម្បីឱ្យ hover ដំណើរការបានប្រក្រតី */}
-                                      <div className="relative flex items-center gap-2.5 min-w-0 group">
+                                      <span className="font-semibold text-[#1877F2] hover:underline cursor-pointer truncate max-w-[180px]">
+                                        {ad.name}
+                                      </span>
+
+                                      {/* 🚀 ផ្ទាំង Popover ធំលោតមកខាងស្តាំដៃ */}
+                                      <div className="fixed top-1/2 right-[5%] transform -translate-y-1/2 hidden group-hover/preview:flex flex-col w-[340px] rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.4)] border overflow-hidden z-[999999] bg-white dark:bg-[#242526] border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white animate-in fade-in zoom-in-95 duration-200 pointer-events-none">
                                         
-                                        {/* រូបតូច Thumbnail */}
-                                        <div 
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            setActivePreviewAdId(activePreviewAdId === ad.id ? null : ad.id);
-                                          }}
-                                          className="w-10 h-10 rounded bg-slate-800 flex items-center justify-center text-white text-xs overflow-hidden shrink-0 shadow-xs cursor-pointer border border-slate-300 dark:border-slate-600 relative"
-                                        >
-                                          {ad.creative?.thumbnail_url || ad.creative?.image_url ? (
-                                            <img src={ad.creative.thumbnail_url || ad.creative.image_url} className="w-full h-full object-cover" alt="Ad thumb" />
-                                          ) : (
-                                            '👟'
-                                          )}
+                                        <div className="p-3.5 flex justify-between items-start bg-white dark:bg-[#242526]">
+                                          <div className="flex items-center gap-2.5">
+                                            {selectedPageData?.picture?.data?.url ? (
+                                              <img src={selectedPageData.picture.data.url} className="w-9 h-9 rounded-full object-cover border border-slate-100 dark:border-slate-600" />
+                                            ) : (
+                                              <div className="w-9 h-9 bg-gray-400 rounded-full flex items-center justify-center text-white font-bold">W</div>
+                                            )}
+                                            <div>
+                                              <div className="font-bold text-[13px] leading-tight text-[#050505] dark:text-white">{selectedPageData?.name || "Wear Luxury Cambodia"}</div>
+                                              <div className="text-[11px] flex items-center gap-1 text-[#65676B] dark:text-slate-400">Sponsored <span className="text-[5px]">●</span> 🌎</div>
+                                            </div>
+                                          </div>
+                                          <span className="tracking-widest text-[16px] -mt-2 text-[#65676B] dark:text-slate-400">...</span>
                                         </div>
 
-                                        <span 
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            setActivePreviewAdId(activePreviewAdId === ad.id ? null : ad.id);
-                                          }}
-                                          className="font-semibold text-[#1877F2] hover:underline cursor-pointer truncate max-w-[180px]"
-                                        >
-                                          {ad.name}
-                                        </span>
+                                        <div className="px-3.5 pb-2 text-[13px] break-words whitespace-normal line-clamp-4 text-[#050505] dark:text-slate-300 bg-white dark:bg-[#242526]">
+                                          {(() => {
+                                            const storyId = ad.creative?.effective_object_story_id || ad.creative?.object_story_id;
+                                            const matchedPost = (storyId && typeof posts !== 'undefined') ? posts.find((p: any) => p.id === storyId || (p.id && p.id.endsWith(storyId.split('_').pop() || ''))) : null;
+                                            return ad.enriched_post?.message || matchedPost?.message || ad.creative?.body || ad.creative?.object_story_spec?.text || ad.creative?.name || "គ្មានអត្ថបទបង្ហាញ";
+                                          })()}
+                                        </div>
 
-                                        {/* 🚀 ផ្ទាំង Popover ធំ (លោតចេញមកទាំងពេល Hover និងពេល Click/Tap) */}
-                                        <div className={`absolute left-[110%] top-0 flex-col w-[340px] rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.4)] border overflow-hidden z-[999999] bg-white dark:bg-[#242526] border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white animate-in fade-in zoom-in-95 duration-200 ${
-                                          activePreviewAdId === ad.id ? 'flex' : 'hidden group-hover:flex'
-                                        }`}>
-                                          
-                                          {/* ប៊ូតុងបិទ (X) */}
-                                          <button 
-                                            type="button" 
-                                            onClick={(e) => { e.stopPropagation(); setActivePreviewAdId(null); }}
-                                            className="absolute top-2 right-2 w-7 h-7 bg-black/50 hover:bg-black/70 text-white rounded-full flex items-center justify-center text-xs font-bold z-20 cursor-pointer"
-                                          >
-                                            ✕
-                                          </button>
+                                        {/* 3. 🌟 បូមយករូបភាព និងតម្រៀប Auto Grid */}
+                                        <div className="w-full bg-slate-100 dark:bg-slate-800 relative overflow-hidden flex flex-col justify-center border-t border-b dark:border-slate-700">
+                                          {(() => {
+                                            let adImages: string[] = [];
+                                            
+                                            // ទី១៖ ឆែកមើលក្រែងលោវាជាប្រភេទ Carousel បង្កើតក្នុង Ads Manager ផ្ទាល់
+                                            const childAtts = ad.creative?.object_story_spec?.link_data?.child_attachments || ad.creative?.object_story_spec?.template_data?.link?.child_attachments;
+                                            if (childAtts && childAtts.length > 0) {
+                                                adImages = childAtts.map((att: any) => att.image_url || att.picture || att.image_crops?.['100x100']?.[0]?.[0]);
+                                            } 
+                                            // ទី២៖ ឆែកមើលក្រែងលោវាជា Advantage+ Creative
+                                            else if (ad.creative?.asset_feed_spec?.images) {
+                                                adImages = ad.creative.asset_feed_spec.images.map((img: any) => img.url);
+                                            }
 
-                                          {/* 1. Header: Page Info */}
-                                          <div className="p-3.5 flex justify-between items-start bg-white dark:bg-[#242526]">
-                                            <div className="flex items-center gap-2.5">
-                                              {selectedPageData?.picture?.data?.url ? (
-                                                <img src={selectedPageData.picture.data.url} className="w-9 h-9 rounded-full object-cover border border-slate-100 dark:border-slate-600" />
-                                              ) : (
-                                                <div className="w-9 h-9 bg-gray-400 rounded-full flex items-center justify-center text-white font-bold">W</div>
-                                              )}
-                                              <div>
-                                                <div className="font-bold text-[13px] leading-tight text-[#050505] dark:text-white">{selectedPageData?.name || "Wear Luxury Cambodia"}</div>
-                                                <div className="text-[11px] flex items-center gap-1 text-[#65676B] dark:text-slate-400">Sponsored <span className="text-[5px]">●</span> 🌎</div>
-                                              </div>
-                                            </div>
-                                            <span className="tracking-widest text-[16px] -mt-2 text-[#65676B] dark:text-slate-400">...</span>
-                                          </div>
+                                            adImages = adImages.filter(Boolean);
 
-                                          {/* 2. Ad Message / Caption */}
-                                          <div className="px-3.5 pb-2 text-[13px] break-words whitespace-normal line-clamp-4 text-[#050505] dark:text-slate-300 bg-white dark:bg-[#242526]">
-                                            {(() => {
-                                              const storyId = ad.creative?.effective_object_story_id || ad.creative?.object_story_id || "";
-                                              const rawPostId = storyId.includes('_') ? storyId.split('_')[1] : storyId;
-                                              const matchedPost = (rawPostId && typeof posts !== 'undefined') ? posts.find((p: any) => p.id === storyId || p.id === rawPostId || p.id.endsWith(`_${rawPostId}`)) : null;
-                                              return ad.enriched_post?.message || matchedPost?.message || ad.creative?.body || ad.creative?.object_story_spec?.text || ad.creative?.name || "គ្មានអត្ថបទបង្ហាញ";
-                                            })()}
-                                          </div>
+                                            // ទី៣៖ បើអត់ទាន់មានរូប ឬមានតែ ១រូប ព្យាយាមទៅជីកកកាយក្នុង Page Post ដើមក្រែងមានច្រើន
+                                            if (adImages.length <= 1) {
+                                                const storyId = ad.creative?.effective_object_story_id || ad.creative?.object_story_id;
+                                                let matchedPost = null;
+                                                if (storyId && typeof posts !== 'undefined' && posts.length > 0) {
+                                                    matchedPost = posts.find((p: any) => p.id === storyId || (p.id && p.id.endsWith(storyId.split('_').pop() || '')));
+                                                }
+                                                const sourcePost = ad.enriched_post || matchedPost;
 
-                                          {/* 3. 🌟 បូមយករូបភាព និងតម្រៀប Auto Grid */}
-                                          <div className="w-full bg-slate-100 dark:bg-slate-800 relative overflow-hidden flex flex-col justify-center border-t border-b dark:border-slate-700">
-                                            {(() => {
-                                              let adImages: string[] = [];
-                                              const storyId = ad.creative?.effective_object_story_id || ad.creative?.object_story_id || "";
-                                              const rawPostId = storyId.includes('_') ? storyId.split('_')[1] : storyId;
+                                                let postImages: string[] = [];
+                                                if (sourcePost?.attachments?.data) {
+                                                    for (const att of sourcePost.attachments.data) {
+                                                        if (att.subattachments?.data) {
+                                                            postImages.push(...att.subattachments.data.map((sub: any) => sub.media?.image?.src));
+                                                        } else if (att.media?.image?.src) {
+                                                            postImages.push(att.media.image.src);
+                                                        }
+                                                    }
+                                                }
+                                                postImages = postImages.filter(Boolean);
+                                                
+                                                // បើកកាយបានច្រើនជាង យកអាច្រើនជាងមកប្រើ
+                                                if (postImages.length > adImages.length) {
+                                                    adImages = postImages;
+                                                } else if (adImages.length === 0 && sourcePost?.full_picture) {
+                                                    adImages = [sourcePost.full_picture];
+                                                }
+                                            }
 
-                                              let matchedPost = null;
-                                              if (rawPostId && typeof posts !== 'undefined' && posts.length > 0) {
-                                                  matchedPost = posts.find((p: any) => p.id === storyId || p.id === rawPostId || p.id.endsWith(`_${rawPostId}`));
-                                              }
+                                            // Fallback ចុងក្រោយបង្អស់ (Thumbnail)
+                                            if (adImages.length === 0) {
+                                                if (ad.creative?.image_url) adImages.push(ad.creative.image_url);
+                                                else if (ad.creative?.thumbnail_url) adImages.push(ad.creative.thumbnail_url);
+                                            }
 
-                                              const sourcePost = ad.enriched_post || matchedPost;
+                                            if (adImages.length === 0) {
+                                              return <div className="w-full h-[200px] flex items-center justify-center text-xs text-slate-400">គ្មានរូបភាពបង្ហាញ</div>;
+                                            }
 
-                                              if (sourcePost?.attachments?.data) {
-                                                  sourcePost.attachments.data.forEach((att: any) => {
-                                                      if (att.subattachments?.data) {
-                                                          att.subattachments.data.forEach((sub: any) => {
-                                                              if (sub.media?.image?.src) adImages.push(sub.media.image.src);
-                                                          });
-                                                      } else if (att.media?.image?.src) {
-                                                          adImages.push(att.media.image.src);
-                                                      }
-                                                  });
-                                              }
-                                              
-                                              if (adImages.length === 0 && sourcePost?.full_picture) {
-                                                  adImages.push(sourcePost.full_picture);
-                                              }
+                                            if (adImages.length === 1) return <img src={adImages[0]} className="w-full object-cover max-h-[300px]" alt="Ad Preview" />;
+                                            
+                                            if (adImages.length === 2) return (
+                                                <div className="grid grid-cols-2 gap-0.5 w-full h-[300px]">
+                                                  <img src={adImages[0]} className="w-full h-full object-cover" alt="Img 1"/>
+                                                  <img src={adImages[1]} className="w-full h-full object-cover" alt="Img 2"/>
+                                                </div>
+                                            );
 
-                                              if (adImages.length <= 1) {
-                                                  const childAtts = ad.creative?.object_story_spec?.link_data?.child_attachments 
-                                                                || ad.creative?.object_story_spec?.template_data?.link?.child_attachments;
-                                                  if (childAtts && childAtts.length > 0) {
-                                                      adImages = childAtts.map((att: any) => att.image_url || att.picture || att.image_crops?.['100x100']?.[0]?.[0]);
-                                                  } 
-                                                  else if (ad.creative?.asset_feed_spec?.images) {
-                                                      adImages = ad.creative.asset_feed_spec.images.map((img: any) => img.url);
-                                                  }
-                                              }
-
-                                              adImages = [...new Set(adImages)].filter(Boolean);
-
-                                              if (adImages.length === 0) {
-                                                  if (ad.creative?.image_url) adImages.push(ad.creative.image_url);
-                                                  else if (ad.creative?.thumbnail_url) adImages.push(ad.creative.thumbnail_url);
-                                              }
-
-                                              if (adImages.length === 0) {
-                                                return <div className="w-full h-[200px] flex items-center justify-center text-xs text-slate-400">គ្មានរូបភាពបង្ហាញ</div>;
-                                              }
-
-                                              if (adImages.length === 1) return <img src={adImages[0]} className="w-full object-cover max-h-[300px]" alt="Ad Preview" />;
-                                              
-                                              if (adImages.length === 2) return (
-                                                  <div className="grid grid-cols-2 gap-0.5 w-full h-[300px]">
-                                                    <img src={adImages[0]} className="w-full h-full object-cover" alt="Img 1"/>
-                                                    <img src={adImages[1]} className="w-full h-full object-cover" alt="Img 2"/>
+                                            if (adImages.length === 3) return (
+                                                <div className="flex flex-col gap-0.5 w-full h-[300px]">
+                                                  <img src={adImages[0]} className="w-full h-[150px] object-cover" alt="Img 1" />
+                                                  <div className="grid grid-cols-2 gap-0.5 h-[148px]">
+                                                    <img src={adImages[1]} className="w-full h-full object-cover" alt="Img 2" />
+                                                    <img src={adImages[2]} className="w-full h-full object-cover" alt="Img 3" />
                                                   </div>
-                                              );
+                                                </div>
+                                            );
 
-                                              if (adImages.length === 3) return (
-                                                  <div className="flex flex-col gap-0.5 w-full h-[300px]">
-                                                    <img src={adImages[0]} className="w-full h-[150px] object-cover" alt="Img 1" />
-                                                    <div className="grid grid-cols-2 gap-0.5 h-[148px]">
-                                                      <img src={adImages[1]} className="w-full h-full object-cover" alt="Img 2" />
-                                                      <img src={adImages[2]} className="w-full h-full object-cover" alt="Img 3" />
-                                                    </div>
+                                            if (adImages.length >= 4) return (
+                                                <div className="grid grid-cols-2 gap-0.5 w-full h-[300px]">
+                                                  <img src={adImages[0]} className="w-full h-[149px] object-cover" alt="Img 1" />
+                                                  <img src={adImages[1]} className="w-full h-[149px] object-cover" alt="Img 2" />
+                                                  <img src={adImages[2]} className="w-full h-[149px] object-cover" alt="Img 3" />
+                                                  <div className="relative w-full h-[149px]">
+                                                    <img src={adImages[3]} className="w-full h-full object-cover brightness-[0.55]" alt="Img 4" />
+                                                    {adImages.length > 4 && (
+                                                      <div className="absolute inset-0 flex items-center justify-center text-white font-bold text-3xl drop-shadow-lg">
+                                                        +{adImages.length - 3}
+                                                      </div>
+                                                    )}
                                                   </div>
-                                              );
+                                                </div>
+                                            );
+                                          })()}
+                                        </div>
 
-                                              if (adImages.length >= 4) return (
-                                                  <div className="grid grid-cols-2 gap-0.5 w-full h-[300px]">
-                                                    <img src={adImages[0]} className="w-full h-[149px] object-cover" alt="Img 1" />
-                                                    <img src={adImages[1]} className="w-full h-[149px] object-cover" alt="Img 2" />
-                                                    <img src={adImages[2]} className="w-full h-[149px] object-cover" alt="Img 3" />
-                                                    <div className="relative w-full h-[149px]">
-                                                      <img src={adImages[3]} className="w-full h-full object-cover brightness-[0.55]" alt="Img 4" />
-                                                      {adImages.length > 4 && (
-                                                        <div className="absolute inset-0 flex items-center justify-center text-white font-bold text-3xl drop-shadow-lg">
-                                                          +{adImages.length - 3}
-                                                        </div>
-                                                      )}
-                                                    </div>
-                                                  </div>
-                                              );
-                                            })()}
+                                        <div className="px-3.5 py-2.5 flex justify-between items-center bg-[#F0F2F5] dark:bg-[#3A3B3C]">
+                                          <div className="flex flex-col">
+                                            <span className="text-[10px] uppercase font-bold text-[#65676B] dark:text-slate-400">CHAT IN MESSENGER</span>
+                                            <span className="font-bold text-[14px] text-[#050505] dark:text-white">Send message</span>
                                           </div>
+                                          <button type="button" className="px-4 py-1.5 rounded-xl text-[13px] font-bold bg-[#E4E6EB] text-[#050505] dark:bg-[#4E4F50] dark:text-white shadow-sm">Send</button>
+                                        </div>
 
-                                          <div className="px-3.5 py-2.5 flex justify-between items-center bg-[#F0F2F5] dark:bg-[#3A3B3C]">
-                                            <div className="flex flex-col">
-                                              <span className="text-[10px] uppercase font-bold text-[#65676B] dark:text-slate-400">CHAT IN MESSENGER</span>
-                                              <span className="font-bold text-[14px] text-[#050505] dark:text-white">Send message</span>
-                                            </div>
-                                            <button type="button" className="px-4 py-1.5 rounded-xl text-[13px] font-bold bg-[#E4E6EB] text-[#050505] dark:bg-[#4E4F50] dark:text-white shadow-sm">Send</button>
+                                        <div className="px-3.5 py-2.5 flex justify-between text-[12px] border-t bg-white border-gray-200 text-[#65676B] dark:bg-[#242526] dark:border-slate-700 dark:text-slate-400">
+                                          <div className="flex gap-4 font-semibold">
+                                            <span>👍 Like</span>
+                                            <span>💬 Comment</span>
+                                            <span>⤴️ Share</span>
                                           </div>
-
-                                          <div className="px-3.5 py-2.5 flex justify-between text-[12px] border-t bg-white border-gray-200 text-[#65676B] dark:bg-[#242526] dark:border-slate-700 dark:text-slate-400">
-                                            <div className="flex gap-4 font-semibold">
-                                              <span>👍 Like</span>
-                                              <span>💬 Comment</span>
-                                              <span>⤴️ Share</span>
-                                            </div>
-                                          </div>
-
                                         </div>
 
                                       </div>
-
-                                      <button 
-                                        type="button"
-                                        disabled={auditLoading}
-                                        onClick={() => handleAiAudit(ad)}
-                                        className="px-2.5 py-1 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold rounded-lg text-[11px] flex items-center gap-1.5 shadow-sm hover:opacity-90 cursor-pointer shrink-0 disabled:opacity-50"
-                                      >
-                                        <span>✨</span> <span>AI Audit</span>
-                                      </button>
-
                                     </div>
-                                  </td>
 
-                                  <td className={`p-3 border-r align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-                                    <span className="flex items-center gap-1.5"><span className={`w-2 h-2 rounded-full ${ad.effective_status === 'ACTIVE' ? 'bg-[#31A24C]' : 'bg-slate-400'}`}></span> {ad.effective_status || ad.status}</span>
-                                  </td>
-                                  
-                                  {/* 🌟 ផ្ទាំង Results */}
-                                  <td className={`p-3 border-r text-right align-middle min-w-[150px] ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-                                    <div className="font-semibold">{results === "-" ? "-" : formatNumber(results)}</div>
-                                    <div className="text-[10px] text-slate-500 uppercase mt-0.5">Results</div>
-                                  </td>
+                                    <button 
+                                      type="button"
+                                      disabled={auditLoading}
+                                      onClick={() => handleAiAudit(ad)}
+                                      className="px-2.5 py-1 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold rounded-lg text-[11px] flex items-center gap-1.5 shadow-sm hover:opacity-90 cursor-pointer shrink-0 disabled:opacity-50"
+                                    >
+                                      <span>✨</span> <span>AI Audit</span>
+                                    </button>
+                                  </div>
+                                </td>
 
-                                  {/* 🌟 ផ្ទាំង Cost Per Result (CPA) */}
-                                  <td className={`p-3 border-r text-right align-middle min-w-[120px] ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-                                    <div className="font-semibold">{cpa ? "$" + cpa.toFixed(2) : "-"}</div>
-                                    <div className="text-[10px] text-slate-500 uppercase mt-0.5">Per Result</div>
-                                  </td>
+                                {/* Delivery */}
+                                <td className={`p-3 border-r align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                                  <span className="flex items-center gap-1.5"><span className={`w-2 h-2 rounded-full ${ad.effective_status === 'ACTIVE' ? 'bg-[#31A24C]' : 'bg-slate-400'}`}></span> {ad.effective_status || ad.status}</span>
+                                </td>
+                                
+                                {/* Results */}
+                                <td className={`p-3 border-r text-right align-middle min-w-[140px] ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                                  <div className="font-semibold">{results === "-" ? "-" : formatNumber(results)}</div>
+                                  <div className="text-[10px] text-slate-500 uppercase mt-0.5">Results</div>
+                                </td>
 
-                                  <td className={`p-3 border-r text-right align-middle text-slate-500 ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Using ad set budget</td>
-                                  
-                                  <td className={`p-3 border-r text-right font-bold align-middle ${theme === 'dark' ? 'border-slate-700 text-white' : 'border-slate-200 text-slate-900'}`}>
-                                    ${Number(spend).toFixed(2)}
-                                  </td>
-                                  
-                                  <td className={`p-3 border-r text-right align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>{formatNumber(impressions)}</td>
-                                  <td className={`p-3 border-r text-right align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>{formatNumber(reach)}</td>
-                                  <td className={`p-3 text-[12px] align-middle min-w-[100px] ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Ongoing</td>
-                                </tr>
-                              );
-                            })
-                          )}
-                        </tbody>
+                                {/* Cost Per Result */}
+                                <td className={`p-3 border-r text-right align-middle min-w-[120px] ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                                  <div className="font-semibold">{cpa ? "$" + cpa.toFixed(2) : "-"}</div>
+                                  <div className="text-[10px] text-slate-500 uppercase mt-0.5">Per Result</div>
+                                </td>
+
+                                {/* 🌟 AI CPA Badge & Tooltip ៥ កម្រិត */}
+                                <td className={`p-3 border-r align-middle min-w-[150px] ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                                  {cpa !== null ? getCpaBadge(cpa) : <span className="text-slate-400 text-xs">-</span>}
+                                </td>
+
+                                {/* 🌟 Budget (ទាញយកទឹកប្រាក់ពិតប្រាកដពី Ad Set ឬ Campaign មេ) */}
+                                <td className={`p-3 border-r text-right align-middle text-slate-500 ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                                  {(() => {
+                                    // 1. ឆែកមើលថាតើ Ad នេះមាន Ad Set budget ផ្ទាល់ខ្លួនទេ
+                                    if (ad.daily_budget) {
+                                      return <div className="font-semibold">${(Number(ad.daily_budget) / 100).toFixed(2)} Daily</div>;
+                                    } else if (ad.lifetime_budget) {
+                                      return <div className="font-semibold">${(Number(ad.lifetime_budget) / 100).toFixed(2)} Lifetime</div>;
+                                    } 
+                                    // 2. ឆែកមើលថាតើមាន Budget មកពី Ad Set មេ (`adset` object ដែលយើងទើប fetch ចូល API) ដែរឬទេ
+                                    else if (ad.adset?.daily_budget) {
+                                      return <div className="font-semibold">${(Number(ad.adset.daily_budget) / 100).toFixed(2)} Daily</div>;
+                                    } else if (ad.adset?.lifetime_budget) {
+                                      return <div className="font-semibold">${(Number(ad.adset.lifetime_budget) / 100).toFixed(2)} Lifetime</div>;
+                                    } 
+                                    // 3. ឆែកមើល Campaign មេ
+                                    else {
+                                      if (parentCamp?.daily_budget) {
+                                        return <div className="font-semibold">${(Number(parentCamp.daily_budget) / 100).toFixed(2)} Daily</div>;
+                                      } else if (parentCamp?.lifetime_budget) {
+                                        return <div className="font-semibold">${(Number(parentCamp.lifetime_budget) / 100).toFixed(2)} Lifetime</div>;
+                                      }
+                                    }
+                                    
+                                    return <div className="text-[11px] text-slate-500">Using ad set budget</div>;
+                                  })()}
+                                </td>
+                                
+                                {/* Amount Spent */}
+                                <td className={`p-3 border-r text-right font-bold align-middle ${theme === 'dark' ? 'border-slate-700 text-white' : 'border-slate-200 text-slate-900'}`}>
+                                  ${Number(spend).toFixed(2)}
+                                </td>
+                                
+                                {/* Impressions */}
+                                <td className={`p-3 border-r text-right align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>{formatNumber(impressions)}</td>
+                                
+                                {/* Reach */}
+                                <td className={`p-3 border-r text-right align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>{formatNumber(reach)}</td>
+                                
+                                {/* Ends */}
+                                <td className={`p-3 text-[12px] align-middle min-w-[100px] ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Ongoing</td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
                     </table>
                   </div>
                 )}
@@ -7275,6 +7289,7 @@ const fetchAdsets = async () => {
           </div>
         </div>
       )}
+      
       
     </div>
   );

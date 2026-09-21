@@ -12,7 +12,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const accessToken = getAccessToken(request);
     
-    // 🌟 គាំទ្រทั้ง campaignIds (ຫຼາຍ ID) និង campaignId ធម្មតា ឬ adAccountId
+    // 🌟 គាំទ្រទាំង campaignIds (ຫຼາຍ ID) និង campaignId ធម្មតា ឬ adAccountId
     const campaignIdsParam = searchParams.get('campaignIds') || searchParams.get('campaignId');
     const adAccountId = searchParams.get('adAccountId');
     let datePreset = searchParams.get('datePreset') || 'maximum'; 
@@ -25,14 +25,17 @@ export async function GET(request: Request) {
 
     let allAds: any[] = [];
     const creativeFields = 'id,name,body,image_url,thumbnail_url,object_story_spec,asset_feed_spec,effective_object_story_id,object_story_id';
+    
+    // 🌟 បន្ថែម adset{daily_budget,lifetime_budget} ចូលទីនេះ ដើម្បីទាញយកថវិកាពី Ad Set មកជាមួយ
+    const adFields = `id,name,status,effective_status,daily_budget,lifetime_budget,adset{daily_budget,lifetime_budget},creative{${creativeFields}},insights.date_preset(${datePreset}).level(ad){spend,impressions,reach,actions}`;
 
-    // 🌟 ត្រូវប្រាកដថា Loop នេះប្រមូលយក Ads គ្រប់ Campaign ទាំងអស់មកដាក់ក្នុង allAds យ៉ាងត្រឹមត្រូវ
+    // 🌟 ប្រមូលយក Ads គ្រប់ Campaign ទាំងអស់មកដាក់ក្នុង allAds យ៉ាងត្រឹមត្រូវ
     if (campaignIdsParam) {
       const campaignIds = campaignIdsParam.split(',');
       allAds = []; // សម្អាតចោលជាមុនសិន
 
       for (const campId of campaignIds) {
-        const url = `https://graph.facebook.com/v18.0/${campId}/ads?fields=id,name,status,effective_status,creative{${creativeFields}},insights.date_preset(${datePreset}).level(ad){spend,impressions,reach,actions}&limit=500&access_token=${accessToken}`;
+        const url = `https://graph.facebook.com/v18.0/${campId}/ads?fields=${adFields}&limit=500&access_token=${accessToken}`;
         
         const response = await fetch(url, { cache: 'no-store' });
         const data = await response.json();
@@ -48,7 +51,7 @@ export async function GET(request: Request) {
       }
     } else if (adAccountId) {
       const targetAccount = adAccountId.startsWith('act_') ? adAccountId : `act_${adAccountId}`;
-      const url = `https://graph.facebook.com/v18.0/${targetAccount}/ads?fields=id,name,status,effective_status,creative{${creativeFields}},insights.date_preset(${datePreset}).level(ad){spend,impressions,reach,actions}&limit=500&access_token=${accessToken}`;
+      const url = `https://graph.facebook.com/v18.0/${targetAccount}/ads?fields=${adFields}&limit=500&access_token=${accessToken}`;
       const response = await fetch(url, { cache: 'no-store' });
       const data = await response.json();
       allAds = data.data || [];
