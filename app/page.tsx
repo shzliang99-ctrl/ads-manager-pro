@@ -1949,6 +1949,70 @@ export default function Home() {
   };
 
   const handleToggleStatus = async (id: string, currentStatus: string) => {
+    // ==========================================================
+  // 🌟 ដាក់កូដ handleDuplicate ថ្មីនៅទីនេះ (ចន្លោះកណ្តាល)
+  // ==========================================================
+  const handleDuplicate = async () => {
+    try {
+      if (activeManageTab === 'CAMPAIGNS') {
+        if (!selectedCampaigns || selectedCampaigns.length === 0) {
+          alert("សូមជ្រើសរើស Campaign យ៉ាងហោចណាស់មួយដើម្បី Duplicate!");
+          return;
+        }
+        
+        for (const campId of selectedCampaigns) {
+          const res = await fetch(`/api/campaigns/duplicate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ campaignId: campId, access_token: localStorage.getItem('fb_user_token') })
+          });
+          const data = await res.json();
+          if (!data.success) throw new Error(data.error);
+        }
+        alert("Duplicate Campaigns បានជោគជ័យ!");
+        fetchCampaigns();
+
+      } else if (activeManageTab === 'ADSETS') {
+        if (!selectedAdSets || selectedAdSets.length === 0) {
+          alert("សូមជ្រើសរើស Ad Set យ៉ាងហោចណាស់មួយដើម្បី Duplicate!");
+          return;
+        }
+        
+        for (const adsetId of selectedAdSets) {
+          const res = await fetch(`/api/adsets/duplicate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ adsetId: adsetId, access_token: localStorage.getItem('fb_user_token') })
+          });
+          const data = await res.json();
+          if (!data.success) throw new Error(data.error);
+        }
+        alert("Duplicate Ad Sets បានជោគជ័យ!");
+        if (selectedCampaigns[0]) fetchAdsets();
+
+      } else if (activeManageTab === 'ADS') {
+        if (!selectedAds || selectedAds.length === 0) {
+          alert("សូមជ្រើសរើស Ad យ៉ាងហោចណាស់មួយដើម្បី Duplicate!");
+          return;
+        }
+        
+        for (const adId of selectedAds) {
+          const res = await fetch(`/api/ads/duplicate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ adId: adId, access_token: localStorage.getItem('fb_user_token') })
+          });
+          const data = await res.json();
+          if (!data.success) throw new Error(data.error);
+        }
+        alert("Duplicate Ads បានជោគជ័យ!");
+        if (selectedCampaigns[0]) fetchAds();
+      }
+    } catch (error: any) {
+      alert("មានបញ្ហាในการ Duplicate: " + error.message);
+    }
+  };
+  // ==========================================================
   // កំណត់ស្ថានភាពថ្មី (បើ ACTIVE ទៅ PAUSED បើ PAUSED ទៅ ACTIVE)
   const newStatus = currentStatus === 'ACTIVE' ? 'PAUSED' : 'ACTIVE';
   
@@ -2170,6 +2234,8 @@ const fetchAdsets = async () => {
     setDuplicatePostId(""); // 👈 ត្រូវកំណត់ឱ្យទទេសិន ដើម្បីកុំឱ្យវាទាញយក Post ចាស់មកជាន់ពីលើ!
     setIsDuplicateModalOpen(true);
   };
+
+  
   
   const executeDuplicate = async () => {
     setIsDuplicating(true);
@@ -4954,6 +5020,7 @@ const fetchAdsets = async () => {
                     >
                       <span>+</span> Create
                     </button>
+                    
                     <button 
                       type="button"
                       onClick={() => {
