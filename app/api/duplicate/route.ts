@@ -9,35 +9,40 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    // 🌟 ប្ដូរមកទទួល adId ជំនួសឱ្យការទាញយកពី Campaign ID
-    const { adId, campaignId, newName, newPostId, pageId, access_token } = body;
+    const { campaignId, newName, newPostId, pageId, access_token } = body;
 
-    if (!access_token) {
+    // 🌟 ប្រើប្រាស់ Token របស់ User ដែលផ្ញើមកផ្ទាល់ (ធានាថាមិនខុស Account / Page)
+    const clientToken = access_token || process.env.FACEBOOK_ACCESS_TOKEN;
+    if (!clientToken) {
       return NextResponse.json({ success: false, error: "🔒 រកមិនឃើញ Access Token ទេ!" }, { status: 401 });
     }
 
-    // យក adId ផ្ទាល់ពី Ad ដែរបងបាន Select (បើគ្មាន ទើប fallback ទៅរក campaignId ដើម)
-    let targetAdId = adId;
-    if (!targetAdId && campaignId) {
-      const adsRes = await fetch(`https://graph.facebook.com/v18.0/${campaignId}/ads?fields=id&access_token=${access_token}`);
-      const adsData = await adsRes.json();
-      if (adsData.data && adsData.data.length > 0) {
-        targetAdId = adsData.data[0].id;
-      }
+    if (!campaignId) {
+      return NextResponse.json({ success: false, error: "Missing Campaign ID" }, { status: 400 });
     }
 
-    if (!targetAdId) {
-      return NextResponse.json({ success: false, error: "Missing Ad ID to Duplicate" }, { status: 400 });
-    }
-
-    // ទាញយក Ad Account ID តាមរយៈ Ad ID ផ្ទាល់
-    const adInfoRes = await fetch(`https://graph.facebook.com/v18.0/${targetAdId}?fields=account_id,adset_id&access_token=${access_token}`);
-    const adInfoData = await adInfoRes.json();
+    // ១. រក Ad ដំបូងគេនៅក្នុង Campaign ហ្នឹងដើម្បីយកមក Copy
+    const adsRes = await fetch(`https://graph.facebook.com/v18.0/${campaignId}/ads?fields=id&access_token=${clientToken}`);
+    const adsData = await adsRes.json();
     
-    if (adInfoData.error) throw new Error(adInfoData.error.message);
-    const adAccountId = adInfoData.account_id ? `act_${adInfoData.account_id.replace('act_', '')}` : 'me';
+    if (adsData.error) throw new Error(adsData.error.message);
+    if (!adsData.data || adsData.data.length === 0) throw new Error("យុទ្ធនាការនេះមិនទាន់មាន Ad ទេ!");
+    
+    const originalAdId = adsData.data[0].id;
 
-    // ១. បង្កើត Ad Creative ថ្មីពី Post ថ្មីដែលបងបាន Select យ៉ាងត្រឹមត្រូវ
+    // ២. ទាញយក Ad Account ID ឱ្យបានត្រឹមត្រូវពី Campaign ឬ Ad Set
+    const adSetsRes = await fetch(`https://graph.facebook.com/v18.0/${campaignId}/adsets?fields=id,account_id&access_token=${clientToken}`);
+    const adSetsData = await adSetsRes.json();
+    
+    let adAccountId = process.env.FACEBOOK_AD_ACCOUNT_ID || '';
+    if (adSetsData.data && adSetsData.data.length > 0 && adSetsData.data[0].account_id) {
+      const rawAcc = adSetsData.data[0].account_id;
+      adAccountId = rawAcc.startsWith('act_') ? rawAcc : `act_${rawAcc}`;
+    } else if (!adAccountId.startsWith('act_')) {
+      adAccountId = `act_${adAccountId}`;
+    }
+
+    // ៣. បើមានការជ្រើសរើស Post ថ្មី ត្រូវបង្កើត Ad Creative ថ្មីជាមុនសិន
     let newCreativeId = null;
     if (newPostId && pageId) {
       const objectStoryId = newPostId.includes('_') ? newPostId : `${pageId}_${newPostId}`;
@@ -46,9 +51,9 @@ export async function POST(request: Request) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          access_token: access_token,
+          access_token: clientToken,
           name: `Creative for ${newName || newPostId}`,
-          object_story_id: objectStoryId 
+          object_story_id: objectStoryId
         }),
       });
       const creativeData = await creativeRes.json();
@@ -56,6 +61,7 @@ export async function POST(request: Request) {
       if (creativeData.error) {
         throw new Error("មិនអាចបង្កើត Ad Creative ថ្មីបានទេ: " + creativeData.error.message);
       }
+      
       if (creativeData.id) {
         newCreativeId = creativeData.id;
       }
@@ -65,26 +71,42 @@ export async function POST(request: Request) {
       throw new Error("⚠️ សូមជ្រើសរើស Post ថ្មីឱ្យបានត្រឹមត្រូវជាមុនសិន!");
     }
 
-    // ២. Copy Ad គោលដៅពិតប្រាកដ និងបំពាក់ Creative ថ្មីចូលទៅជាមួយគ្នា
-    const duplicateRes = await fetch(`https://graph.facebook.com/v18.0/${targetAdId}/copies`, {
+    // ៤. Copy Ad ដើម (ដាក់ Active ស្រាប់)
+    const duplicateRes = await fetch(`https://graph.facebook.com/v18.0/${originalAdId}/copies`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        status_option: 'ACTIVE', 
-        access_token: access_token,
-        name: newName || "New Ad - Copy",
-        creative: { creative_id: newCreativeId } // 👈 ស្បែកជើងថ្មីដែលបង Select នឹងចូលទីនេះ ១០០%
-      }),
+      body: JSON.stringify({ status_option: 'ACTIVE', access_token: clientToken }),
     });
 
     const duplicateData = await duplicateRes.json();
-    if (duplicateData.error) throw new Error("Copy Ad Error: " + duplicateData.error.message);
+    if (duplicateData.error) throw new Error(duplicateData.error.message);
     
     const newAdId = duplicateData.copied_ad_id;
+    let updatePayload: any = { access_token: clientToken };
+
+    // ៥. ដាក់ឈ្មោះថ្មីចូល Payload (បើមាន)
+    if (newName) updatePayload.name = newName;
+
+    // ៦. ដាក់ Creative ID ថ្មី (ស្បែកជើង) ចូល Payload
+    if (newCreativeId) {
+      updatePayload.creative = { creative_id: newCreativeId };
+    }
+
+    // ៧. Update ឈ្មោះ និង Creative ទៅកាន់ Ad ដែលទើបតែកូពីបានរួច
+    const updateRes = await fetch(`https://graph.facebook.com/v18.0/${newAdId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updatePayload),
+    });
+    
+    const updateData = await updateRes.json();
+    if (updateData.error) {
+      throw new Error("Copy បាន ប៉ុន្តែមិនអាច Update ឈ្មោះ ឬ Post ថ្មីបានទេ: " + updateData.error.message);
+    }
 
     return NextResponse.json({
       success: true,
-      message: "បាន Duplicate យក Post ថ្មីនៅកម្រិត Ads ដោយជោគជ័យ!",
+      message: "បាន Duplicate និងផ្លាស់ប្តូរ Post ថ្មីដោយជោគជ័យ!",
       newAdId: newAdId,
     });
   } catch (error: any) {
