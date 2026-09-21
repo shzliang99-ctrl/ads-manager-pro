@@ -2020,10 +2020,17 @@ export default function Home() {
     setAdsList(prev => prev.map(ad => ad.id === adId ? { ...ad, status: newStatus, effective_status: newStatus } : ad));
 
     try {
+      // 🌟 ទាញយក Token ពី localStorage យកមកផ្ញើទៅជាមួយ
+      const token = localStorage.getItem('fb_user_token');
+
       const res = await fetch('/api/ads', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: adId, status: newStatus })
+        body: JSON.stringify({ 
+          id: adId, 
+          status: newStatus,
+          access_token: token // 👈 បញ្ជូន access_token ទៅជាមួយដើម្បីកុំឱ្យ Error Missing Token
+        })
       });
       const data = await res.json();
       if (!data.success) {
@@ -2153,19 +2160,17 @@ const fetchAdsets = async () => {
 
   const [isDuplicating, setIsDuplicating] = useState(false);
 
-  // 🌟 1. មុខងារសម្រាប់បើក Pop-up Duplicate
+  // 🌟 កែសម្រួលមុខងារនេះឱ្យស្អាត និងមិនឱ្យជាប់ Post ចាស់
   const handleOpenDuplicateModal = () => {
     if (selectedCampaigns.length === 0) {
       alert("⚠️ សូមជ្រើសរើស Campaign ណាមួយជាមុនសិន!");
       return;
     }
-    // រៀបចំឈ្មោះ និង Post ដើមមុនពេលបើក Pop-up
     setDuplicateAdName("New Ad - Copy");
-    setDuplicatePostId(selectedPost); 
+    setDuplicatePostId(""); // 👈 ត្រូវកំណត់ឱ្យទទេសិន ដើម្បីកុំឱ្យវាទាញយក Post ចាស់មកជាន់ពីលើ!
     setIsDuplicateModalOpen(true);
   };
-
-  // 🌟 មុខងារបញ្ជូនទិន្នន័យ Duplicate ពិតប្រាកដទៅកាន់ API (បានកែសម្រួលបញ្ចូល access_token ត្រឹមត្រូវ)
+  
   const executeDuplicate = async () => {
     setIsDuplicating(true);
     try {
@@ -2190,14 +2195,14 @@ const fetchAdsets = async () => {
 
       const targetCampaignId = selectedCampaigns[0];
 
-      // 🌟 ត្រលប់មកប្រើកូដដើមវិញ៖ បោះតែ campaignId ទៅឱ្យ Backend ធ្វើការ
+      // 🌟 ចំណុចសំខាន់៖ ត្រូវបញ្ជូន newPostId ទៅកាន់ API
       const res = await fetch('/api/duplicate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          campaignId: targetCampaignId, // 👈 ប្រើប្រាស់ Campaign ID ដូចដើមវិញ
+          campaignId: targetCampaignId, 
           newName: duplicateAdName,
-          newPostId: duplicatePostId,
+          newPostId: duplicatePostId, // 👈 ផ្ញើ Post ID ថ្មីដែលបានជ្រើសរើសទៅទីនេះ
           pageId: selectedPage,
           access_token: validToken 
         }),
@@ -6498,50 +6503,115 @@ const fetchAdsets = async () => {
       {/* ============================================== */}
       {isDuplicateModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className={`rounded-2xl shadow-2xl w-full max-w-xl overflow-hidden flex flex-col transform transition-all ${theme === 'dark' ? 'bg-[#242526] border border-slate-700' : 'bg-white border border-slate-100'}`}>
+          {/* 🌟 កែប្រែត្រង់នេះ៖ បន្ថែម max-h-[90vh] និង overflow-y-auto ដើម្បីឱ្យវាមាន Scrollbar អូសចុះអូសឡើង និងមិនបាត់ប៊ូតុង */}
+          <div className={`rounded-2xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto flex flex-col transform transition-all custom-scrollbar ${theme === 'dark' ? 'bg-[#242526] border border-slate-700 text-white' : 'bg-white border border-slate-100 text-slate-900'}`}>
             
-            <div className={`px-6 py-4 border-b flex justify-between items-center ${theme === 'dark' ? 'border-slate-700 bg-[#3A3B3C]' : 'border-slate-200 bg-slate-50'}`}>
-              <h2 className={`font-bold text-lg flex items-center gap-2.5 ${theme === 'dark' ? 'text-white' : 'text-[#050505]'}`}>
+            {/* Header */}
+            <div className={`px-6 py-4 border-b flex justify-between items-center sticky top-0 z-20 ${theme === 'dark' ? 'border-slate-700 bg-[#3A3B3C]' : 'border-slate-200 bg-slate-50'}`}>
+              <h2 className="font-bold text-lg flex items-center gap-2.5">
                 <span className="bg-blue-100 text-blue-600 p-1.5 rounded-lg text-sm">📄</span> Duplicate & Edit Ad
               </h2>
               <button type="button" onClick={() => setIsDuplicateModalOpen(false)} className="text-[24px] leading-none text-slate-400 hover:text-red-500 cursor-pointer">&times;</button>
             </div>
 
+            {/* Body Content */}
             <div className="p-6 flex flex-col gap-6">
               <div>
-                <label className={`block text-[14px] font-bold mb-2 ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`}>Ad name (ឈ្មោះការផ្សាយ)</label>
+                <label className="block text-[14px] font-bold mb-2">Ad name (ឈ្មោះការផ្សាយ)</label>
                 <input type="text" value={duplicateAdName} onChange={(e) => setDuplicateAdName(e.target.value)} className={`w-full border rounded-xl p-3 outline-none focus:border-blue-500 font-semibold ${theme === 'dark' ? 'bg-[#18191A] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-900'}`} />
               </div>
 
+              {/* Ad Creative Preview (ដែលយើងទើបតែធ្វើឱ្យធំស្អាត) */}
               <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-[#18191A] border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
-                 <label className={`block text-[14px] font-bold mb-3 ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`}>Ad creative (ជ្រើសរើស Post ថ្មី)</label>
-                 
-                 <div className={`w-full border rounded-lg p-3 flex items-center justify-between mb-4 shadow-sm ${theme === 'dark' ? 'bg-[#242526] border-slate-600' : 'bg-white border-slate-300'}`}>
-                   <div className="flex items-center gap-3 flex-1 min-w-0 pr-2">
-                     {posts.find(p => p.id === duplicatePostId)?.full_picture ? (
-                        <img src={posts.find(p => p.id === duplicatePostId)?.full_picture} className="w-12 h-12 object-cover rounded-md border" />
-                     ) : (
-                        <div className="w-12 h-12 rounded-md bg-slate-200 flex items-center justify-center text-[10px]">No Img</div>
-                     )}
-                     <div className="flex flex-col min-w-0 flex-1">
-                       <span className={`font-medium text-[13px] line-clamp-2 leading-snug ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`}>
-                         {posts.find(p => p.id === duplicatePostId)?.message || "[គ្មានចំណងជើង] ឬមិនទាន់ជ្រើសរើស"}
-                       </span>
-                     </div>
-                   </div>
-                 </div>
+                <label className="block text-[14px] font-bold mb-3">Ad creative (ជ្រើសរើស Post ថ្មី)</label>
+                
+                {/* 🌟 ប្រអប់ Preview Post ធំពេញទម្រង់ */}
+                <div className={`w-full border rounded-2xl overflow-hidden mb-4 shadow-sm ${theme === 'dark' ? 'bg-[#242526] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-900'}`}>
+                  
+                  {/* Header Page */}
+                  <div className="p-3.5 flex justify-between items-start">
+                    <div className="flex items-center gap-2.5">
+                      {selectedPageData?.picture?.data?.url ? (
+                        <img src={selectedPageData.picture.data.url} className="w-9 h-9 rounded-full object-cover border" alt="Page Logo" />
+                      ) : (
+                        <div className="w-9 h-9 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-xs">f</div>
+                      )}
+                      <div>
+                        <div className="font-bold text-[13px] leading-tight">{selectedPageData?.name || fbPageName || "Page Name"}</div>
+                        <div className="text-[11px] text-slate-400 flex items-center gap-1">Sponsored ● 🌎</div>
+                      </div>
+                    </div>
+                    <span className="text-slate-400 font-bold">...</span>
+                  </div>
 
-                 <button 
-                   type="button" 
-                   onClick={() => { setPostSelectionContext('duplicate'); setIsPostMenuOpen(true); }} 
-                   className="w-full rounded-lg py-2.5 text-sm font-bold flex items-center justify-center gap-2 text-white bg-blue-600 hover:bg-blue-700 transition shadow-md cursor-pointer"
-                 >
-                   <span className="text-lg leading-none mb-0.5">📄</span> Select new post
-                 </button>
+                  {/* Message */}
+                  <div className="px-3.5 pb-2 text-[13px] line-clamp-3 leading-snug">
+                    {posts.find(p => p.id === duplicatePostId)?.message || posts.find(p => p.id === duplicatePostId)?.story || "[គ្មានអត្ថបទបង្ហាញ ឬមិនទាន់ជ្រើសរើស Post]"}
+                  </div>
+
+                  {/* Media */}
+                  {(() => {
+                    const matchedPost = posts.find(p => p.id === duplicatePostId);
+                    if (!matchedPost) return <div className="w-full h-[180px] bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-xs text-slate-400">គ្មានរូបភាព</div>;
+
+                    const subAtts = matchedPost.attachments?.data?.[0]?.subattachments?.data;
+                    if (subAtts && subAtts.length > 0) {
+                      return (
+                        <div className="grid grid-cols-2 gap-0.5 w-full max-h-[260px] overflow-hidden bg-slate-200 dark:bg-slate-800 relative">
+                          {subAtts.slice(0, 3).map((sub: any, idx: number) => (
+                            <img key={idx} src={sub.media?.image?.src || matchedPost.full_picture} className="w-full h-[125px] object-cover" alt="Sub" />
+                          ))}
+                          {subAtts.length > 3 ? (
+                            <div className="relative w-full h-[125px]">
+                              <img src={subAtts[3].media?.image?.src || matchedPost.full_picture} className="w-full h-full object-cover brightness-75" alt="Extra" />
+                              <div className="absolute inset-0 flex items-center justify-center bg-black/40 text-white font-bold text-xl">
+                                +{subAtts.length - 3}
+                              </div>
+                            </div>
+                          ) : (
+                            subAtts[2] && <img src={subAtts[2].media?.image?.src} className="w-full h-[125px] object-cover" alt="Img 3" />
+                          )}
+                        </div>
+                      );
+                    } else if (matchedPost.full_picture) {
+                      return <img src={matchedPost.full_picture} className="w-full object-cover max-h-[260px]" alt="Full picture" />;
+                    } else {
+                      return <div className="w-full h-[160px] bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-xs text-slate-400">No Image</div>;
+                    }
+                  })()}
+
+                  {/* Messenger Bar */}
+                  <div className="px-3.5 py-2.5 flex justify-between items-center bg-[#F0F2F5] dark:bg-[#3A3B3C]">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] uppercase font-bold text-slate-500">CHAT IN MESSENGER</span>
+                      <span className="font-bold text-[13px]">Send message</span>
+                    </div>
+                    <button type="button" className="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-[#E4E6EB] text-[#050505] dark:bg-[#4E4F50] dark:text-white">Send</button>
+                  </div>
+
+                  {/* Footer Stats */}
+                  <div className="px-3.5 py-2 flex justify-between text-[12px] border-t border-slate-200 dark:border-slate-700 text-slate-500">
+                    <div className="flex gap-4 font-semibold">
+                      <span>👍 {posts.find(p => p.id === duplicatePostId)?.likesCount || 0}</span>
+                      <span>💬 {posts.find(p => p.id === duplicatePostId)?.commentsCount || 0}</span>
+                      <span>⤴️ {posts.find(p => p.id === duplicatePostId)?.sharesCount || 0}</span>
+                    </div>
+                  </div>
+
+                </div>
+
+                <button 
+                  type="button" 
+                  onClick={() => { setPostSelectionContext('duplicate'); setIsPostMenuOpen(true); }} 
+                  className="w-full rounded-xl py-3 text-sm font-bold flex items-center justify-center gap-2 text-white bg-blue-600 hover:bg-blue-700 transition shadow-md cursor-pointer"
+                >
+                  <span className="text-lg leading-none mb-0.5">📄</span> Select new post
+                </button>
               </div>
             </div>
 
-            <div className={`p-4 border-t flex justify-end gap-3 ${theme === 'dark' ? 'border-slate-700 bg-[#3A3B3C]' : 'border-slate-200 bg-slate-50'}`}>
+            {/* Footer Buttons (ប៊ូតុងបោះបង់ និង Duplicate ដាក់ជាប់ស្អិតខាងក្រោម មាន z-20 មិនឱ្យបាត់) */}
+            <div className={`px-6 py-4 border-t flex justify-end gap-3 sticky bottom-0 z-20 shadow-md ${theme === 'dark' ? 'border-slate-700 bg-[#3A3B3C]' : 'border-slate-200 bg-slate-50'}`}>
               <button type="button" onClick={() => setIsDuplicateModalOpen(false)} className={`px-5 py-2.5 rounded-xl font-bold text-[14px] border transition cursor-pointer ${theme === 'dark' ? 'bg-[#242526] border-slate-600 text-slate-300 hover:bg-[#18191A]' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100'}`}>បោះបង់</button>
               <button type="button" onClick={executeDuplicate} className="px-8 py-2.5 rounded-xl font-bold text-[14px] text-white bg-blue-600 hover:bg-blue-700 shadow-sm disabled:opacity-50 flex items-center gap-2 cursor-pointer">
                 {isDuplicating ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> Duplicating...</> : '📄 Duplicate Ad'}
