@@ -144,6 +144,27 @@ export default function Home() {
 
   const [clientExpiryDaysLeft, setClientExpiryDaysLeft] = useState<number | null>(null);
 
+  // 🌟 កូដចាប់យក Token ពី URL មកផ្ទុកក្នុង LocalStorage ស្វ័យប្រវត្តិ (គាំទ្រទាំងកុំព្យូទ័រ និងទូរសព្ទដៃ)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const tokenFromUrl = urlParams.get('token');
+    const connected = urlParams.get('connected');
+
+    if (tokenFromUrl) {
+      localStorage.setItem('fb_user_token', tokenFromUrl);
+      setIsFbConnected(true);
+      showToast("✅ បានតភ្ជាប់ជាមួយ Facebook ដោយជោគជ័យ!", "success");
+      
+      // លុប URL Parameters ចោល ដើម្បីឱ្យ URL ស្អាត និងការពារការអានซ้ำ
+      window.history.replaceState({}, document.title, window.location.pathname);
+      
+      // ទាញយកទិន្នន័យ Pages មកបង្ហាញភ្លាមៗ
+      fetchFacebookPages(tokenFromUrl);
+    }
+  }, []);
+
   // 🌟 State និង Function សម្រាប់ទាញយក និង Upload Admin QR Code
   const [adminQrUrl, setAdminQrUrl] = useState("");
 
