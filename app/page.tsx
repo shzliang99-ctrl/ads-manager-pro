@@ -262,6 +262,13 @@ export default function Home() {
   const [auditResult, setAuditResult] = useState<any>(null);
   const [isSpeaking, setIsSpeaking] = useState(false);
 
+  // 🌟 States បន្ថែមសម្រាប់ Duplicate Ad พร้อม Popup ជ្រើសរើស Post ស្អាត
+  const [isAdDuplicateModalOpen, setIsAdDuplicateModalOpen] = useState(false);
+  const [targetAdToDuplicate, setTargetAdToDuplicate] = useState<any>(null);
+  const [selectedDuplicatePostId, setSelectedDuplicatePostId] = useState("");
+  const [isExecutingAdDuplicate, setIsExecutingAdDuplicate] = useState(false);
+
+
   // 🌟 State សម្រាប់ទប់ស្កាត់ការចុចញាប់ពេក (Cooldown / Throttling)
   const [isAuditCoolingDown, setIsAuditCoolingDown] = useState(false);
 
@@ -384,6 +391,7 @@ export default function Home() {
   }, [auditResult, isAuditModalOpen]);
 
  // 🔗 មុខងារសម្រាប់ពេលចុច Connect Facebook
+  // 🔗 មុខងារ Connect Facebook ដែលบังคับបើកលើ Browser ខាងក្រៅ (Safari / Chrome) សម្រាប់ទូរសព្ទដៃ
   const handleFacebookConnect = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user || !user.email) {
@@ -394,13 +402,22 @@ export default function Home() {
     const appId = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID;
     if (!appId) return alert("❌ រកមិនឃើញ Facebook App ID ទេ!");
     
+    // 🌟 កំណត់ Redirect URI ឱ្យច្បាស់លាស់តាម Origin បច្ចុប្បន្ន
     const redirectUri = encodeURIComponent(`${window.location.origin}/api/auth/facebook/callback`);
     const scope = 'public_profile,ads_management,ads_read,pages_read_engagement,pages_show_list,pages_manage_ads';
+    const safeState = encodeURIComponent(user.email);
     
-    // 🌟 ប្រើមុខងារស្តង់ដារ encodeURIComponent ដើម្បីការពារ Email កុំឱ្យ Error URL
-    const safeState = encodeURIComponent(user.email); 
-    
-    window.location.href = `https://www.facebook.com/v18.0/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&scope=${scope}&state=${safeState}&response_type=code`;
+    const fbOAuthUrl = `https://www.facebook.com/v18.0/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&scope=${scope}&state=${safeState}&response_type=code`;
+
+    // 🌟 បង្ខំឱ្យបើកលោតចេញទៅកាន់ Browser ខាងក្រៅ ( Safari ឬ Chrome លើទូរសព្ទដៃ )
+    // ដើម្បីការពារកុំឱ្យជាប់គាំងក្នុង Facebook In-app Browser
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    if (isMobile) {
+      // បើកក្នុង Window ថ្មី ឬបង្ខំឱ្យ Redirect ផ្ទាល់
+      window.open(fbOAuthUrl, '_system') || (window.location.href = fbOAuthUrl);
+    } else {
+      window.location.href = fbOAuthUrl;
+    }
   };
 
   // 🌟 មុខងារទាញយក Facebook Pages មកដាក់បង្ហាញក្នុង Dropdown យ៉ាងរលូន
@@ -760,10 +777,103 @@ export default function Home() {
   const [lang, setLang] = useState<'kh' | 'en'>('kh');
   const [isLangMenuOpen, setIsLangMenuOpen] = useState(false);
 
+  
+
+  // 🚀 មុខងារ Duplicate ដោយប្រើប្រាស់ក្បួនទម្រង់ "បង្កើតថ្មី" (Boost Payload Structure) ធានាជោគជ័យ ១០០%
+  const executeAdvancedCampaignDuplicate = async () => {
+    setIsExecutingAdDuplicate(true);
+    try {
+      const clientToken = localStorage.getItem('fb_user_token');
+      const adAccountId = selectedAdAccount || localStorage.getItem('selectedAdAccount');
+
+      if (!clientToken) {
+        alert("⚠️ រកមិនឃើញ Token ទេ! សូម Connect Facebook ឡើងវិញ។");
+        setIsExecutingAdDuplicate(false);
+        return;
+      }
+
+      // 🌟 រៀបចំទិន្នន័យ Payload ឱ្យត្រូវបេះបិទទៅនឹងកូដពេលបង្កើតថ្មី (Publish Form)
+      const duplicatePayload = {
+        campaignName: campaignName || 'Duplicated Campaign',
+        adsetName: adsetName || 'Duplicated Ad Set',
+        adName: adName || 'Duplicated Ad',
+        pageId: selectedPage,
+        postUrl: selectedPost || duplicatePostId,
+        objective: objective || 'ENGAGEMENT',
+        conversionLocation: conversionLocation || 'MESSAGES',
+        performanceGoal: performanceGoal || 'CONVERSATIONS',
+        callToAction: callToAction || 'SEND_MESSAGE',
+        ageMin: ageMin || '18',
+        ageMax: ageMax || '65',
+        gender: gender || 'ALL',
+        location: location || 'CAMBODIA',
+        targeting: targeting || '',
+        placementType: placementType || 'ADVANTAGE',
+        deviceType: deviceType || 'MOBILE',
+        osType: osType || 'ALL',
+        wifiOnly: wifiOnly,
+        platforms: platforms,
+        detailedPlacements: detailedPlacements,
+        budgetType: budgetType || 'DAILY',
+        budget: budget || '5',
+        duration: duration || '5',
+        access_token: clientToken,
+        adAccountId: adAccountId
+      };
+
+      // 🌟 បាញ់សំណើទៅកាន់ API /api/boost (ដែលជាក្បួនបង្កើតថ្មីផ្ទាល់ ធានាមិនខកខានទាំង Campaign, Ad Set និង Ads)
+      const response = await fetch('/api/boost', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(duplicatePayload),
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        showToast("✅ Duplicate Campaign (បង្កើតថ្មីដោយជោគជ័យ ១០០%)!", "success");
+        setIsAdDuplicateModalOpen(false);
+        setIsSuccessModal(true); // បង្ហាញផ្ទាំង Success Modal ស្អាត
+        setActiveManageTab('CAMPAIGNS');
+        fetchCampaigns(); // Refresh តារាងភ្លាមៗ
+      } else {
+        throw new Error(data.error || "Unknown error from API");
+      }
+
+    } catch (err: any) {
+      alert("❌ បរាជ័យក្នុងការ Duplicate: " + err.message);
+    } finally {
+      setIsExecutingAdDuplicate(false);
+    }
+  };
+
   // យក variable នេះមកប្រើប្រាស់កន្លែងបង្ហាញអត្ថបទ
   const t = translations[lang];
   
   const [posts, setPosts] = useState<any[]>([]);
+
+  // 📥 មុខងារទាញយក Posts ពី Facebook Page មកបង្ហាញក្នុង Modal
+  const fetchPagePosts = async (pageIdToFetch: string) => {
+    try {
+      const clientToken = localStorage.getItem('fb_user_token');
+      if (!clientToken || !pageIdToFetch) return;
+
+      const res = await fetch(`https://graph.facebook.com/v18.0/${pageIdToFetch}/posts?fields=id,message,story,full_picture,created_time&access_token=${clientToken}`);
+      const data = await res.json();
+
+      if (data.error) {
+        console.error("Error fetching posts:", data.error.message);
+        setPosts([]);
+        return;
+      }
+
+      setPosts(data.data || []);
+    } catch (err) {
+      console.error("Failed to fetch posts:", err);
+      setPosts([]);
+    }
+  };
+
   const [selectedPost, setSelectedPost] = useState("");
   const [isPostMenuOpen, setIsPostMenuOpen] = useState(false);
   const [fetchingPosts, setFetchingPosts] = useState(false);
@@ -2014,65 +2124,144 @@ export default function Home() {
     }
   };
 
-  // 🌟 ២. Function Duplicate ឆ្លាតវៃតាម Tab (Campaigns, Ad sets, Ads)
+  // 🚀 មុខងារ Duplicate ດึงទិន្នន័យស៊ីជម្រៅពី Facebook Graph API ផ្ទាល់ ១០០%
   const handleDuplicate = async () => {
     try {
       if (activeManageTab === 'CAMPAIGNS') {
         if (!selectedCampaigns || selectedCampaigns.length === 0) {
-          alert("សូមជ្រើសរើស Campaign យ៉ាងហោចណាស់មួយដើម្បី Duplicate!");
+          alert("⚠️ សូមធីកជ្រើសរើស Campaign យ៉ាងហោចណាស់មួយដើម្បី Duplicate!");
           return;
         }
         
-        for (const campId of selectedCampaigns) {
-          const res = await fetch(`/api/campaigns/duplicate`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ campaignId: campId, access_token: localStorage.getItem('fb_user_token') })
-          });
-          const data = await res.json();
-          if (!data.success) throw new Error(data.error);
-        }
-        alert("Duplicate Campaigns បានជោគជ័យ!");
-        fetchCampaigns();
+        const originalCampId = selectedCampaigns[0];
+        const clientToken = localStorage.getItem('fb_user_token');
 
-      } else if (activeManageTab === 'ADSETS') {
-        if (!selectedAdSets || selectedAdSets.length === 0) {
-          alert("សូមជ្រើសរើស Ad Set យ៉ាងហោចណាស់មួយដើម្បី Duplicate!");
+        if (!clientToken) {
+          alert("⚠️ រកមិនឃើញ Token ទេ! សូម Connect Facebook ឡើងវិញ។");
           return;
         }
-        
-        for (const adsetId of selectedAdSets) {
-          const res = await fetch(`/api/adsets/duplicate`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ adsetId: adsetId, access_token: localStorage.getItem('fb_user_token') })
-          });
-          const data = await res.json();
-          if (!data.success) throw new Error(data.error);
-        }
-        alert("Duplicate Ad Sets បានជោគជ័យ!");
-        if (selectedCampaigns[0]) fetchAdsets();
 
-      } else if (activeManageTab === 'ADS') {
-        if (!selectedAds || selectedAds.length === 0) {
-          alert("សូមជ្រើសរើស Ad យ៉ាងហោចណាស់មួយដើម្បី Duplicate!");
-          return;
+        showToast("⏳ កំពុងទាញយកទិន្នន័យស៊ីជម្រៅពី Facebook...", "info");
+
+        // 🌟 ហៅ Graph API បូមយកទិន្នន័យ Campaign ព្រមទាំង Adsets និង Ads មកជាមួយទាំងអស់
+        const res = await fetch(`https://graph.facebook.com/v18.0/${originalCampId}?fields=name,daily_budget,lifetime_budget,objective,adsets{name,targeting,daily_budget,lifetime_budget,bid_strategy},ads{name,creative{object_story_spec,effective_object_story_id,object_story_id}}&access_token=${clientToken}`);
+        const campToDup = await res.json();
+
+        if (campToDup.error) {
+          throw new Error(campToDup.error.message);
         }
+
+        setTargetAdToDuplicate(campToDup);
         
-        for (const adId of selectedAds) {
-          const res = await fetch(`/api/ads/duplicate`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ adId: adId, access_token: localStorage.getItem('fb_user_token') })
-          });
-          const data = await res.json();
-          if (!data.success) throw new Error(data.error);
+        // 1. Campaign Details
+        saveParam("campaignName", `${campToDup.name || 'Campaign'} - Copy`, setCampaignName);
+        if (campToDup.daily_budget) {
+          saveParam("budgetType", "DAILY", setBudgetType);
+          saveParam("budget", String(Number(campToDup.daily_budget) / 100), setBudget);
+        } else if (campToDup.lifetime_budget) {
+          saveParam("budgetType", "LIFETIME", setBudgetType);
+          saveParam("budget", String(Number(campToDup.lifetime_budget) / 100), setBudget);
         }
-        alert("Duplicate Ads បានជោគជ័យ!");
-        if (selectedCampaigns[0]) fetchAds();
+
+        // 2. Ad Set & Targeting Details (Age, Gender, Interests, Location)
+        const adsetInfo = campToDup.adsets?.data?.[0];
+        if (adsetInfo) {
+          saveParam("adsetName", `${adsetInfo.name || 'Ad Set'} - Copy`, setAdsetName);
+          
+          const t = adsetInfo.targeting;
+          if (t) {
+            if (t.age_min) saveParam("ageMin", String(t.age_min), setAgeMin);
+            if (t.age_max) saveParam("ageMax", String(t.age_max), setAgeMax);
+            
+            if (t.genders && t.genders.length > 0) {
+              const g = t.genders[0];
+              if (g === 1) saveParam("gender", "MALE", setGender);
+              else if (g === 2) saveParam("gender", "FEMALE", setGender);
+              else saveParam("gender", "ALL", setGender);
+            }
+
+            // Interests (Detailed Targeting)
+            let interestsArr: string[] = [];
+            if (t.flexible_spec) {
+               t.flexible_spec.forEach((spec: any) => {
+                  if (spec.interests) spec.interests.forEach((i: any) => interestsArr.push(i.name));
+               });
+            } else if (t.interests) {
+               t.interests.forEach((i: any) => interestsArr.push(i.name));
+            }
+
+            if (interestsArr.length > 0) {
+               const keywords = interestsArr.join(", ");
+               saveParam("targeting", keywords, setTargeting);
+               setInterestQuery(keywords);
+            }
+          }
+        }
+
+        // 3. Ad Setup Details (Ad Name & Post ID)
+        const adInfo = campToDup.ads?.data?.[0];
+        if (adInfo) {
+          saveParam("adName", `${adInfo.name || 'Ad'} - Copy`, setAdName);
+          const storyId = adInfo.creative?.effective_object_story_id || adInfo.creative?.object_story_id;
+          if (storyId) {
+             setDuplicatePostId(storyId);
+             saveParam("selectedPost", storyId, setSelectedPost);
+          }
+        }
+
+        setIsAdDuplicateModalOpen(true); // 🚀 បើកផ្ទាំង Pop-up ពេលទាញទិន្នន័យបានពេញលេញ
+
+      } else {
+        alert("មុខងារនេះដំណើរការនៅលើ Tab Campaigns!");
       }
     } catch (error: any) {
-      alert("មានបញ្ហាក្នុងការ Duplicate: " + error.message);
+      alert("❌ បរាជ័យក្នុងការទាញទិន្នន័យ: " + error.message);
+    }
+  };
+
+ // 🚀 មុខងារបញ្ជូនសំណើ Duplicate Ad ទៅកាន់ API ក្រោយពេលជ្រើសរើស Post រួចចុច OK
+  const executeAdDuplicateWithPost = async () => {
+    if (!selectedDuplicatePostId) {
+      alert("⚠️ សូមជ្រើសរើសប៉ុស្តិ៍ (Post) ថ្មីមួយជាមុនសិន!");
+      return;
+    }
+
+    // 🌟 កែសម្រួលត្រង់នេះ៖ ទាញយក ID ឱ្យចំពី targetAdToDuplicate ដែលយើងបាន Select រួចជាគោល
+    const adIdToUse = targetAdToDuplicate?.id || (selectedAds.length > 0 ? selectedAds[0] : null);
+    const campIdToUse = targetAdToDuplicate?.campaign_id || (selectedCampaigns.length > 0 ? selectedCampaigns[0] : null);
+
+    if (!adIdToUse) {
+      alert("❌ រកមិនឃើញ Ad ID សម្រាប់ Duplicate ទេ! សូមបិទ Pop-up ហើយធីក (Tick) ជ្រើសរើស Ad ម្តងទៀត។");
+      setIsAdDuplicateModalOpen(false);
+      return;
+    }
+
+    setIsExecutingAdDuplicate(true);
+    try {
+      const clientToken = localStorage.getItem('fb_user_token');
+      const res = await fetch('/api/ads/duplicate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          campaignId: campIdToUse,         
+          originalAdId: adIdToUse,         
+          newName: `${targetAdToDuplicate?.name || 'Ad'} - Copy`,
+          newPostId: selectedDuplicatePostId,
+          pageId: selectedPage,            
+          access_token: clientToken
+        })
+      });
+
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error);
+
+      showToast("✅ Duplicate Ad និងប្តូរ Post ថ្មីដោយជោគជ័យ!", "success");
+      setIsAdDuplicateModalOpen(false);
+      fetchAds(); // Refresh តារាង Ads ភ្លាមៗ
+    } catch (err: any) {
+      alert("❌ បរាជ័យក្នុងការ Duplicate Ad: " + err.message);
+    } finally {
+      setIsExecutingAdDuplicate(false);
     }
   };
 
@@ -5328,55 +5517,44 @@ const fetchAdsets = async () => {
                                     </div>
                                   </td>
 
-                                  <td className={`p-3 border-r align-middle min-w-[120px] ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                                  {/* Delivery */}
+                                  <td className={`p-3 border-r align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
                                     {(() => {
-                              const ins = getInsights(c);
-                              const hasAds = ins && (Number(ins.impressions) > 0 || Number(ins.spend) > 0 || Number(ins.reach) > 0);
-                              
-                              // 🌟 ចាប់យក Status ទាំងអស់ពី Facebook API មកទម្រង់អក្សរធំ
-                              const status = (c.effective_status || c.status || "").toUpperCase();
+                                      const status = (c.effective_status || c.status || "").toUpperCase();
 
-                              // 1. ករណី Facebook កំពុងពិនិត្យ (Review)
-                              if (status.includes('REVIEW') || status.includes('PENDING') || status === 'IN_REVIEW' || status === 'PENDING_REVIEW') {
-                                return (
-                                  <span className="flex items-center gap-1.5 font-medium text-amber-500">
-                                    <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span> In review
-                                  </span>
-                                );
-                              } 
-                              // 2. ករណីលុបចោល
-                              else if (status.includes('DELETED')) {
-                                return (
-                                  <span className="flex items-center gap-1.5 font-medium text-red-500">
-                                    <span className="w-2 h-2 rounded-full bg-red-500"></span> Deleted
-                                  </span>
-                                );
-                              } 
-                              // 3. ករណីដំណើរការធម្មតា Active
-                              else if (status === 'ACTIVE') {
-                                return (
-                                  <span className="flex items-center gap-1.5 font-medium text-[#31A24C]">
-                                    <span className="w-2 h-2 rounded-full bg-[#31A24C]"></span> Active
-                                  </span>
-                                );
-                              } 
-                              // 4. ករណីបិទ Off
-                              else if (status === 'PAUSED' || status === 'OFF') {
-                                return (
-                                  <span className="flex items-center gap-1.5 font-medium text-slate-500">
-                                    <span className="w-2 h-2 rounded-full bg-[#BCC0C4]"></span> Off
-                                  </span>
-                                );
-                              } 
-                              // 5. ករណីទូទៅផ្សេងទៀត
-                              else {
-                                return (
-                                  <span className="flex items-center gap-1.5 font-medium text-slate-400">
-                                    <span className="w-2 h-2 rounded-full bg-slate-400"></span> {status ? status.toLowerCase() : 'Unknown'}
-                                  </span>
-                                );
-                              }
-                            })()}
+                                      // 1. ពេល Facebook កំពុងពិនិត្យ (In review) - ដាក់ពណ៌បៃតងដូច Active ដែរ
+                                      if (status.includes('REVIEW') || status.includes('PENDING') || status === 'IN_REVIEW' || status === 'PENDING_REVIEW' || status === 'IN_PROCESS') {
+                                        return (
+                                          <span className="flex items-center gap-1.5 font-medium text-[#31A24C]">
+                                            <span className="w-2 h-2 rounded-full bg-[#31A24C] animate-pulse"></span> In review
+                                          </span>
+                                        );
+                                      } 
+                                      // 2. ពេលដំណើរការជោគជ័យ (Active)
+                                      else if (status === 'ACTIVE') {
+                                        return (
+                                          <span className="flex items-center gap-1.5 font-medium text-[#31A24C]">
+                                            <span className="w-2 h-2 rounded-full bg-[#31A24C]"></span> Active
+                                          </span>
+                                        );
+                                      } 
+                                      // 3. ពេលបិទ (Off / Paused)
+                                      else if (status === 'PAUSED' || status === 'OFF') {
+                                        return (
+                                          <span className="flex items-center gap-1.5 font-medium text-slate-500">
+                                            <span className="w-2 h-2 rounded-full bg-[#BCC0C4]"></span> Off
+                                          </span>
+                                        );
+                                      } 
+                                      // 4. ស្ថានភាពផ្សេងៗ
+                                      else {
+                                        return (
+                                          <span className="flex items-center gap-1.5 font-medium text-slate-400">
+                                            <span className="w-2 h-2 rounded-full bg-slate-400"></span> {status ? status.toLowerCase() : 'Unknown'}
+                                          </span>
+                                        );
+                                      }
+                                    })()}
                                   </td>
 
                                   <td className={`p-3 border-r align-middle min-w-[140px] ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
@@ -7383,7 +7561,668 @@ const fetchAdsets = async () => {
           </div>
         </div>
       )}
-      
+      {/* ========================================================= */}
+      {/* 🌟 ផ្ទាំង Pop-up (Top-up) Duplicate Campaign (Clone ទាំងមូល 100%) */}
+      {/* ========================================================= */}
+      {isAdDuplicateModalOpen && (
+        <div className="fixed inset-0 z-[99990] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className={`rounded-3xl max-w-4xl w-full p-6 shadow-2xl border flex flex-col max-h-[90vh] overflow-hidden ${
+            theme === 'dark' ? 'bg-[#242526] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-900'
+          }`}>
+            
+            {/* Modal Header */}
+            <div className="flex justify-between items-center mb-4 border-b pb-3.5 dark:border-slate-700 shrink-0">
+              <div>
+                <h3 className="font-black text-lg flex items-center gap-2">
+                  <span>📄</span> ផ្ទៀងផ្ទាត់ និង Duplicate Campaign (Clone ទាំងមូល 100%)
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">ទិន្នន័យ និងការកំណត់ទាំងអស់ត្រូវបានទាញយកមកដូច UI ដើម លោកអ្នកអាចកែសម្រួលបាន</p>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => setIsAdDuplicateModalOpen(false)} 
+                className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-bold text-slate-500 hover:text-red-500 cursor-pointer transition"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Scrollable Form Container */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar space-y-6 pr-2 mb-4 text-xs">
+              
+              {/* 1. Campaign Details */}
+              <div className={`p-5 rounded-2xl border space-y-4 ${theme === 'dark' ? 'bg-[#18191A] border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
+                <div className="font-bold text-sm text-blue-600 dark:text-blue-400 flex items-center gap-1.5 border-b pb-2 dark:border-slate-800">
+                  <span>📁</span> 1. Campaign Details
+                </div>
+                <div>
+                  <label className="block text-slate-400 font-bold mb-1.5">Campaign name (ឈ្មោះយុទ្ធនាការ)</label>
+                  <input 
+                    type="text" 
+                    value={campaignName}
+                    onChange={(e) => saveParam("campaignName", e.target.value, setCampaignName)}
+                    className={`w-full font-bold p-3 rounded-xl border outline-none text-sm ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-900'}`}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-slate-400 font-bold mb-1.5">Budget strategy (ទឹកលុយចំណាយ)</label>
+                    <select 
+                      value={budgetType} 
+                      onChange={(e) => saveParam("budgetType", e.target.value, setBudgetType)} 
+                      className={`w-full p-3 rounded-xl border outline-none font-semibold text-xs ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-900'}`}
+                    >
+                      <option value="DAILY">Daily budget</option>
+                      <option value="LIFETIME">Lifetime budget</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-slate-400 font-bold mb-1.5">Budget ($)</label>
+                    <input 
+                      type="number" 
+                      step="0.5"
+                      value={budget}
+                      onChange={(e) => saveParam("budget", e.target.value, setBudget)}
+                      className={`w-full font-bold p-3 rounded-xl border outline-none text-sm text-emerald-500 ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-900'}`}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* 2. Ad Set (Targeting & Placements) - ដំណើរការ 100% ដូច UI ដើម */}
+              <div className={`p-5 rounded-2xl border space-y-4 ${theme === 'dark' ? 'bg-[#18191A] border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
+                <div className="font-bold text-sm text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5 border-b pb-2 dark:border-slate-800">
+                  <span>🎯</span> 2. Ad Set (Targeting & Placements)
+                </div>
+                <div>
+                  <label className="block text-slate-400 font-bold mb-1.5">Ad set name</label>
+                  <input 
+                    type="text" 
+                    value={adsetName}
+                    onChange={(e) => saveParam("adsetName", e.target.value, setAdsetName)}
+                    className={`w-full font-semibold p-3 rounded-xl border outline-none text-sm ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-900'}`}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-slate-400 font-bold mb-1.5">Locations</label>
+                    <select value={location} onChange={(e) => saveParam("location", e.target.value, setLocation)} className={`w-full p-3 rounded-xl border outline-none font-medium text-xs cursor-pointer ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-900'}`}>
+                      <option value="CAMBODIA">📍 ទូទាំងប្រទេសកម្ពុជា</option>
+                      <option value="PHNOM_PENH">🏙️ រាជធានីភ្នំពេញ</option>
+                      <option value="SIEM_REAP">🏛️ ខេត្តសៀមរាប</option>
+                      <option value="BATTAMBANG">🌾 ខេត្តបាត់ដំបង</option>
+                      <option value="SIANOUKVILLE">🌊 ខេត្តព្រះសីហនុ</option>
+                      <option value="KAMPOT">🌴 ខេត្តកំពត</option>
+                      <option value="KAMPONG_CHAM">🌳 ខេត្តកំពង់ចាម</option>
+                      <option value="KAMPONG_SPEU">⛰️ ខេត្តកំពង់ស្ពឺ</option>
+                      <option value="KAMPONG_THOM">🌾 ខេត្តកំពង់ធំ</option>
+                      <option value="KANDAL">🏘️ ខេត្តកណ្ដាល</option>
+                      <option value="KOH_KONG">🏝️ ខេត្តកោះកុង</option>
+                      <option value="KRATIE">🌿 ខេត្តក្រចេះ</option>
+                      <option value="MONDUL_KIRI">🌲 ខេត្តមណ្ឌលគីរី</option>
+                      <option value="PREY_VENG">🌾 ខេត្តព្រៃវែង</option>
+                      <option value="PURSAT">🏞️ ខេត្តពោធិ៍សាត់</option>
+                      <option value="RATANAK_KIRI">🌲 ខេត្តរតនគីរី</option>
+                      <option value="STUNG_TRENG">🌊 ខេត្តស្ទឹងត្រែង</option>
+                      <option value="SVAY_RIENG">🛣️ ខេត្តស្វាយរៀង</option>
+                      <option value="TAKEV">🏺 ខេត្តតាកែវ</option>
+                      <option value="ODOR_MEANCHEY">🌳 ខេត្តឧត្តរមានជ័យ</option>
+                      <option value="KEP">🏖️ ខេត្តកែប</option>
+                      <option value="PAILIN">💎 ខេត្តប៉ៃលិន</option>
+                      <option value="PREAH_VIHEAR">🏛️ ខេត្តព្រះវិហារ</option>
+                      <option value="TBONG_KHMUM">🌴 ខេត្តត្បូងឃ្មុំ</option>
+                      <option value="BANTEAY_MEANCHEY">🌾 ខេត្តបន្ទាយមានជ័យ</option>
+                      <option value="KAMPONG_CHHNANG">🏺 ខេត្តកំពង់ឆ្នាំង</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-slate-400 font-bold mb-1.5">Gender</label>
+                    <select value={gender} onChange={(e) => saveParam("gender", e.target.value, setGender)} className={`w-full p-3 rounded-xl border outline-none font-medium text-xs cursor-pointer ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-900'}`}>
+                      <option value="ALL">All genders</option>
+                      <option value="MALE">Men</option>
+                      <option value="FEMALE">Women</option>
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-slate-400 font-bold mb-1.5">Age Range</label>
+                  <div className="flex items-center gap-3">
+                    <input type="number" value={ageMin} onChange={(e) => saveParam("ageMin", e.target.value, setAgeMin)} className={`w-full p-3 rounded-xl border text-center font-bold ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-900'}`} />
+                    <span className="text-slate-400 font-bold">ដល់</span>
+                    <input type="number" value={ageMax} onChange={(e) => saveParam("ageMax", e.target.value, setAgeMax)} className={`w-full p-3 rounded-xl border text-center font-bold ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-900'}`} />
+                  </div>
+                </div>
+
+                {/* 🌟 ផ្នែក Detailed Targeting ដែលភ្ជាប់ API ពិតប្រាកដ */}
+                <div>
+                  <label className="block text-slate-400 font-bold mb-1.5">Detailed Targeting (Interests)</label>
+                  <div className="flex gap-2 mb-2 flex-wrap sm:flex-nowrap">
+                    <input 
+                      type="text" 
+                      value={interestQuery}
+                      onChange={(e) => {
+                        setInterestQuery(e.target.value);
+                        localStorage.setItem("interestQuery", e.target.value);
+                      }}
+                      placeholder="Search interests (e.g. Shoes, Footwear)..."
+                      className={`w-full p-2.5 rounded-xl border text-xs outline-none focus:border-blue-500 font-medium ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white placeholder-slate-400' : 'bg-white border-slate-300 text-slate-900'}`}
+                    />
+                    <button 
+                      type="button" 
+                      onClick={async () => {
+                        if (!interestQuery.trim()) { alert("⚠️ សូមវាយពាក្យគន្លឹះចូលក្នុងប្រអប់ជាមុនសិន!"); return; }
+                        try {
+                          const pageInfo = pages.find(p => p.id === selectedPage);
+                          const token = pageInfo?.access_token || "";
+                          const res = await fetch(`/api/interests?q=${interestQuery}&token=${token}`);
+                          const result = await res.json();
+                          if (result.success && result.data.length > 0) {
+                            const proKeywords = result.data.map((item: any) => item.name).join(", ");
+                            setTargeting(proKeywords);
+                            localStorage.setItem("targeting", proKeywords);
+                            alert(`🔥 ទាញយក AI Pro - Fill ចំនួន ${result.data.length} ដោយជោគជ័យ!`);
+                          } else { alert("⚠️ រកមិនឃើញទិន្នន័យទេ: " + (result.error || "Unknown error")); }
+                        } catch (err) { console.error("Error:", err); }
+                      }}
+                      className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 shrink-0 cursor-pointer shadow-xs"
+                    >
+                      AI Pro-Fill
+                    </button>
+                    <button 
+                      type="button" 
+                      onClick={() => { setTargeting(""); localStorage.removeItem("targeting"); }}
+                      className="px-4 py-2 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold shrink-0 cursor-pointer hover:bg-slate-300 dark:hover:bg-slate-600"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                  <textarea 
+                    rows={3}
+                    value={targeting}
+                    onChange={(e) => { setTargeting(e.target.value); localStorage.setItem("targeting", e.target.value); }}
+                    className={`w-full p-3 rounded-xl border outline-none font-medium text-xs resize-y shadow-inner focus:border-blue-500 ${theme === 'dark' ? 'bg-[#18191A] border-slate-700 text-slate-200 placeholder-slate-500' : 'bg-slate-50 border-slate-300 text-slate-700'}`}
+                  />
+                </div>
+
+                {/* 🌟 ផ្នែក Placements ពេញលេញ 100% (មាន Toggle លាក់/បង្ហាញ និងប៊ូតុងកំណត់ស្តង់ដារ) */}
+                <div className={`border rounded-xl overflow-visible mt-2 flex-1 ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                      
+                  {/* Placements Dropdown Header ជាមួយនឹង Smart Presets ធំជាងមុន */}
+                  <div className={`p-3.5 border-b flex flex-wrap justify-between items-center select-none transition-colors gap-3 ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-700 text-white' : 'bg-slate-100 border-slate-200 text-slate-800'}`}>
+                    
+                    <div onClick={() => setShowPlacementsSection(!showPlacementsSection)} className="flex items-center gap-2 cursor-pointer">
+                      <label className="block text-[14px] font-extrabold cursor-pointer tracking-wide">
+                        📍 Placements
+                      </label>
+                    </div>
+                    
+                    <div className="flex items-center gap-3">
+                      
+                      {/* 🌟 ប៊ូតុង Boost រូបភាព (ទំហំធំ) */}
+                      <button 
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setPresetModalOpen('photo'); }}
+                        className="px-5 py-2 min-w-[120px] justify-center rounded-xl text-[13px] font-bold text-white bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 transition-all shadow-md shadow-emerald-500/20 flex items-center gap-2 cursor-pointer transform hover:scale-[1.03] active:scale-95"
+                      >
+                        <span className="text-[15px] leading-none drop-shadow-sm">🖼️</span> 
+                        <span className="tracking-wide">រូបភាព</span>
+                      </button>
+
+                      {/* 🌟 ប៊ូតុង Boost វីដេអូ (ទំហំធំ) */}
+                      <button 
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setPresetModalOpen('video'); }}
+                        className="px-5 py-2 min-w-[120px] justify-center rounded-xl text-[13px] font-bold text-white bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 transition-all shadow-md shadow-purple-500/20 flex items-center gap-2 cursor-pointer transform hover:scale-[1.03] active:scale-95"
+                      >
+                        <span className="text-[15px] leading-none drop-shadow-sm">🎬</span> 
+                        <span className="tracking-wide">វីដេអូ</span>
+                      </button>
+
+                      <button 
+                        type="button" 
+                        onClick={() => setShowPlacementsSection(!showPlacementsSection)}
+                        className="text-xs font-bold text-blue-600 hover:text-blue-700 hover:underline flex items-center gap-1 cursor-pointer ml-1 transition-colors"
+                      >
+                        {showPlacementsSection ? "▲ លាក់" : "⚙️ បើកមើល"}
+                      </button>
+                    </div>
+
+                  </div>
+
+                  {showPlacementsSection && (
+                    <div className={`p-4 flex flex-col gap-4 animate-in slide-in-from-top-2 duration-200 ${theme === 'dark' ? 'bg-[#242526]' : 'bg-white'}`}>
+                      <select 
+                        value={placementType} 
+                        onChange={(e) => setPlacementType(e.target.value)} 
+                        className={`w-full border rounded-xl p-3 outline-none font-semibold text-sm ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-900'}`}
+                      >
+                        <option value="ADVANTAGE">✨ Advantage+ placements</option>
+                        <option value="MANUAL">⚙️ Manual placements</option>
+                    </select>
+
+                      {placementType === "MANUAL" && (
+                        <div className={`flex flex-col gap-4 pt-4 border-t animate-in fade-in text-sm ${theme === 'dark' ? 'border-slate-700' : 'border-slate-100'}`}>
+                          
+                          {/* Devices and OS */}
+                          <div className={`rounded-xl border shadow-sm transition-all ${theme === 'dark' ? 'bg-[#18191A] border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
+                            <div className="flex justify-between items-center p-3.5 cursor-pointer select-none" onClick={() => setShowDevices(!showDevices)}>
+                                <h4 className={`font-bold ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`}>Devices and operating systems</h4>
+                                <span className="text-slate-500 font-black text-xs">{showDevices ? '▲' : '▼'}</span>
+                            </div>
+                            
+                            {showDevices && (
+                                <div className="flex flex-col gap-3 px-3.5 pb-4 animate-in fade-in slide-in-from-top-2">
+                                  <select value={deviceType} onChange={(e) => setDeviceType(e.target.value)} className={`w-full border rounded-xl p-2.5 outline-none cursor-pointer shadow-sm ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-700'}`}>
+                                      <option value="ALL">All devices (recommended)</option>
+                                      <option value="MOBILE">Mobile</option>
+                                      <option value="DESKTOP">Desktop</option>
+                                  </select>
+                                  <select value={osType} onChange={(e) => setOsType(e.target.value)} className={`w-full border rounded-xl p-2.5 outline-none cursor-pointer shadow-sm ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-700'}`}>
+                                      <option value="ALL">All mobile devices</option>
+                                      <option value="ANDROID">Android devices only</option>
+                                      <option value="IOS">iOS devices only</option>
+                                      <option value="FEATURE">Feature phones only</option>
+                                  </select>
+                                  <label className={`flex items-center gap-2 mt-1 cursor-pointer font-medium select-none ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
+                                      <input 
+                                        type="checkbox" 
+                                        checked={wifiOnly} 
+                                        onChange={(e) => { 
+                                          setWifiOnly(e.target.checked); 
+                                          localStorage.setItem("wifiOnly", String(e.target.checked)); 
+                                        }} 
+                                        className={`w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer ${theme === 'dark' ? 'border-slate-600 bg-[#3A3B3C]' : 'border-slate-300'}`} 
+                                      /> 
+                                      Only when connected to Wi-Fi
+                                  </label>
+                                </div>
+                            )}
+                          </div>
+
+                          {/* Platforms */}
+                          <div className={`border rounded-xl shadow-sm transition-all ${theme === 'dark' ? 'bg-[#242526] border-slate-700' : 'bg-white border-slate-200'}`}>
+                            <div className={`p-3.5 font-bold flex justify-between cursor-pointer select-none ${theme === 'dark' ? 'bg-[#3A3B3C] text-slate-200' : 'bg-slate-50 text-slate-700'}`} onClick={() => setShowPlatforms(!showPlatforms)}>
+                                Platforms <span className="text-slate-500 font-black text-xs">{showPlatforms ? '▲' : '▼'}</span>
+                            </div>
+                            
+                            {showPlatforms && (
+                              <div className={`p-4 grid grid-cols-2 gap-y-4 gap-x-2 font-medium animate-in fade-in slide-in-from-top-2 ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
+                                <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={platforms.facebook} onChange={() => handlePlatformChange('facebook')} className="w-4 h-4 text-blue-600 rounded border-slate-500" /> Facebook</label>
+                                <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={platforms.instagram} onChange={() => handlePlatformChange('instagram')} className="w-4 h-4 text-blue-600 rounded border-slate-500" /> Instagram</label>
+                                <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={platforms.audienceNetwork} onChange={() => handlePlatformChange('audienceNetwork')} className="w-4 h-4 text-blue-600 rounded border-slate-500" /> Audience Network</label>
+                                <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={platforms.messenger} onChange={() => handlePlatformChange('messenger')} className="w-4 h-4 text-blue-600 rounded border-slate-500" /> Messenger</label>
+                                <label className="flex items-center gap-2 cursor-not-allowed opacity-40"><input type="checkbox" disabled checked={false} className="w-4 h-4 rounded border-slate-500 bg-slate-500/20" /> WhatsApp</label>
+                                <label className="flex items-center gap-2 cursor-not-allowed opacity-40"><input type="checkbox" disabled checked={false} className="w-4 h-4 rounded border-slate-500 bg-slate-500/20" /> Threads</label>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Placement Controls */}
+                          <div className={`border rounded-xl shadow-sm mb-2 transition-all ${theme === 'dark' ? 'bg-[#242526] border-slate-700' : 'bg-white border-slate-200'}`}>
+                            <div className={`p-3.5 font-bold flex justify-between items-center cursor-pointer select-none ${theme === 'dark' ? 'bg-[#3A3B3C] text-slate-200' : 'bg-slate-50 text-slate-700'}`} onClick={() => setShowPlacementCtrls(!showPlacementCtrls)}>
+                                <span className="flex items-center gap-1">Placement controls <span className="w-3.5 h-3.5 rounded-full bg-slate-400 text-[9px] flex items-center justify-center font-bold text-white">i</span></span>
+                                <span className="text-slate-500 font-black text-xs">{showPlacementCtrls ? '▲' : '▼'}</span>
+                            </div>
+                            
+                            {showPlacementCtrls && (
+                              <div className={`flex flex-col divide-y animate-in fade-in slide-in-from-top-2 ${theme === 'dark' ? 'divide-slate-700' : 'divide-slate-100'}`}>
+                                
+                                {/* Feeds */}
+                                <div>
+                                    <div className={`p-3.5 flex justify-between items-center transition-colors ${theme === 'dark' ? 'hover:bg-[#3A3B3C]' : 'hover:bg-slate-50'}`}>
+                                      <div className="flex items-center gap-3">
+                                        <input type="checkbox" checked={isGroupChecked('feeds')} onChange={(e) => handleGroupToggle('feeds', e.target.checked)} className="w-4 h-4 text-blue-600 rounded border-slate-500 cursor-pointer" />
+                                        <span className={`font-semibold cursor-pointer select-none ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`} onClick={() => toggleAccordion('feeds')}>🪟 Feeds</span>
+                                      </div>
+                                      <div className="cursor-pointer px-2" onClick={() => toggleAccordion('feeds')}>
+                                        <span className="text-slate-500 font-black text-[10px]">{expandedPlacements.feeds ? '▲' : '▼'}</span>
+                                      </div>
+                                    </div>
+                                    {expandedPlacements.feeds && (
+                                      <div className={`px-10 pb-4 pt-2 flex flex-col gap-3.5 text-[13px] font-medium ${theme === 'dark' ? 'bg-[#18191A] text-slate-400' : 'bg-slate-50/50 text-slate-600'}`}>
+                                        <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.fb_feed} onChange={()=>handleDetailedPlacementChange('fb_feed')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Facebook Feed</label>
+                                        <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.fb_profile} onChange={()=>handleDetailedPlacementChange('fb_profile')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Facebook profile feed</label>
+                                        <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.ig_feed} onChange={()=>handleDetailedPlacementChange('ig_feed')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Instagram feed</label>
+                                        <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.ig_profile} onChange={()=>handleDetailedPlacementChange('ig_profile')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Instagram profile feed</label>
+                                        <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.fb_marketplace} onChange={()=>handleDetailedPlacementChange('fb_marketplace')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Facebook Marketplace</label>
+                                        <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.fb_right_col} onChange={()=>handleDetailedPlacementChange('fb_right_col')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Facebook right column</label>
+                                        <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.ig_explore} onChange={()=>handleDetailedPlacementChange('ig_explore')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Instagram Explore home</label>
+                                        <label className="flex items-center gap-3 cursor-pointer opacity-50"><input type="checkbox" disabled checked={detailedPlacements.fb_business} className="w-4 h-4 rounded border-slate-500 bg-slate-500/20" /> Facebook Business Explore</label>
+                                        <label className="flex items-center gap-3 cursor-pointer opacity-50"><input type="checkbox" disabled checked={detailedPlacements.threads_feed} className="w-4 h-4 rounded border-slate-500 bg-slate-500/20" /> Threads feed</label>
+                                        <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.fb_notifications} onChange={()=>handleDetailedPlacementChange('fb_notifications')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Facebook Notifications</label>
+                                      </div>
+                                    )}
+                                </div>
+
+                                {/* Stories, Status, Reels */}
+                                <div>
+                                    <div className={`p-3.5 flex justify-between items-center transition-colors ${theme === 'dark' ? 'hover:bg-[#3A3B3C]' : 'hover:bg-slate-50'}`}>
+                                      <div className="flex items-center gap-3">
+                                        <input type="checkbox" checked={isGroupChecked('stories')} onChange={(e) => handleGroupToggle('stories', e.target.checked)} className="w-4 h-4 text-blue-600 rounded border-slate-500 cursor-pointer" />
+                                        <span className={`font-semibold cursor-pointer select-none ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`} onClick={() => toggleAccordion('stories')}>📱 Stories, Status, Reels</span>
+                                      </div>
+                                      <div className="cursor-pointer px-2" onClick={() => toggleAccordion('stories')}>
+                                        <span className="text-slate-500 font-black text-[10px]">{expandedPlacements.stories ? '▲' : '▼'}</span>
+                                      </div>
+                                    </div>
+                                    {expandedPlacements.stories && (
+                                      <div className={`px-10 pb-4 pt-2 flex flex-col gap-3.5 text-[13px] font-medium ${theme === 'dark' ? 'bg-[#18191A] text-slate-400' : 'bg-slate-50/50 text-slate-600'}`}>
+                                        <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.ig_stories} onChange={()=>handleDetailedPlacementChange('ig_stories')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Instagram Stories</label>
+                                        <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.fb_stories} onChange={()=>handleDetailedPlacementChange('fb_stories')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Facebook Stories</label>
+                                        <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.msg_stories} onChange={()=>handleDetailedPlacementChange('msg_stories')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Messenger Stories</label>
+                                        <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.ig_reels} onChange={()=>handleDetailedPlacementChange('ig_reels')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Instagram Reels</label>
+                                        <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.fb_reels} onChange={()=>handleDetailedPlacementChange('fb_reels')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Facebook Reels</label>
+                                        <label className="flex items-center gap-3 cursor-not-allowed opacity-50"><input type="checkbox" disabled checked={detailedPlacements.wa_status} className="w-4 h-4 rounded border-slate-500 bg-slate-500/20" /> WhatsApp Status</label>
+                                      </div>
+                                    )}
+                                </div>
+
+                                {/* In-stream ads for reels */}
+                                <div>
+                                    <div className={`p-3.5 flex justify-between items-center transition-colors ${theme === 'dark' ? 'hover:bg-[#3A3B3C]' : 'hover:bg-slate-50'}`}>
+                                      <div className="flex items-center gap-3">
+                                        <input type="checkbox" checked={isGroupChecked('instream')} onChange={(e) => handleGroupToggle('instream', e.target.checked)} className="w-4 h-4 text-blue-600 rounded border-slate-500 cursor-pointer" />
+                                        <span className={`font-semibold cursor-pointer select-none ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`} onClick={() => toggleAccordion('instream')}>▷ In-stream ads for reels</span>
+                                      </div>
+                                      <div className="cursor-pointer px-2" onClick={() => toggleAccordion('instream')}>
+                                        <span className="text-slate-500 font-black text-[10px]">{expandedPlacements.instream ? '▲' : '▼'}</span>
+                                      </div>
+                                    </div>
+                                    {expandedPlacements.instream && (
+                                      <div className={`px-10 pb-4 pt-2 flex flex-col gap-3.5 text-[13px] font-medium ${theme === 'dark' ? 'bg-[#18191A] text-slate-400' : 'bg-slate-50/50 text-slate-600'}`}>
+                                        <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.instream_reels} onChange={()=>handleDetailedPlacementChange('instream_reels')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> In-stream for Reels</label>
+                                        <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.fb_reels_ads} onChange={()=>handleDetailedPlacementChange('fb_reels_ads')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Ads on Facebook Reels</label>
+                                      </div>
+                                    )}
+                                </div>
+
+                                {/* Search results */}
+                                <div>
+                                    <div className={`p-3.5 flex justify-between items-center transition-colors ${theme === 'dark' ? 'hover:bg-[#3A3B3C]' : 'hover:bg-slate-50'}`}>
+                                      <div className="flex items-center gap-3">
+                                        <input type="checkbox" checked={isGroupChecked('search')} onChange={(e) => handleGroupToggle('search', e.target.checked)} className="w-4 h-4 text-blue-600 rounded border-slate-500 cursor-pointer" />
+                                        <span className={`font-semibold cursor-pointer select-none ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`} onClick={() => toggleAccordion('search')}>🔍 Search results</span>
+                                      </div>
+                                      <div className="cursor-pointer px-2" onClick={() => toggleAccordion('search')}>
+                                        <span className="text-slate-500 font-black text-[10px]">{expandedPlacements.search ? '▲' : '▼'}</span>
+                                      </div>
+                                    </div>
+                                    {expandedPlacements.search && (
+                                      <div className={`px-10 pb-4 pt-2 flex flex-col gap-3.5 text-[13px] font-medium ${theme === 'dark' ? 'bg-[#18191A] text-slate-400' : 'bg-slate-50/50 text-slate-600'}`}>
+                                        <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.fb_search} onChange={()=>handleDetailedPlacementChange('fb_search')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Facebook search results</label>
+                                        <label className="flex items-center gap-3 cursor-pointer opacity-50"><input type="checkbox" disabled checked={detailedPlacements.ig_search} className="w-4 h-4 rounded border-slate-500 bg-slate-500/20" /> Instagram search results</label>
+                                      </div>
+                                    )}
+                                </div>
+
+                                {/* Apps and sites */}
+                                <div>
+                                    <div className={`p-3.5 flex justify-between items-center transition-colors ${theme === 'dark' ? 'hover:bg-[#3A3B3C]' : 'hover:bg-slate-50'}`}>
+                                      <div className="flex items-center gap-3">
+                                        <input type="checkbox" checked={isGroupChecked('apps')} onChange={(e) => handleGroupToggle('apps', e.target.checked)} className="w-4 h-4 text-blue-600 rounded border-slate-500 cursor-pointer" />
+                                        <span className={`font-semibold cursor-pointer select-none ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`} onClick={() => toggleAccordion('apps')}>💻 Apps and sites</span>
+                                      </div>
+                                      <div className="cursor-pointer px-2" onClick={() => toggleAccordion('apps')}>
+                                        <span className="text-slate-500 font-black text-[10px]">{expandedPlacements.apps ? '▲' : '▼'}</span>
+                                      </div>
+                                    </div>
+                                    {expandedPlacements.apps && (
+                                      <div className={`px-10 pb-4 pt-2 flex flex-col gap-3.5 text-[13px] font-medium ${theme === 'dark' ? 'bg-[#18191A] text-slate-400' : 'bg-slate-50/50 text-slate-600'}`}>
+                                        <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.an_native} onChange={()=>handleDetailedPlacementChange('an_native')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Audience Network native, banner and interstitial</label>
+                                        <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.an_rewarded} onChange={()=>handleDetailedPlacementChange('an_rewarded')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Audience Network rewarded videos</label>
+                                      </div>
+                                    )}
+                                </div>
+
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+              </div>
+
+              {/* --- ៣. Ad Setup & Conversations Card (រួមបញ្ចូលគ្នា) --- */}
+              <div className={`p-6 rounded-2xl shadow-sm border flex flex-col gap-5 w-full min-w-0 transition-colors ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-800'}`}>
+                <h3 className={`font-bold border-b pb-3 flex items-center gap-2 text-[15px] ${theme === 'dark' ? 'border-slate-700 text-white' : 'border-slate-200 text-slate-800'}`}>
+                  <span className={`p-1.5 rounded-xl ${theme === 'dark' ? 'bg-[#3A3B3C]' : 'bg-slate-100'}`}>🖼️</span> ៣. Ad Setup & Conversations
+                </h3>
+
+                <div>
+                  <label className={`block text-sm font-semibold mb-1.5 ${theme === 'dark' ? 'text-slate-300' : 'text-slate-600'}`}>Ad name (ឈ្មោះការផ្សាយ)</label>
+                  <input 
+                    type="text" 
+                    value={adName} 
+                    onChange={(e) => saveParam("adName", e.target.value, setAdName)} 
+                    className={`w-full border rounded-xl p-3 outline-none focus:border-blue-500 font-semibold ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'}`} 
+                    placeholder="New Engagement Ad" 
+                  />
+                </div>
+
+                {/* 🌟 Custom Dropdown ទំនើបបង្ហាញទាំង Logo Page និងឈ្មោះ */}
+                <div className="relative">
+                  <div 
+                    onClick={() => setIsPageMenuOpen(!isPageMenuOpen)}
+                    className={`p-3 flex justify-between items-center cursor-pointer border rounded-xl transition ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-900'}`}
+                  >
+                    <div className="flex items-center gap-3 flex-1 min-w-0 pr-2">
+                      {/* ឆែករកមើល Logo ពី pages ឬ facebookPages */}
+                      {(() => {
+                        const currentSelectedPage = pages.find(p => p.id === selectedPage) || facebookPages.find(p => p.id === selectedPage);
+                        return currentSelectedPage?.picture?.data?.url ? (
+                          <img src={currentSelectedPage.picture.data.url} className="w-7 h-7 rounded-full object-cover shrink-0 border" alt="Page Logo" />
+                        ) : (
+                          <div className="w-7 h-7 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold shrink-0">f</div>
+                        );
+                      })()}
+                      
+                      <span className="font-bold text-sm truncate block flex-1 min-w-0">
+                        {selectedPage ? (pages.find(p => p.id === selectedPage)?.name || facebookPages.find(p => p.id === selectedPage)?.name || "Selected Page") : "Select a Page..."}
+                      </span>
+                    </div>
+                    <span className="text-xs text-blue-500 shrink-0 font-bold">▼</span>
+                  </div>
+
+                  {/* Menu List ធ្លាក់ចុះ */}
+                  {isPageMenuOpen && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setIsPageMenuOpen(false)}></div>
+                      <div className={`absolute top-[110%] left-0 w-full border rounded-xl shadow-2xl z-50 max-h-60 overflow-y-auto p-1.5 flex flex-col gap-1 ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-white' : 'bg-white border-slate-300'}`}>
+                        {pages && pages.length > 0 ? (
+                          pages.map((page: any) => (
+                            <div 
+                              key={page.id} 
+                              onClick={() => {
+                                setSelectedPage(page.id);
+                                localStorage.setItem("selectedPage", page.id);
+                                setFbPageName(page.name);
+                                localStorage.setItem("fbPageName", page.name);
+                                setIsPageMenuOpen(false);
+                              }}
+                              className={`p-2.5 rounded-lg flex items-center gap-3 cursor-pointer transition ${selectedPage === page.id ? 'bg-blue-600 text-white font-bold' : (theme === 'dark' ? 'hover:bg-[#3A3B3C]' : 'hover:bg-slate-100')}`}
+                            >
+                              {page.picture?.data?.url ? (
+                                <img src={page.picture.data.url} className="w-7 h-7 rounded-full object-cover shrink-0 border border-slate-200" alt="Page Logo" />
+                              ) : (
+                                <div className="w-7 h-7 bg-[#1877F2] text-white rounded-full flex items-center justify-center text-xs font-bold shrink-0">f</div>
+                              )}
+                              <span className="text-sm truncate">{page.name}</span>
+                            </div>
+                          ))
+                        ) : facebookPages && facebookPages.length > 0 ? (
+                          facebookPages.map((page: any) => (
+                            <div 
+                              key={page.id} 
+                              onClick={() => {
+                                setSelectedPage(page.id);
+                                localStorage.setItem("selectedPage", page.id);
+                                setFbPageName(page.name);
+                                localStorage.setItem("fbPageName", page.name);
+                                setIsPageMenuOpen(false);
+                              }}
+                              className={`p-2.5 rounded-lg flex items-center gap-3 cursor-pointer transition ${selectedPage === page.id ? 'bg-blue-600 text-white font-bold' : (theme === 'dark' ? 'hover:bg-[#3A3B3C]' : 'hover:bg-slate-100')}`}
+                            >
+                              {page.picture?.data?.url ? (
+                                <img src={page.picture.data.url} className="w-8 h-8 rounded-full object-cover shrink-0 border" alt="Logo" />
+                              ) : (
+                                <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold shrink-0">f</div>
+                              )}
+                              <span className="text-sm truncate">{page.name}</span>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="p-3 text-xs text-slate-400 text-center">គ្មាន Page ត្រូវបង្ហាញទេ (សូម Connect Facebook)</div>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                <div>
+                  <label className={`block text-sm font-semibold mb-1.5 ${theme === 'dark' ? 'text-slate-300' : 'text-slate-600'}`}>Ad creative</label>
+                  <div className={`border rounded-xl overflow-visible shadow-sm relative ${theme === 'dark' ? 'border-slate-700 bg-[#18191A]' : 'border-slate-200 bg-white'}`}>
+                    <div className="p-4">
+                      <div className={`w-full border rounded-xl p-3 flex items-center justify-between mb-4 shadow-sm relative overflow-hidden group ${theme === 'dark' ? 'bg-[#242526] border-slate-600' : 'bg-white border-slate-300'}`}>
+                        <div className="flex items-center gap-3 flex-1 min-w-0 pr-2">
+                          {fetchingPosts ? (
+                            <span className="text-slate-500 font-medium text-sm">⏳ កំពុងទាញយក...</span>
+                          ) : (
+                            <>
+                              {selectedPostData?.full_picture ? (
+                                <img src={selectedPostData.full_picture} className="w-12 h-12 object-cover rounded-xl shrink-0 border" />
+                              ) : (
+                                <div className="w-12 h-12 rounded-xl shrink-0 flex items-center justify-center text-[10px] border bg-slate-100 text-slate-400">No Img</div>
+                              )}
+                              <div className="flex flex-col min-w-0 flex-1">
+                                <span className={`font-medium text-[13px] line-clamp-2 leading-snug ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`}>
+                                  {selectedPostData?.message || (duplicatePostId || selectedPost ? `Post ID: ${duplicatePostId || selectedPost}` : "[សូមចុច Select post ជាមុនសិន]")}
+                                </span>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-3 mb-2">
+                        <button type="button" onClick={() => { setPostSelectionContext('create'); setIsPostMenuOpen(true); }} className={`flex-1 border rounded-xl py-2.5 text-sm font-bold flex items-center justify-center gap-2 shadow-sm transition ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-slate-200 hover:bg-[#4E4F50]' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'}`}>
+                          <span className="text-lg leading-none mb-0.5">📄</span> Select post
+                        </button>
+                        <button type="button" onClick={() => setIsCreatePostOpen(true)} className={`flex-1 border rounded-xl py-2.5 text-sm font-bold flex items-center justify-center gap-2 shadow-sm transition cursor-pointer ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-slate-200 hover:bg-[#4E4F50]' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'}`}>
+                          + Create post
+                        </button>
+                      </div>
+                      <span onClick={() => setIsEnterPostIdModalOpen(true)} className="text-[#1877F2] text-[13px] font-semibold cursor-pointer hover:underline inline-block mt-2">Enter post ID</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Call to Action */}
+                <div>
+                  <label className={`block text-[13px] font-bold mb-1.5 flex items-center gap-1 ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>Call to action</label>
+                  <select value={callToAction} onChange={(e) => saveParam("callToAction", e.target.value, setCallToAction)} className={`w-full border rounded-xl p-3 text-[14px] font-medium outline-none focus:border-[#1877F2] focus:ring-1 focus:ring-[#1877F2] shadow-sm cursor-pointer ${theme === 'dark' ? 'bg-[#242526] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-800'}`}>
+                    <option value="SEND_MESSAGE">Send message</option>
+                    <option value="LEARN_MORE">Learn more</option>
+                    <option value="SHOP_NOW">Shop now</option>
+                    <option value="NO_BUTTON">No button</option>
+                  </select>
+                </div>
+
+                {/* ============================================== */}
+                {/* 🌟 ផ្នែក Conversation (ស្ថិតក្នុងទម្រង់ Dropdown ទំនើប) */}
+                {/* ============================================== */}
+                <div className={`rounded-2xl border shadow-sm overflow-hidden mb-6 transition-colors ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'}`}>
+                  
+                  {/* Header សម្រាប់ចុចបើក/បិទ */}
+                  <div 
+                    onClick={() => setShowConversationSection(!showConversationSection)}
+                    className={`p-4 flex justify-between items-center cursor-pointer select-none transition-colors ${theme === 'dark' ? 'bg-[#3A3B3C] hover:bg-[#4E4F50]' : 'bg-slate-100 hover:bg-slate-200'}`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <span className="text-xl">💬</span>
+                      <div>
+                        <h3 className="font-bold text-[14px]">Conversations</h3>
+                        <p className="text-xs text-slate-400">Create the messaging experience people see after they tap on your ad.</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-blue-600">
+                        {showConversationSection ? "▲ លាក់ការកំណត់" : "▼ បើកទម្លាក់មើល"}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* មាតិកាខាងក្នុង (លាក់/បង្ហាញ អាស្រ័យលើ State) */}
+                  {showConversationSection && (
+                    <div className="p-5 border-t border-slate-200 dark:border-slate-700 animate-in fade-in duration-200 space-y-4">
+                      
+                      <div className="flex gap-2 mb-4">
+                        <button type="button" onClick={() => setTemplateTab("suggested")} className={`px-4 py-2 rounded-xl text-[13px] font-bold transition ${templateTab === "suggested" ? (theme === 'dark' ? 'bg-blue-900/50 text-blue-400' : 'bg-blue-50 text-[#1877F2]') : (theme === 'dark' ? 'text-slate-400 hover:bg-[#3A3B3C]' : 'text-slate-600 hover:bg-slate-100')}`}>Suggested template</button>
+                        <button type="button" onClick={() => setTemplateTab("saved")} className={`px-4 py-2 rounded-xl text-[13px] font-bold transition ${templateTab === "saved" ? (theme === 'dark' ? 'bg-blue-900/50 text-blue-400' : 'bg-blue-50 text-[#1877F2]') : (theme === 'dark' ? 'text-slate-400 hover:bg-[#3A3B3C]' : 'text-slate-600 hover:bg-slate-100')}`}>Saved templates</button>
+                      </div>
+
+                      <div className={`border rounded-xl p-5 mb-4 shadow-sm min-w-0 ${theme === 'dark' ? 'bg-[#18191A] border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
+                        <div className={`font-bold text-sm mb-1.5 ${theme === 'dark' ? 'text-slate-200' : 'text-slate-800'}`}>Greeting</div>
+                        <div className={`text-[13px] mb-4 break-words whitespace-normal ${theme === 'dark' ? 'text-slate-400' : 'text-slate-700'}`}>{msgGreeting}</div>
+
+                        <div className={`font-bold text-sm mb-1.5 ${theme === 'dark' ? 'text-slate-200' : 'text-slate-800'}`}>Questions and responses</div>
+                        <div className={`text-[13px] flex flex-col gap-1.5 mb-4 break-words whitespace-normal ${theme === 'dark' ? 'text-slate-400' : 'text-slate-700'}`}>
+                          {msgQuestions.filter(q => q.q.trim() !== "").map((item, idx) => (
+                            <div key={idx}>{idx + 1}. {item.q}</div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="flex gap-3">
+                        <button type="button" onClick={() => setIsEditingConversations(true)} className={`border rounded-xl px-5 py-2.5 text-sm font-semibold shadow-sm flex items-center gap-2 transition cursor-pointer ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-slate-200 hover:bg-[#4E4F50]' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'}`}>
+                          <span>✎</span> Edit
+                        </button>
+                        <button type="button" className={`border rounded-xl px-5 py-2.5 text-sm font-semibold shadow-sm flex items-center gap-2 transition cursor-pointer ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-slate-200 hover:bg-[#4E4F50]' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'}`}>
+                          <span>+</span> Create template
+                        </button>
+                      </div>
+
+                    </div>
+                  )}
+
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex justify-end gap-3 pt-3 border-t dark:border-slate-700 shrink-0">
+              <button 
+                type="button" 
+                onClick={() => setIsAdDuplicateModalOpen(false)} 
+                className={`px-5 py-2.5 rounded-xl text-xs font-bold border transition cursor-pointer ${
+                  theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-slate-300 hover:bg-[#4E4F50]' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                បោះបង់ (Cancel)
+              </button>
+
+              {/* 🌟 ប៊ូតុង OK ថ្មី ភ្ជាប់ជាមួយទិន្នន័យ State ខាងលើ */}
+              <button 
+                type="button" 
+                disabled={isExecutingAdDuplicate}
+                onClick={executeAdvancedCampaignDuplicate} 
+                className="px-6 py-2.5 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-md transition cursor-pointer flex items-center gap-2 disabled:opacity-50"
+              >
+                {isExecutingAdDuplicate ? (
+                  <><div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div><span>កំពុងដំណើរការ...</span></>
+                ) : (
+                  <span>✓ យល់ព្រម Duplicate (OK)</span>
+                )}
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
       
     </div>
   );

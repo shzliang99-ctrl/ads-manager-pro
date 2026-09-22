@@ -27,13 +27,13 @@ export async function POST(request: Request) {
     const rawAdAccountId = adAccountId || process.env.FACEBOOK_AD_ACCOUNT_ID; 
 
     if (!accessToken || !rawAdAccountId) {
-      throw new Error("ប្រព័ន្ធមិនមាននាក្តោប Token ឬ Ad Account ID របស់ Facebook ទេ។ សូម Login ជាមុនសិន។");
+      throw new Error("ប្រព័ន្ធមិនមាននាក្តោប Token ឬ Ad Account ID ទេ។ សូម Login ជាមុនសិន។");
     }
 
     const targetAdAccountId = rawAdAccountId.startsWith('act_') ? rawAdAccountId : `act_${rawAdAccountId}`;
 
     // ==========================================
-    // ជំហានទី ១៖ បង្កើត Campaign
+    // ជំហានទី ១៖ បង្កើត Campaign (កំណត់ជា ACTIVE ឱ្យដំណើរការភ្លាមៗ)
     // ==========================================
     const campRes = await fetch(`https://graph.facebook.com/v18.0/${targetAdAccountId}/campaigns`, {
       method: 'POST',
@@ -41,7 +41,7 @@ export async function POST(request: Request) {
       body: JSON.stringify({
         name: campaignName || `Auto Boost Campaign`,
         objective: 'OUTCOME_ENGAGEMENT', 
-        status: 'ACTIVE', 
+        status: 'ACTIVE', // 👈 ដាក់ជា ACTIVE ឱ្យដំណើរការភ្លាមៗ
         special_ad_categories: ['NONE'], 
         is_adset_budget_sharing_enabled: false,
         access_token: accessToken,
@@ -145,7 +145,7 @@ export async function POST(request: Request) {
       billing_event: 'IMPRESSIONS',
       optimization_goal: fbOptimizationGoal, 
       bid_strategy: 'LOWEST_COST_WITHOUT_CAP',
-      status: 'ACTIVE', 
+      status: 'ACTIVE', // 👈 ដាក់ជា ACTIVE ឱ្យដំណើរការភ្លាមៗ
       targeting: targetingData,
       access_token: accessToken,
     };
@@ -247,7 +247,7 @@ export async function POST(request: Request) {
     }
 
     // ==========================================
-    // ជំហានទី ៤៖ បង្កើត Ad Creative និង Ad
+    // ជំហានទី ៤៖ បង្កើត Ad Creative និង Ad (setStatus: ACTIVE)
     // ==========================================
     const creativeRes = await fetch(`https://graph.facebook.com/v18.0/${targetAdAccountId}/adcreatives`, {
       method: 'POST',
@@ -268,7 +268,7 @@ export async function POST(request: Request) {
         name: adName || `Ad - Final`, 
         adset_id: adSetId,
         creative: { creative_id: creativeData.id },
-        status: 'ACTIVE', 
+        status: 'ACTIVE', // 👈 ដាក់ជា ACTIVE ឱ្យដំណើរការរត់ទាំងស្រុងភ្លាមៗ
         access_token: accessToken,
       })
     });
