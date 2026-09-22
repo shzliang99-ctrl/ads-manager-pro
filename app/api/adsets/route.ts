@@ -32,7 +32,8 @@ export async function GET(request: Request) {
       const campaignIds = campaignIdsParam.split(',');
       
       for (const campId of campaignIds) {
-        const url = `https://graph.facebook.com/v18.0/${campId}/adsets?fields=id,name,status,effective_status,daily_budget,lifetime_budget,end_time,bid_strategy,updated_time,insights.date_preset(${datePreset}){spend,impressions,reach,actions}&limit=500&access_token=${accessToken}`;
+        // 🌟 បន្ថែម ads{id,status,effective_status,name} ចូលក្នុង fields ដើម្បីឆែករកមើល Ad Sets ដែលគ្មាន Ads (No ads)
+        const url = `https://graph.facebook.com/v18.0/${campId}/adsets?fields=id,name,status,effective_status,daily_budget,lifetime_budget,end_time,bid_strategy,updated_time,ads{id,status,effective_status,name},insights.date_preset(${datePreset}){spend,impressions,reach,actions}&limit=500&access_token=${accessToken}`;
         
         const response = await fetch(url, { cache: 'no-store' });
         const data = await response.json();
@@ -43,14 +44,25 @@ export async function GET(request: Request) {
         }
 
         if (data.data) {
-          allAdsets = [...allAdsets, ...data.data];
+          // ពិនិត្យស្ថានភាព Ad Set ថាមាន Ads ខាងក្នុងដែរឬទេ
+          const processedAdsets = data.data.map((adset: any) => {
+            const adsList = adset.ads?.data || [];
+            
+            // បើគ្មាន Ads ខាងក្នុងសោះ ដាក់ flag ថា hasNoAds = true
+            if (adsList.length === 0) {
+              adset.hasNoAds = true; 
+            }
+            return adset;
+          });
+
+          allAdsets = [...allAdsets, ...processedAdsets];
         }
       }
     } 
     // 🌟 ករណីទាញតាម Ad Account ID ផ្ទាល់
     else if (adAccountId) {
       const targetAccount = adAccountId.startsWith('act_') ? adAccountId : `act_${adAccountId}`;
-      const url = `https://graph.facebook.com/v18.0/${targetAccount}/adsets?fields=id,name,status,effective_status,daily_budget,lifetime_budget,end_time,bid_strategy,updated_time,insights.date_preset(${datePreset}){spend,impressions,reach,actions}&limit=500&access_token=${accessToken}`;
+      const url = `https://graph.facebook.com/v18.0/${targetAccount}/adsets?fields=id,name,status,effective_status,daily_budget,lifetime_budget,end_time,bid_strategy,updated_time,ads{id,status,effective_status,name},insights.date_preset(${datePreset}){spend,impressions,reach,actions}&limit=500&access_token=${accessToken}`;
       
       const response = await fetch(url, { cache: 'no-store' });
       const data = await response.json();
@@ -59,7 +71,14 @@ export async function GET(request: Request) {
         throw new Error(data.error.message);
       }
 
-      allAdsets = data.data || [];
+      const rawAdsets = data.data || [];
+      allAdsets = rawAdsets.map((adset: any) => {
+        const adsList = adset.ads?.data || [];
+        if (adsList.length === 0) {
+          adset.hasNoAds = true;
+        }
+        return adset;
+      });
     } else {
       throw new Error("Missing Campaign ID(s) or Ad Account ID");
     }
