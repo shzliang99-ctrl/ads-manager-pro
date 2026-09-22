@@ -2,23 +2,26 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
 export async function GET(request: Request) {
-  const url = new URL(request.url);
-  const origin = url.origin;
+  const requestUrl = new URL(request.url);
+  
+  // 🌟 ចាប់យក Host និង Protocol ឱ្យបានត្រឹមត្រូវ (ការពារបញ្ហា localhost និង ngrok លើទូរសព្ទដៃ)
+  const host = request.headers.get('host') || requestUrl.host;
+  const proto = request.headers.get('x-forwarded-proto') || 'http';
+  const origin = `${proto}://${host}`;
 
   try {
-    const code = url.searchParams.get('code');
-    const stateStr = url.searchParams.get('state');
+    const code = requestUrl.searchParams.get('code');
+    const stateStr = requestUrl.searchParams.get('state');
 
     if (!code) {
       throw new Error("Missing authorization code from Facebook");
     }
 
-    // ប្រើ try-catch ការពារការគាំងពេល Decode
     let userEmail = null;
     try {
       userEmail = stateStr ? decodeURIComponent(stateStr) : null;
     } catch (e) {
-      userEmail = stateStr; // បើ Decode អត់ចេញ យកតម្លៃដើមតែម្ដង
+      userEmail = stateStr;
     }
 
     if (!userEmail) {
@@ -63,7 +66,7 @@ export async function GET(request: Request) {
       { auth: { persistSession: false } }
     );
 
-    // 6. Update Token ចូល database យ៉ាងមានសុវត្ថិភាព
+    // 6. Update Token ចូល database
     const { error: dbError } = await supabaseAdmin
       .from('customer_subscriptions')
       .update({
@@ -79,7 +82,7 @@ export async function GET(request: Request) {
       console.warn("DB Update warning (Continuing redirect):", dbError.message);
     }
 
-    // 7. Redirect ត្រឡប់ទៅ Website វិញដោយរលូន
+    // 7. Redirect ត្រឡប់ទៅ Website វិញដោយរលូន (Client-side ក្នុង page.tsx នឹងចាប់យក Token នេះដាក់ចូល localStorage ស្វ័យប្រវត្តិ)
     return NextResponse.redirect(new URL(`/?connected=true&token=${fbAccessToken}`, origin));
 
   } catch (error: any) {

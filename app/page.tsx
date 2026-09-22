@@ -1948,10 +1948,52 @@ export default function Home() {
     }
   };
 
+  // 🌟 បន្ថែម State សម្រាប់ចងចាំ Ad Sets ដែលបានជ្រើសរើស
+  const [selectedAdSets, setSelectedAdSets] = useState<string[]>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("selectedAdSets");
+      if (saved) try { return JSON.parse(saved); } catch(e) {}
+    }
+    return [];
+  });
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("selectedAdSets", JSON.stringify(selectedAdSets));
+    }
+  }, [selectedAdSets]);
+
+  // 🌟 ១. Function ប្ដូរ Status (Off/On) របស់ Campaign
   const handleToggleStatus = async (id: string, currentStatus: string) => {
-    // ==========================================================
-  // 🌟 ដាក់កូដ handleDuplicate ថ្មីនៅទីនេះ (ចន្លោះកណ្តាល)
-  // ==========================================================
+    const newStatus = currentStatus === 'ACTIVE' ? 'PAUSED' : 'ACTIVE';
+    
+    setCampaignsList(prev => prev.map(c => c.id === id ? { ...c, status: newStatus, effective_status: newStatus } : c));
+
+    try {
+      const clientToken = localStorage.getItem('fb_user_token');
+      const res = await fetch('/api/campaigns', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          id, 
+          status: newStatus,
+          access_token: clientToken 
+        })
+      });
+      
+      const data = await res.json();
+      if (!data.success) {
+        alert("❌ Facebook បដិសេធការប្ដូរ Status:\n\n" + (data.error || "Unknown error"));
+        fetchCampaigns();
+      }
+    } catch (error) {
+      console.error("Error toggling status:", error);
+      alert("❌ មានបញ្ហាតភ្ជាប់ទៅកាន់ Server!");
+      fetchCampaigns();
+    }
+  };
+
+  // 🌟 ២. Function Duplicate ឆ្លាតវៃតាម Tab (Campaigns, Ad sets, Ads)
   const handleDuplicate = async () => {
     try {
       if (activeManageTab === 'CAMPAIGNS') {
@@ -2009,42 +2051,9 @@ export default function Home() {
         if (selectedCampaigns[0]) fetchAds();
       }
     } catch (error: any) {
-      alert("មានបញ្ហាในการ Duplicate: " + error.message);
+      alert("មានបញ្ហាក្នុងការ Duplicate: " + error.message);
     }
   };
-  // ==========================================================
-  // កំណត់ស្ថានភាពថ្មី (បើ ACTIVE ទៅ PAUSED បើ PAUSED ទៅ ACTIVE)
-  const newStatus = currentStatus === 'ACTIVE' ? 'PAUSED' : 'ACTIVE';
-  
-  // 1. ធ្វើការ Update UI ជាបណ្ដោះអាសន្នភ្លាមៗ (Optimistic Update)
-  setCampaignsList(prev => prev.map(c => c.id === id ? { ...c, status: newStatus, effective_status: newStatus } : c));
-
-  try {
-    // 2. បាញ់សំណើទៅកាន់ API ខាងក្រោយ
-    const clientToken = localStorage.getItem('fb_user_token');
-    const res = await fetch('/api/campaigns', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        id, 
-        status: newStatus,
-        access_token: clientToken 
-      })
-    });
-    
-    const data = await res.json();
-    
-    if (!data.success) {
-      alert("❌ Facebook បដិសេធការប្ដូរ Status:\n\n" + (data.error || "Unknown error"));
-      // បើបរាជ័យ ត្រូវទាញយកទិន្នន័យពិតប្រាកដពី Facebook មកវិញ
-      fetchCampaigns();
-    }
-  } catch (error) {
-    console.error("Error toggling status:", error);
-    alert("❌ មានបញ្ហាតភ្ជាប់ទៅកាន់ Server!");
-    fetchCampaigns();
-  }
-};
 
   // 🌟 មុខងារលុប Ad ជាក់លាក់ដែលបានធីក (Tick) មិនឱ្យប៉ះពាល់ Ad ផ្សេងឡើយ
   const handleDeleteSelectedAds = async () => {
@@ -5024,11 +5033,8 @@ const fetchAdsets = async () => {
                     <button 
                       type="button"
                       onClick={() => {
-                        if (selectedCampaigns.length === 0) {
-                          alert("⚠️ សូមជ្រើសរើស Campaign យ៉ាងហោចណាស់ ១ ជាមុនសិន!");
-                          return;
-                        }
-                        handleOpenDuplicateModal();
+                        // 🌟 ហៅមុខងារ Duplicate ឆ្លាតវៃថ្មីដែលបែងចែកតាម Tab នីមួយៗ
+                        handleDuplicate();
                       }}
                       className="font-bold py-2 px-3 rounded-lg text-[13px] flex items-center justify-center gap-1.5 transition cursor-pointer bg-blue-600 hover:bg-blue-700 text-white border-transparent"
                     >
