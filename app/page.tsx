@@ -3604,162 +3604,87 @@ const handleOpenDuplicateModal = () => {
         </div>
       )}
 
-      {/* Global Header */}
-      <header className={`${theme === 'dark' ? 'bg-[#18191A] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-900'} shadow-sm py-3 px-3 lg:px-8 flex flex-wrap items-center justify-between sticky top-0 z-30 border-b transition-colors duration-300 gap-3`}>
+      {/* ========================================================= */}
+      {/* 🌟 Global Header (រចនាថ្មីសម្រាប់ Mobile App កុំឱ្យជាន់គ្នា) */}
+      {/* ========================================================= */}
+      <header className={`${theme === 'dark' ? 'bg-[#18191A] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-900'} shadow-sm p-3 flex flex-col md:flex-row md:items-center justify-between sticky top-0 z-50 border-b transition-colors duration-300 gap-3`}>
         
-        {/* ផ្នែកទី១៖ Logo & Title */}
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-10 h-10 bg-white rounded-[22.5%] overflow-hidden shadow-sm border border-slate-200 flex items-center justify-center shrink-0">
-            <img 
-              src="/logo.png"
-              alt="1 Click Boost Logo" 
-              className="w-[85%] h-[85%] object-contain pointer-events-none" 
-            />
+        {/* ជួរទី១ សម្រាប់ Mobile (Logo និងប៊ូតុង Connect Facebook) */}
+        <div className="flex items-center justify-between w-full md:w-auto gap-3">
+          {/* Logo */}
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 bg-white rounded-[22.5%] overflow-hidden shadow-sm border border-slate-200 flex items-center justify-center shrink-0">
+              <img src="/logo.png" alt="1 Click Boost Logo" className="w-[85%] h-[85%] object-contain pointer-events-none" />
+            </div>
+            <h1 className="text-sm sm:text-lg font-black text-blue-600 truncate">Ads Manager Pro</h1>
           </div>
-          <h1 className="text-sm sm:text-lg font-black text-blue-600 truncate">Ads Manager Pro</h1>
-        </div>
 
-        {/* ផ្នែកប៊ូតុង Connect Facebook & Logout */}
-        <div className="flex items-center gap-2">
-          {isFbConnected ? (
-            <div className="flex items-center gap-2">
-              <div className="px-3 py-1.5 bg-green-500 text-white font-bold rounded-lg flex items-center gap-1.5 text-xs shadow-sm shrink-0 cursor-default">
-                <span>✅</span> <span className="hidden md:inline">{fbPageName || "Connected"}</span>
-              </div>
-              
-              <button 
-                onClick={async () => {
-                  try {
-                    localStorage.removeItem('fb_user_token');
-                    localStorage.removeItem('selectedPage');
-                    localStorage.removeItem('selectedAdAccount');
-                    setIsFbConnected(false);
-                    setFbPageName("");
-
-                    const { data: { user } } = await supabase.auth.getUser();
-                    if (user && user.email) {
-                      await supabase
-                        .from('customer_subscriptions')
-                        .update({ access_token: null, page_id: null, page_name: null, ad_account_id: null })
-                        .eq('email', user.email);
-                    }
-
-                    window.location.href = window.location.origin;
-                  } catch (err) {
-                    console.error("Disconnect error:", err);
-                    window.location.reload();
-                  }
-                }}
-                className={`px-3 py-1.5 font-bold rounded-lg border text-xs transition shadow-sm shrink-0 cursor-pointer flex items-center gap-1 ${
-                  theme === 'dark' 
-                    ? 'bg-red-950/40 border-red-900/50 text-red-400 hover:bg-red-900/40' 
-                    : 'bg-white border-red-200 text-red-600 hover:bg-red-50'
-                }`}
-              >
-                <span>🚪</span> <span>Disconnect</span>
-              </button>
-            </div>
-          ) : (
-            <button 
-              type="button"
-              onClick={handleFacebookConnect}
-              className="px-3.5 py-1.5 bg-[#1877F2] text-white font-bold rounded-lg hover:bg-blue-600 transition flex items-center gap-1.5 text-xs shadow-sm shrink-0 cursor-pointer"
-            >
-              <span>🔄</span> <span>Connect Facebook</span>
-            </button>
-          )}
-        </div>
-
-        {/* ផ្នែកទី៣៖ Controls (Language, Theme, Ad Account, Reporting) */}
-        <div className="flex items-center flex-wrap gap-2 ml-auto lg:ml-0">
-          
-          {/* 🌟 ដាក់ Badge បង្ហាញថ្ងៃសេវាកម្មនៅសល់នៅទីនេះ (ស្ថិតនៅពីលើ Language Dropdown) */}
-          {clientExpiryDaysLeft !== null && (
-            <div className={`px-3 h-8 flex items-center gap-1.5 rounded-full text-xs font-bold border shadow-xs ${
-              clientExpiryDaysLeft < 0 
-                ? 'bg-red-500/10 border-red-500/30 text-red-500' 
-                : clientExpiryDaysLeft <= 3 
-                ? 'bg-amber-500/10 border-amber-500/30 text-amber-600 animate-pulse' 
-                : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600'
-            }`}>
-              <span>⏳</span>
-              <span>
-                {clientExpiryDaysLeft < 0 
-                  ? `ផុតកំណត់សេវា (${Math.abs(clientExpiryDaysLeft)} ថ្ងៃមុន)` 
-                  : clientExpiryDaysLeft === 0 
-                  ? 'ផុតកំណត់ថ្ងៃនេះ!' 
-                  : `សេវាកម្មនៅសល់៖ ${clientExpiryDaysLeft} ថ្ងៃ`}
-              </span>
-            </div>
-          )}
-
-          {/* 🌟 Language Dropdown (ខ្មែរ / English) */}
-          <div className="relative">
-            <button 
-              type="button"
-              onClick={() => setIsLangMenuOpen(!isLangMenuOpen)} 
-              className={`px-3 h-8 flex items-center gap-2 rounded-full font-bold text-xs shadow-sm transition-all cursor-pointer border group ${
-                theme === 'dark' 
-                  ? 'bg-[#242526] border-slate-600 text-slate-100 hover:border-blue-500' 
-                  : 'bg-white border-slate-300 text-slate-700 hover:border-blue-500'
-              }`}
-              title="ប្តូរភាសា / Change Language"
-            >
-              <div className="w-4 h-4 rounded-full bg-blue-500/10 text-blue-600 flex items-center justify-center text-[10px]">
-                🌐
-              </div>
-              <span className="tracking-wide font-extrabold text-[11px]">
-                {lang === 'kh' ? 'ភាសាខ្មែរ (KH)' : 'English (EN)'}
-              </span>
-              <span className="text-[9px] opacity-60 ml-[-2px]">▼</span>
-            </button>
-
-            {isLangMenuOpen && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setIsLangMenuOpen(false)}></div>
-                <div className={`absolute top-[110%] right-0 w-[160px] border rounded-xl shadow-xl z-50 p-1.5 flex flex-col ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-800'}`}>
-                  <div 
-                    onClick={() => { setLang('kh'); setIsLangMenuOpen(false); showToast("🇰🇭 បានប្ដូរទៅជាភាសាខ្មែរ", "success"); }}
-                    className={`p-2.5 rounded-lg text-xs cursor-pointer transition flex items-center justify-between ${lang === 'kh' ? 'bg-blue-600 text-white font-bold' : 'hover:bg-slate-100 dark:hover:bg-[#3A3B3C]'}`}
-                  >
-                    <span>🇰🇭 ភាសាខ្មែរ (KH)</span>
-                    {lang === 'kh' && <span>✓</span>}
-                  </div>
-                  <div 
-                    onClick={() => { setLang('en'); setIsLangMenuOpen(false); showToast("🇺🇸 Switched to English", "success"); }}
-                    className={`p-2.5 rounded-lg text-xs cursor-pointer transition flex items-center justify-between ${lang === 'en' ? 'bg-blue-600 text-white font-bold' : 'hover:bg-slate-100 dark:hover:bg-[#3A3B3C]'}`}
-                  >
-                    <span>🇺🇸 English (EN)</span>
-                    {lang === 'en' && <span>✓</span>}
-                  </div>
+          {/* ផ្នែកប៊ូតុង Connect Facebook & Logout */}
+          <div className="flex items-center gap-2">
+            {isFbConnected ? (
+              <div className="flex items-center gap-2">
+                <div className="px-3 py-2 bg-green-500 text-white font-bold rounded-xl flex items-center gap-1.5 text-xs shadow-sm shrink-0 cursor-default">
+                  <span>✅</span> <span className="hidden md:inline">{fbPageName || "Connected"}</span>
                 </div>
-              </>
+                
+                <button 
+                  onClick={async () => {
+                    try {
+                      localStorage.removeItem('fb_user_token');
+                      localStorage.removeItem('selectedPage');
+                      localStorage.removeItem('selectedAdAccount');
+                      setIsFbConnected(false);
+                      setFbPageName("");
+
+                      const { data: { user } } = await supabase.auth.getUser();
+                      if (user && user.email) {
+                        await supabase
+                          .from('customer_subscriptions')
+                          .update({ access_token: null, page_id: null, page_name: null, ad_account_id: null })
+                          .eq('email', user.email);
+                      }
+
+                      window.location.href = window.location.origin;
+                    } catch (err) {
+                      console.error("Disconnect error:", err);
+                      window.location.reload();
+                    }
+                  }}
+                  className={`px-3 py-2 font-bold rounded-xl border text-xs transition shadow-sm shrink-0 cursor-pointer flex items-center gap-1.5 ${
+                    theme === 'dark' 
+                      ? 'bg-red-950/40 border-red-900/50 text-red-400 hover:bg-red-900/40' 
+                      : 'bg-white border-red-200 text-red-600 hover:bg-red-50'
+                  }`}
+                >
+                  <span>🚪</span> <span className="hidden sm:inline">Disconnect</span>
+                </button>
+              </div>
+            ) : (
+              <button 
+                type="button"
+                onClick={handleFacebookConnect}
+                className="px-3.5 py-2 bg-[#1877F2] text-white font-bold rounded-xl hover:bg-blue-600 transition flex items-center gap-1.5 text-xs shadow-sm shrink-0 cursor-pointer"
+              >
+                <span>🔄</span> <span className="hidden sm:inline">Connect Facebook</span>
+              </button>
             )}
           </div>
+        </div>
 
-          {/* ប៊ូតុងផ្លាស់ប្តូរ យប់/ថ្ងៃ (នៅជាប់ខាងក្រោម Language Dropdown) */}
-          <button 
-            onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} 
-            className={`w-8 h-8 flex items-center justify-center rounded-full text-base shadow-sm transition-all cursor-pointer ${theme === 'dark' ? 'bg-slate-700 hover:bg-slate-600' : 'bg-slate-100 hover:bg-slate-200'}`}
-            title="ប្តូរទម្រង់ យប់/ថ្ងៃ"
-          >
-            {theme === 'light' ? '🌙' : '☀️'}
-          </button>
-
+        {/* ជួរទី២ សម្រាប់ Mobile (Ad Account, Date, Lang, Theme - រៀបចំឱ្យស្អាតស្មើគ្នា) */}
+        <div className="flex items-center w-full md:w-auto gap-2.5">
+          
           {/* Ad Account Dropdown */}
-          <div className="relative">
+          <div className="relative flex-1 md:flex-none">
             <div 
               onClick={() => setIsAccountMenuOpen(!isAccountMenuOpen)}
-              className={`${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-white hover:bg-[#3A3B3C]' : 'bg-white border-slate-300 text-slate-800 hover:bg-slate-50'} border rounded-lg px-2.5 py-1 flex items-center gap-1.5 cursor-pointer shadow-sm transition max-w-[140px] sm:max-w-[180px] lg:max-w-[220px] justify-between h-[38px]`}
+              className={`${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-white hover:bg-[#3A3B3C]' : 'bg-white border-slate-300 text-slate-800 hover:bg-slate-50'} border rounded-xl px-2.5 py-1.5 flex items-center justify-between cursor-pointer shadow-sm transition h-[44px] w-full md:w-[180px] lg:w-[220px]`}
             >
-              <div className="flex items-center gap-1.5 text-left truncate min-w-0">
-                <span className="text-xs shrink-0 hidden sm:inline-block">🖥️</span>
-                <div className="flex flex-col truncate min-w-0">
-                  <span className={`text-[11px] font-bold truncate ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>
-                    {adAccountsList.find(acc => acc.account_id === selectedAdAccount)?.name || "Account"}
-                  </span>
-                  <span className="text-[9px] text-slate-400 truncate">ID: {selectedAdAccount}</span>
-                </div>
+              <div className="flex flex-col truncate min-w-0">
+                <span className={`text-[12px] font-bold truncate leading-tight ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>
+                  {adAccountsList.find(acc => acc.account_id === selectedAdAccount)?.name || "Ad Account"}
+                </span>
+                <span className="text-[10px] text-slate-400 truncate">ID: {selectedAdAccount}</span>
               </div>
               <span className="text-[10px] text-slate-400 ml-1 shrink-0">▼</span>
             </div>
@@ -3767,18 +3692,18 @@ const handleOpenDuplicateModal = () => {
             {isAccountMenuOpen && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setIsAccountMenuOpen(false)}></div>
-                <div className={`absolute top-[110%] right-0 w-[280px] border rounded-xl shadow-2xl z-50 p-2 flex flex-col gap-2 ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-white' : 'bg-white border-slate-300'}`}>
+                <div className={`absolute top-[115%] left-0 md:right-0 md:left-auto w-[280px] border rounded-xl shadow-2xl z-50 p-2 flex flex-col gap-2 ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-white' : 'bg-white border-slate-300'}`}>
                   <div className="text-xs font-bold text-slate-400 px-3 py-1">{adAccountsList.length} ad accounts</div>
-                  <div className="max-h-[250px] overflow-y-auto">
+                  <div className="max-h-[250px] overflow-y-auto custom-scrollbar">
                     {adAccountsList.map((acc: any) => (
                       <div 
                         key={acc.account_id}
                         onClick={() => {
                           const cleanId = acc.account_id.replace('act_', '');
                           setSelectedAdAccount(cleanId);
-                          localStorage.setItem("selectedAdAccount", cleanId); // 👈 រក្សាទុកអចិន្ត្រៃយ៍
+                          localStorage.setItem("selectedAdAccount", cleanId);
                           setIsAccountMenuOpen(false);
-                          fetchCampaigns(); // 👈 ទាញយក Campaign របស់ Account នេះភ្លាម
+                          fetchCampaigns();
                         }}
                         className={`p-2.5 rounded-lg border flex items-center justify-between cursor-pointer transition mb-1 ${selectedAdAccount === acc.account_id ? (theme === 'dark' ? 'bg-blue-900/40 border-blue-600' : 'bg-blue-50/60 border-blue-300') : (theme === 'dark' ? 'border-slate-700 hover:bg-[#3A3B3C]' : 'border-slate-200 hover:bg-slate-50')}`}
                       >
@@ -3798,22 +3723,22 @@ const handleOpenDuplicateModal = () => {
           </div>
 
           {/* Date Preset Dropdown */}
-          <div className="relative">
+          <div className="relative flex-1 md:flex-none">
             <div 
               onClick={() => setIsDateMenuOpen(!isDateMenuOpen)}
-              className={`${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-white hover:bg-[#3A3B3C]' : 'bg-white border-slate-300 text-slate-800 hover:bg-slate-50'} border rounded-lg px-2.5 py-1 flex items-center gap-1.5 cursor-pointer shadow-sm transition max-w-[120px] sm:max-w-[155px] h-[38px] justify-between`}
+              className={`${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-white hover:bg-[#3A3B3C]' : 'bg-white border-slate-300 text-slate-800 hover:bg-slate-50'} border rounded-xl px-2.5 py-1.5 flex items-center justify-between cursor-pointer shadow-sm transition h-[44px] w-full md:w-[140px]`}
             >
-              <div className="flex flex-col text-left truncate min-w-0">
-                 <span className="text-[9px] font-bold text-slate-400 uppercase">Reporting</span>
-                 <span className={`text-[11px] font-bold truncate leading-tight ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>{getSelectedDateLabel()}</span>
+              <div className="flex flex-col truncate min-w-0">
+                 <span className="text-[9px] font-bold text-slate-400 uppercase leading-none mb-0.5">Reporting</span>
+                 <span className={`text-[12px] font-bold truncate leading-tight ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>{getSelectedDateLabel()}</span>
               </div>
-              <span className="text-[10px] text-slate-400 shrink-0">▼</span>
+              <span className="text-[10px] text-slate-400 ml-1 shrink-0">▼</span>
             </div>
 
             {isDateMenuOpen && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setIsDateMenuOpen(false)}></div>
-                <div className={`absolute top-[110%] right-0 w-[180px] border rounded-xl shadow-2xl z-50 p-1.5 flex flex-col ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-white' : 'bg-white border-slate-300'}`}>
+                <div className={`absolute top-[115%] right-0 w-[180px] border rounded-xl shadow-2xl z-50 p-1.5 flex flex-col ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-white' : 'bg-white border-slate-300'}`}>
                   {datePresetOptions.map((option) => (
                     <div 
                       key={option.value}
@@ -3831,6 +3756,48 @@ const handleOpenDuplicateModal = () => {
                 </div>
               </>
             )}
+          </div>
+
+          {/* Lang & Theme Icons (ប្រអប់តូចៗនៅកៀន) */}
+          <div className="flex items-center gap-1.5 shrink-0">
+             <button 
+               onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} 
+               title="ប្តូរទម្រង់ យប់/ថ្ងៃ"
+               className={`w-[44px] h-[44px] flex items-center justify-center rounded-xl text-lg shadow-sm transition border ${theme === 'dark' ? 'bg-[#242526] border-slate-700 hover:bg-[#3A3B3C]' : 'bg-white border-slate-300 hover:bg-slate-50'}`}
+             >
+               {theme === 'light' ? '🌙' : '☀️'}
+             </button>
+
+             <div className="relative">
+                <button 
+                  onClick={() => setIsLangMenuOpen(!isLangMenuOpen)} 
+                  title="ប្តូរភាសា / Change Language"
+                  className={`w-[44px] h-[44px] flex items-center justify-center rounded-xl text-lg shadow-sm transition border ${theme === 'dark' ? 'bg-[#242526] border-slate-700 hover:bg-[#3A3B3C]' : 'bg-white border-slate-300 hover:bg-slate-50'}`}
+                >
+                  🌐
+                </button>
+                {isLangMenuOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setIsLangMenuOpen(false)}></div>
+                    <div className={`absolute top-[115%] right-0 w-[160px] border rounded-xl shadow-xl z-50 p-1.5 flex flex-col ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-800'}`}>
+                      <div 
+                        onClick={() => { setLang('kh'); setIsLangMenuOpen(false); showToast("🇰🇭 បានប្ដូរទៅជាភាសាខ្មែរ", "success"); }}
+                        className={`p-2.5 rounded-lg text-xs cursor-pointer transition flex items-center justify-between ${lang === 'kh' ? 'bg-blue-600 text-white font-bold' : 'hover:bg-slate-100 dark:hover:bg-[#3A3B3C]'}`}
+                      >
+                        <span>🇰🇭 ភាសាខ្មែរ (KH)</span>
+                        {lang === 'kh' && <span>✓</span>}
+                      </div>
+                      <div 
+                        onClick={() => { setLang('en'); setIsLangMenuOpen(false); showToast("🇺🇸 Switched to English", "success"); }}
+                        className={`p-2.5 rounded-lg text-xs cursor-pointer transition flex items-center justify-between ${lang === 'en' ? 'bg-blue-600 text-white font-bold' : 'hover:bg-slate-100 dark:hover:bg-[#3A3B3C]'}`}
+                      >
+                        <span>🇺🇸 English (EN)</span>
+                        {lang === 'en' && <span>✓</span>}
+                      </div>
+                    </div>
+                  </>
+                )}
+             </div>
           </div>
 
         </div>
@@ -6267,148 +6234,148 @@ const handleOpenDuplicateModal = () => {
                 </div>
 
                 {/* ========================================================= */}
-{/* 🌟 ផ្ទាំង Tab ទាំង ៣៖ បែងចែកដាច់ពីគ្នារវាង Website និង Mobile App ១០០% */}
-{/* ========================================================= */}
+                {/* 🌟 ផ្ទាំង Tab ទាំង ៣៖ បែងចែកដាច់ពីគ្នារវាង Website និង Mobile App ១០០% */}
+                {/* ========================================================= */}
 
-{/* 1. សម្រាប់ WEBSITE (បង្ហាញចំនួន Selected ត្រឹមត្រូវតាម Tab នីមួយៗ និងបញ្ចូល AI Audit ទៅក្នុង Tab Ads) */}
-<div className={`sticky top-[64px] z-30 px-3 pt-2 border-b hidden md:flex flex-col sm:flex-row justify-between items-start sm:items-end text-[13px] select-none gap-2 transition-colors shadow-sm ${
-  theme === 'dark' ? 'bg-[#18191A] border-slate-700 text-slate-300' : 'bg-[#F5F6F8] border-slate-200 text-slate-700'
-}`}>
-  
-  {/* ផ្នែកខាងឆ្វេង៖ Tabs ទាំង ៣ */}
-  <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto pb-1 custom-scrollbar">
-    
-    {/* Tab: Campaigns */}
-    <div className={`flex items-center gap-1.5 px-3 py-2 border-t border-l border-r rounded-t-md transition cursor-pointer shrink-0 ${
-      activeManageTab === 'CAMPAIGNS' 
-        ? (theme === 'dark' ? 'bg-[#242526] border-slate-700 border-b-[#242526] font-bold text-white -mb-[1px] shadow-sm' : 'bg-white border-slate-300 border-b-white font-bold text-slate-900 -mb-[1px] shadow-sm') 
-        : (theme === 'dark' ? 'border-transparent hover:bg-[#3A3B3C]' : 'border-transparent hover:bg-slate-200/60')
-    }`}>
-      <button onClick={() => { setActiveManageTab('CAMPAIGNS'); localStorage.setItem('activeManageTab', 'CAMPAIGNS'); }} className="flex items-center gap-1.5 cursor-pointer">
-        <span className="text-blue-500 font-bold">📁</span> 
-        <span>
-          Campaigns
-          {selectedCampaigns.filter(id => campaignsList.some(c => c.id === id)).length === 0 && campaignsList.length > 0 && ` (${campaignsList.length})`}
-        </span>
-      </button>
-      {selectedCampaigns.filter(id => campaignsList.some(c => c.id === id)).length > 0 && (
-        <span className="ml-1 px-2 py-0.5 bg-[#1877F2] text-white rounded-full text-[11px] font-bold flex items-center gap-1 shadow-xs">
-          {selectedCampaigns.filter(id => campaignsList.some(c => c.id === id)).length} selected
-          <span onClick={(e) => { e.stopPropagation(); handleEditCampaign(); }} className="hover:text-blue-200 cursor-pointer underline">Edit</span>
-        </span>
-      )}
-    </div>
+                {/* 1. សម្រាប់ WEBSITE (បង្ហាញចំនួន Selected ត្រឹមត្រូវតាមចំនួនจริง និងមានប៊ូតុង AI Audit ក្នុង Tab Ads) */}
+                <div className={`sticky top-[118px] md:top-[74px] z-30 px-3 pt-2 border-b hidden md:flex flex-col sm:flex-row justify-between items-start sm:items-end text-[13px] select-none gap-2 transition-colors shadow-sm ${
+                  theme === 'dark' ? 'bg-[#18191A] border-slate-700 text-slate-300' : 'bg-[#F5F6F8] border-slate-200 text-slate-700'
+                }`}>
+                  
+                  {/* ផ្នែកខាងឆ្វេង៖ Tabs ទាំង ៣ */}
+                  <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto pb-1 custom-scrollbar">
+                    
+                    {/* Tab: Campaigns */}
+                    <div className={`flex items-center gap-1.5 px-3 py-2 border-t border-l border-r rounded-t-md transition cursor-pointer shrink-0 ${
+                      activeManageTab === 'CAMPAIGNS' 
+                        ? (theme === 'dark' ? 'bg-[#242526] border-slate-700 border-b-[#242526] font-bold text-white -mb-[1px] shadow-sm' : 'bg-white border-slate-300 border-b-white font-bold text-slate-900 -mb-[1px] shadow-sm') 
+                        : (theme === 'dark' ? 'border-transparent hover:bg-[#3A3B3C]' : 'border-transparent hover:bg-slate-200/60')
+                    }`}>
+                      <button onClick={() => { setActiveManageTab('CAMPAIGNS'); localStorage.setItem('activeManageTab', 'CAMPAIGNS'); }} className="flex items-center gap-1.5 cursor-pointer">
+                        <span className="text-blue-500 font-bold">📁</span> 
+                        <span>
+                          Campaigns
+                          {selectedCampaigns.filter(id => campaignsList.some(c => c.id === id)).length === 0 && campaignsList.length > 0 && ` (${campaignsList.length})`}
+                        </span>
+                      </button>
+                      {selectedCampaigns.filter(id => campaignsList.some(c => c.id === id)).length > 0 && (
+                        <span className="ml-1 px-2 py-0.5 bg-[#1877F2] text-white rounded-full text-[11px] font-bold flex items-center gap-1 shadow-xs">
+                          {selectedCampaigns.filter(id => campaignsList.some(c => c.id === id)).length} selected
+                          <span onClick={(e) => { e.stopPropagation(); handleEditCampaign(); }} className="hover:text-blue-200 cursor-pointer underline">Edit</span>
+                        </span>
+                      )}
+                    </div>
 
-    {/* Tab: Ad sets (បង្ហាញចំនួន Selected តែពេលមានមែនទែន) */}
-    <div className={`flex items-center gap-1.5 px-3 py-2 border-t border-l border-r rounded-t-md transition cursor-pointer shrink-0 ${
-      activeManageTab === 'ADSETS' 
-        ? (theme === 'dark' ? 'bg-[#242526] border-slate-700 border-b-[#242526] font-bold text-white -mb-[1px] shadow-sm' : 'bg-white border-slate-300 border-b-white font-bold text-slate-900 -mb-[1px] shadow-sm') 
-        : (theme === 'dark' ? 'border-transparent hover:bg-[#3A3B3C]' : 'border-transparent hover:bg-slate-200/60')
-    }`}>
-      <button onClick={() => { setActiveManageTab('ADSETS'); localStorage.setItem('activeManageTab', 'ADSETS'); }} className="flex items-center gap-1.5 cursor-pointer">
-        <span className="text-indigo-500 font-bold">⊞</span> 
-        <span>
-          Ad sets
-          {selectedAdSets.filter(id => adsetsList.some(a => a.id === id)).length === 0 && adsetsList.length > 0 && ` (${adsetsList.length})`}
-        </span>
-      </button>
-      {selectedAdSets.filter(id => adsetsList.some(a => a.id === id)).length > 0 && (
-        <span className="ml-1 px-2 py-0.5 bg-indigo-600 text-white rounded-full text-[11px] font-bold">
-          {selectedAdSets.filter(id => adsetsList.some(a => a.id === id)).length} selected
-        </span>
-      )}
-    </div>
+                    {/* Tab: Ad sets (បង្ហាញចំនួន Selected តែពេលមានមែនទែន) */}
+                    <div className={`flex items-center gap-1.5 px-3 py-2 border-t border-l border-r rounded-t-md transition cursor-pointer shrink-0 ${
+                      activeManageTab === 'ADSETS' 
+                        ? (theme === 'dark' ? 'bg-[#242526] border-slate-700 border-b-[#242526] font-bold text-white -mb-[1px] shadow-sm' : 'bg-white border-slate-300 border-b-white font-bold text-slate-900 -mb-[1px] shadow-sm') 
+                        : (theme === 'dark' ? 'border-transparent hover:bg-[#3A3B3C]' : 'border-transparent hover:bg-slate-200/60')
+                    }`}>
+                      <button onClick={() => { setActiveManageTab('ADSETS'); localStorage.setItem('activeManageTab', 'ADSETS'); }} className="flex items-center gap-1.5 cursor-pointer">
+                        <span className="text-indigo-500 font-bold">⊞</span> 
+                        <span>
+                          Ad sets
+                          {selectedAdSets.filter(id => adsetsList.some(a => a.id === id)).length === 0 && adsetsList.length > 0 && ` (${adsetsList.length})`}
+                        </span>
+                      </button>
+                      {selectedAdSets.filter(id => adsetsList.some(a => a.id === id)).length > 0 && (
+                        <span className="ml-1 px-2 py-0.5 bg-indigo-600 text-white rounded-full text-[11px] font-bold">
+                          {selectedAdSets.filter(id => adsetsList.some(a => a.id === id)).length} selected
+                        </span>
+                      )}
+                    </div>
 
-    {/* Tab: Ads (បញ្ចូល AI Audit ទៅក្នុងនេះតែមួយ) */}
-    <div className={`flex items-center gap-2 px-3 py-2 border-t border-l border-r rounded-t-md transition cursor-pointer shrink-0 ${
-      activeManageTab === 'ADS' 
-        ? (theme === 'dark' ? 'bg-[#242526] border-slate-700 border-b-[#242526] font-bold text-white -mb-[1px] shadow-sm' : 'bg-white border-slate-300 border-b-white font-bold text-slate-900 -mb-[1px] shadow-sm') 
-        : (theme === 'dark' ? 'border-transparent hover:bg-[#3A3B3C]' : 'border-transparent hover:bg-slate-200/60')
-    }`}>
-      <button onClick={() => { setActiveManageTab('ADS'); localStorage.setItem('activeManageTab', 'ADS'); }} className="flex items-center gap-1.5 cursor-pointer">
-        <span className="text-sky-500 font-bold">📄</span> 
-        <span>
-          Ads
-          {selectedAds.filter(id => adsList.some(a => a.id === id)).length === 0 && adsList.length > 0 && ` (${adsList.length})`}
-        </span>
-      </button>
+                    {/* Tab: Ads (បញ្ចូល AI Audit ទៅក្នុងនេះតែមួយ) */}
+                    <div className={`flex items-center gap-2 px-3 py-2 border-t border-l border-r rounded-t-md transition cursor-pointer shrink-0 ${
+                      activeManageTab === 'ADS' 
+                        ? (theme === 'dark' ? 'bg-[#242526] border-slate-700 border-b-[#242526] font-bold text-white -mb-[1px] shadow-sm' : 'bg-white border-slate-300 border-b-white font-bold text-slate-900 -mb-[1px] shadow-sm') 
+                        : (theme === 'dark' ? 'border-transparent hover:bg-[#3A3B3C]' : 'border-transparent hover:bg-slate-200/60')
+                    }`}>
+                      <button onClick={() => { setActiveManageTab('ADS'); localStorage.setItem('activeManageTab', 'ADS'); }} className="flex items-center gap-1.5 cursor-pointer">
+                        <span className="text-sky-500 font-bold">📄</span> 
+                        <span>
+                          Ads
+                          {selectedAds.filter(id => adsList.some(a => a.id === id)).length === 0 && adsList.length > 0 && ` (${adsList.length})`}
+                        </span>
+                      </button>
 
-      {selectedAds.filter(id => adsList.some(a => a.id === id)).length > 0 && (
-        <span className="px-2 py-0.5 bg-sky-600 text-white rounded-full text-[11px] font-bold">
-          {selectedAds.filter(id => adsList.some(a => a.id === id)).length} selected
-        </span>
-      )}
+                      {selectedAds.filter(id => adsList.some(a => a.id === id)).length > 0 && (
+                        <span className="px-2 py-0.5 bg-sky-600 text-white rounded-full text-[11px] font-bold">
+                          {selectedAds.filter(id => adsList.some(a => a.id === id)).length} selected
+                        </span>
+                      )}
 
-      {/* ខណ្ឌបន្ទាត់បញ្ឈរតូចមួយ ដើម្បីឱ្យមើលទៅស្អាត */}
-      <div className="w-px h-4 bg-slate-300 dark:bg-slate-600 mx-0.5"></div>
+                      {/* ខណ្ឌបន្ទាត់បញ្ឈរតូចមួយ ដើម្បីឱ្យមើលទៅស្អាត */}
+                      <div className="w-px h-4 bg-slate-300 dark:bg-slate-600 mx-0.5"></div>
 
-      {/* ប៊ូតុង AI Audit ស្ថិតក្នុងប្រអប់ Tab Ads តែមួយ */}
-      <button 
-        type="button"
-        onClick={(e) => { 
-          e.stopPropagation(); 
-          setActiveManageTab('ADS'); 
-          localStorage.setItem('activeManageTab', 'ADS'); 
-        }}
-        className="inline-flex items-center gap-1 px-2.5 py-1 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold rounded-md text-[11px] shadow-sm animate-pulse cursor-pointer transition"
-      >
-        <span>✨</span> <span>AI Audit</span>
-      </button>
-    </div>
+                      {/* ប៊ូតុង AI Audit ស្ថិតក្នុងប្រអប់ Tab Ads តែមួយ */}
+                      <button 
+                        type="button"
+                        onClick={(e) => { 
+                          e.stopPropagation(); 
+                          setActiveManageTab('ADS'); 
+                          localStorage.setItem('activeManageTab', 'ADS'); 
+                        }}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold rounded-md text-[11px] shadow-sm animate-pulse cursor-pointer transition"
+                      >
+                        <span>✨</span> <span>AI Audit</span>
+                      </button>
+                    </div>
 
-  </div>
+                  </div>
 
-  {/* ផ្នែកខាងស្តាំ៖ Columns និង Breakdown */}
-  <div className="hidden sm:flex gap-2 pb-1.5 w-full sm:w-auto justify-end">
-    <button className={`flex items-center gap-1.5 border px-2.5 py-1 rounded text-[12px] font-semibold shadow-xs cursor-pointer ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-slate-200 hover:bg-[#4E4F50]' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'}`}>Columns: Performance ▼</button>
-    <button className={`flex items-center gap-1.5 border px-2.5 py-1 rounded text-[12px] font-semibold shadow-xs cursor-pointer ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-slate-200 hover:bg-[#4E4F50]' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'}`}>Breakdown ▼</button>
-  </div>
+                  {/* ផ្នែកខាងស្តាំ៖ Columns និង Breakdown */}
+                  <div className="hidden sm:flex gap-2 pb-1.5 w-full sm:w-auto justify-end">
+                    <button className={`flex items-center gap-1.5 border px-2.5 py-1 rounded text-[12px] font-semibold shadow-xs cursor-pointer ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-slate-200 hover:bg-[#4E4F50]' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'}`}>Columns: Performance ▼</button>
+                    <button className={`flex items-center gap-1.5 border px-2.5 py-1 rounded text-[12px] font-semibold shadow-xs cursor-pointer ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-slate-200 hover:bg-[#4E4F50]' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'}`}>Breakdown ▼</button>
+                  </div>
 
-</div>
+                </div>
 
 
-{/* 2. សម្រាប់ MOBILE APP (ទម្រង់ Grid ៣ ស្មើគ្នា ដាច់ដោយឡែកពី Website) */}
-<div className={`sticky top-[64px] z-30 px-3 pt-2 border-b grid md:hidden grid-cols-3 gap-2 text-[13px] select-none transition-colors shadow-sm ${
-  theme === 'dark' ? 'bg-[#18191A] border-slate-700 text-slate-300' : 'bg-[#F5F6F8] border-slate-200 text-slate-700'
-}`}>
-  
-  {/* Mobile Tab: Campaigns */}
-  <div className={`flex items-center justify-center gap-1 px-1 py-2 border-t border-l border-r rounded-t-md transition cursor-pointer text-center ${
-    activeManageTab === 'CAMPAIGNS' 
-      ? (theme === 'dark' ? 'bg-[#242526] border-slate-700 border-b-[#242526] font-bold text-white -mb-[1px] shadow-sm' : 'bg-white border-slate-300 border-b-white font-bold text-slate-900 -mb-[1px] shadow-sm') 
-      : (theme === 'dark' ? 'border-transparent hover:bg-[#3A3B3C]' : 'border-transparent hover:bg-slate-200/60')
-  }`}>
-    <button onClick={() => { setActiveManageTab('CAMPAIGNS'); localStorage.setItem('activeManageTab', 'CAMPAIGNS'); }} className="flex items-center justify-center gap-1 cursor-pointer truncate w-full text-[12px]">
-      <span className="text-blue-500 font-bold shrink-0">📁</span> 
-      <span className="truncate">Campaigns</span>
-    </button>
-  </div>
+                {/* 2. សម្រាប់ MOBILE APP (ទម្រង់ Grid ៣ ស្មើគ្នា ដាច់ដោយឡែកពី Website) */}
+                <div className={`sticky top-[118px] md:top-[74px] z-30 px-3 pt-2 border-b grid md:hidden grid-cols-3 gap-2 text-[13px] select-none transition-colors shadow-sm ${
+                  theme === 'dark' ? 'bg-[#18191A] border-slate-700 text-slate-300' : 'bg-[#F5F6F8] border-slate-200 text-slate-700'
+                }`}>
+                  
+                  {/* Mobile Tab: Campaigns */}
+                  <div className={`flex items-center justify-center gap-1 px-1 py-2 border-t border-l border-r rounded-t-md transition cursor-pointer text-center ${
+                    activeManageTab === 'CAMPAIGNS' 
+                      ? (theme === 'dark' ? 'bg-[#242526] border-slate-700 border-b-[#242526] font-bold text-white -mb-[1px] shadow-sm' : 'bg-white border-slate-300 border-b-white font-bold text-slate-900 -mb-[1px] shadow-sm') 
+                      : (theme === 'dark' ? 'border-transparent hover:bg-[#3A3B3C]' : 'border-transparent hover:bg-slate-200/60')
+                  }`}>
+                    <button onClick={() => { setActiveManageTab('CAMPAIGNS'); localStorage.setItem('activeManageTab', 'CAMPAIGNS'); }} className="flex items-center justify-center gap-1 cursor-pointer truncate w-full text-[12px]">
+                      <span className="text-blue-500 font-bold shrink-0">📁</span> 
+                      <span className="truncate">Campaigns</span>
+                    </button>
+                  </div>
 
-  {/* Mobile Tab: Ad sets */}
-  <div className={`flex items-center justify-center gap-1 px-1 py-2 border-t border-l border-r rounded-t-md transition cursor-pointer text-center ${
-    activeManageTab === 'ADSETS' 
-      ? (theme === 'dark' ? 'bg-[#242526] border-slate-700 border-b-[#242526] font-bold text-white -mb-[1px] shadow-sm' : 'bg-white border-slate-300 border-b-white font-bold text-slate-900 -mb-[1px] shadow-sm') 
-      : (theme === 'dark' ? 'border-transparent hover:bg-[#3A3B3C]' : 'border-transparent hover:bg-slate-200/60')
-  }`}>
-    <button onClick={() => { setActiveManageTab('ADSETS'); localStorage.setItem('activeManageTab', 'ADSETS'); }} className="flex items-center justify-center gap-1 cursor-pointer truncate w-full text-[12px]">
-      <span className="text-indigo-500 font-bold shrink-0">⊞</span> 
-      <span className="truncate">Ad sets</span>
-    </button>
-  </div>
+                  {/* Mobile Tab: Ad sets */}
+                  <div className={`flex items-center justify-center gap-1 px-1 py-2 border-t border-l border-r rounded-t-md transition cursor-pointer text-center ${
+                    activeManageTab === 'ADSETS' 
+                      ? (theme === 'dark' ? 'bg-[#242526] border-slate-700 border-b-[#242526] font-bold text-white -mb-[1px] shadow-sm' : 'bg-white border-slate-300 border-b-white font-bold text-slate-900 -mb-[1px] shadow-sm') 
+                      : (theme === 'dark' ? 'border-transparent hover:bg-[#3A3B3C]' : 'border-transparent hover:bg-slate-200/60')
+                  }`}>
+                    <button onClick={() => { setActiveManageTab('ADSETS'); localStorage.setItem('activeManageTab', 'ADSETS'); }} className="flex items-center justify-center gap-1 cursor-pointer truncate w-full text-[12px]">
+                      <span className="text-indigo-500 font-bold shrink-0">⊞</span> 
+                      <span className="truncate">Ad sets</span>
+                    </button>
+                  </div>
 
-  {/* Mobile Tab: Ads AI */}
-  <div className={`flex items-center justify-center gap-1 px-1 py-2 border-t border-l border-r rounded-t-md transition cursor-pointer text-center ${
-    activeManageTab === 'ADS' 
-      ? (theme === 'dark' ? 'bg-[#242526] border-slate-700 border-b-[#242526] font-bold text-white -mb-[1px] shadow-sm' : 'bg-white border-slate-300 border-b-white font-bold text-slate-900 -mb-[1px] shadow-sm') 
-      : (theme === 'dark' ? 'border-transparent hover:bg-[#3A3B3C]' : 'border-transparent hover:bg-slate-200/60')
-  }`}>
-    <button onClick={() => { setActiveManageTab('ADS'); localStorage.setItem('activeManageTab', 'ADS'); }} className="flex items-center justify-center gap-1 cursor-pointer truncate w-full text-[12px]">
-      <span className="text-purple-600 font-bold shrink-0">✨</span> 
-      <span className="truncate">Ads <span className="text-purple-600 font-extrabold text-[11px]">AI</span></span>
-    </button>
-  </div>
+                  {/* Mobile Tab: Ads AI */}
+                  <div className={`flex items-center justify-center gap-1 px-1 py-2 border-t border-l border-r rounded-t-md transition cursor-pointer text-center ${
+                    activeManageTab === 'ADS' 
+                      ? (theme === 'dark' ? 'bg-[#242526] border-slate-700 border-b-[#242526] font-bold text-white -mb-[1px] shadow-sm' : 'bg-white border-slate-300 border-b-white font-bold text-slate-900 -mb-[1px] shadow-sm') 
+                      : (theme === 'dark' ? 'border-transparent hover:bg-[#3A3B3C]' : 'border-transparent hover:bg-slate-200/60')
+                  }`}>
+                    <button onClick={() => { setActiveManageTab('ADS'); localStorage.setItem('activeManageTab', 'ADS'); }} className="flex items-center justify-center gap-1 cursor-pointer truncate w-full text-[12px]">
+                      <span className="text-purple-600 font-bold shrink-0">✨</span> 
+                      <span className="truncate">Ads <span className="text-purple-600 font-extrabold text-[11px]">AI</span></span>
+                    </button>
+                  </div>
 
-</div>
+                </div>
 
                 {/* 🌟 តារាងទិន្នន័យ (មានរុំដោយ overflow-x-auto ធានាមិនបែកប្លង់ទូរសព្ទ) */}
                 <div className={`flex-1 overflow-x-auto relative transition-colors h-[500px] lg:h-[calc(100vh-230px)] custom-scrollbar ${theme === 'dark' ? 'bg-[#242526]' : 'bg-white'}`}>
