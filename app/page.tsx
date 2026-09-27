@@ -36,6 +36,13 @@ const datePresetOptions = [
 
 export default function Home() {
 
+  const [isMobileSettingsOpen, setIsMobileSettingsOpen] = useState(false);
+
+  const [showSettingSubTabs, setShowSettingSubTabs] = useState(false);
+
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
   // =====================================================================
   // 🌟 ប្រព័ន្ធ 3-in-1 Smart Edit Modal (ទាញទិន្នន័យដើមទាំង ៣ ផ្នែកមកបំពេញ 100%)
   // =====================================================================
@@ -3859,7 +3866,6 @@ const handleOpenDuplicateModal = () => {
                 <div className="flex items-center gap-3 relative">
                   <span className="text-lg leading-none relative">
                     📋
-                    {/* 🌟 ដាក់សញ្ញា Notification Dot ពណ៌ក្រហម (Facebook Style) នៅលើ Icon ផ្ទាល់ */}
                     {pendingSlipsCount > 0 && (
                       <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-600 border-2 border-white dark:border-[#242526] rounded-full animate-ping"></span>
                     )}
@@ -3870,7 +3876,6 @@ const handleOpenDuplicateModal = () => {
                   <span className="text-[13.5px]">{t.subscriptions}</span>
                 </div>
 
-                {/* 🌟 ផ្នែកតួលេខចំនួន Slip រង់ចាំនៅខាងស្ដាំប៊ូតុង (Facebook Notification Counter Style) */}
                 {pendingSlipsCount > 0 ? (
                   <span className="px-2 py-0.5 bg-red-600 text-white font-black text-[11px] rounded-full shadow-md flex items-center justify-center animate-bounce">
                     {pendingSlipsCount} ថ្មី
@@ -3881,35 +3886,69 @@ const handleOpenDuplicateModal = () => {
               </button>
             )}
 
-            {/* 🌟 Tab គ្រប់គ្រងការទូទាត់ (Payments) - បើកបង្ហាញជូនគ្រប់អតិថិជនទាំងអស់ */}
-            <button 
-              onClick={() => handleTabChange("PAYMENTS")}
-              className={`w-full text-left px-4 py-3.5 rounded-xl font-bold transition-all flex items-center gap-3 cursor-pointer ${activeTab === "PAYMENTS" ? "bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-md" : (theme === 'dark' ? 'text-slate-300 hover:bg-[#3A3B3C] hover:text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900')}`}
-            >
-              <span className="text-lg leading-none">💳</span> <span className="text-[13.5px]">ការទូទាត់ (Payments)</span>
-            </button>
+            {/* លុប Tab Payment ចាស់ពីទីនេះរួចរាល់ហើយ */}
+
          </div>
 
-         {/* ២. ផ្នែកបាតក្រោម៖ ប៊ូតុង Setting និង Logout ជាប់ស្អិតជាមួយគ្នា */}
+         {/* ២. ផ្នែកបាតក្រោម៖ ប៊ូតុង Setting (មាន Dropdown) និង Logout */}
          <div className={`p-4 border-t shrink-0 flex flex-col gap-2 ${theme === 'dark' ? 'border-slate-700 bg-[#242526]' : 'border-slate-200 bg-white'}`}>
             
-            {/* 🌟 ប៊ូតុង Settings ដាក់ជាប់លើ Logout ខាងក្រោម */}
-            <button 
-              onClick={() => handleTabChange("SETTINGS")}
-              className={`w-full text-left px-4 py-3 rounded-xl font-bold transition-all flex items-center gap-3 cursor-pointer ${
-                activeTab === "SETTINGS" 
-                  ? "bg-blue-600 text-white shadow-md" 
-                  : (theme === 'dark' ? 'text-slate-300 hover:bg-[#3A3B3C] hover:text-white' : 'text-slate-700 hover:bg-slate-100')
-              }`}
-            >
-              <span className="text-lg leading-none">⚙️</span> <span className="text-[13.5px]">{t.settings}</span>
-            </button>
+            {/* 🌟 ប៊ូតុង Settings មេ និងកូន Tab ទាំងពីរ (ការទូទាត់ payment និង Change Password) */}
+            <div>
+              <button
+                onClick={() => setShowSettingSubTabs(!showSettingSubTabs)}
+                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl font-bold transition-colors cursor-pointer ${
+                  activeTab === "PAYMENTS" || activeTab === "SETTINGS"
+                    ? 'bg-blue-600 text-white shadow-md' 
+                    : (theme === 'dark' ? 'text-slate-300 hover:bg-[#3A3B3C] hover:text-white' : 'text-slate-700 hover:bg-slate-100')
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-lg leading-none">⚙️</span>
+                  <span className="text-[13.5px]">កំណត់ Setting</span>
+                </div>
+                <span className={`text-xs transform transition-transform duration-200 ${showSettingSubTabs ? 'rotate-180' : ''}`}>
+                  ▼
+                </span>
+              </button>
+
+              {/* កូន Tab ទាំងពីរដែលនឹងទម្លាក់ចុះមកក្រោម */}
+              {showSettingSubTabs && (
+                <div className="flex flex-col gap-1 mt-2 pl-4 border-l-2 border-slate-200 dark:border-slate-700 ml-4 animate-in fade-in slide-in-from-top-2 duration-200">
+                  
+                  {/* ទី១៖ ការទូទាត់ Payment */}
+                  <button
+                    onClick={() => handleTabChange("PAYMENTS")}
+                    className={`w-full text-left px-3 py-2.5 rounded-lg text-[13px] font-bold transition-colors cursor-pointer flex items-center gap-2 ${
+                      activeTab === "PAYMENTS"
+                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-400'
+                        : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-[#3A3B3C]'
+                    }`}
+                  >
+                    <span className="text-base leading-none">💳</span> ការទូទាត់ payment
+                  </button>
+
+                  {/* ទី២៖ Change Password */}
+                  <button
+                    onClick={() => handleTabChange("SETTINGS")}
+                    className={`w-full text-left px-3 py-2.5 rounded-lg text-[13px] font-bold transition-colors cursor-pointer flex items-center gap-2 ${
+                      activeTab === "SETTINGS"
+                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-400'
+                        : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-[#3A3B3C]'
+                    }`}
+                  >
+                    <span className="text-base leading-none">🔒</span> Change Password
+                  </button>
+                  
+                </div>
+              )}
+            </div>
 
             {/* ប៊ូតុង Logout */}
             <button 
               type="button"
               onClick={handleLogout}
-              className={`w-full px-4 py-3 font-bold rounded-xl border text-xs transition shadow-sm flex items-center justify-center gap-2 cursor-pointer ${
+              className={`w-full px-4 py-3 font-bold rounded-xl border text-xs transition shadow-sm flex items-center justify-center gap-2 cursor-pointer mt-1 ${
                 theme === 'dark' 
                   ? 'bg-red-950/40 border-red-900/50 text-red-400 hover:bg-red-900/40' 
                   : 'bg-white border-red-200 text-red-600 hover:bg-red-50'
@@ -4079,23 +4118,36 @@ const handleOpenDuplicateModal = () => {
               </div>
             )}
 
-            {activeTab === "SETTINGS" && (
+            {/* ពេលចុចលើ tab ការទូទាត់ payment */}
+            {activeTab === "PAYMENT" && (
+              <div className="p-6 rounded-2xl shadow-sm border w-full max-w-xl mx-auto my-6 bg-white dark:bg-[#242526] border-slate-200 dark:border-slate-700">
+                <h2 className="text-lg font-bold mb-4">💳 ព័ត៌មានការទូទាត់ (Payment)</h2>
+                <p className="text-sm text-slate-500">កន្លែងសម្រាប់គ្រប់គ្រងប្រព័ន្ធទូទាត់ប្រាក់...</p>
+                {/* ដាក់កូដ Payment របស់អ្នកនៅទីនេះ */}
+              </div>
+            )}
+
+            {/* ពេលចុចលើ tab Change Password */}
+            {/* ========================================================= */}
+            {/* 🌟 ផ្ទាំងប្ដូរលេខសម្ងាត់ (Change Password) មានរូបភ្នែកមើល Password */}
+            {/* ========================================================= */}
+            {(activeTab === "SETTINGS" || activeTab === "CHANGE_PASSWORD") && (
               <div className={`p-6 rounded-2xl shadow-sm border w-full max-w-xl mx-auto my-6 animate-in fade-in duration-300 transition-colors ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-900'}`}>
                 
                 <div className="flex items-center gap-3 mb-6 border-b pb-4 border-slate-100 dark:border-slate-700">
                   <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400 flex items-center justify-center text-xl shadow-xs">
-                    ⚙️
+                    🔒
                   </div>
                   <div>
-                    <h2 className={`text-lg font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>ការកំណត់គណនី (Settings)</h2>
-                    <p className={`text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>គ្រប់គ្រងព័ត៌មាន និងផ្លាស់ប្ដូរលេខសម្ងាត់របស់អ្នក</p>
+                    <h2 className={`text-lg font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>ផ្លាស់ប្ដូរលេខសម្ងាត់ (Change Password)</h2>
+                    <p className={`text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>គ្រប់គ្រងព័ត៌មាន និងផ្លាស់ប្ដូរលេខសម្ងាត់គណនីរបស់អ្នក</p>
                   </div>
                 </div>
 
                 <div className="space-y-6">
                   <div className={`p-5 rounded-xl border ${theme === 'dark' ? 'bg-[#18191A] border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
                     <h3 className={`text-sm font-bold mb-3 flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>
-                      <span>🔒</span> ផ្លាស់ប្ដូរលេខសម្ងាត់ (Change Password)
+                      <span>🔑</span> កំណត់លេខសម្ងាត់ថ្មី
                     </h3>
 
                     <form onSubmit={async (e) => {
@@ -4117,7 +4169,6 @@ const handleOpenDuplicateModal = () => {
                         const { error } = await supabase.auth.updateUser({ password: newPass });
                         if (error) throw error;
                         
-                        // Update ក្នុង Database ផងដែរ
                         const { data: { user } } = await supabase.auth.getUser();
                         if (user?.email) {
                           await supabase.from('customer_subscriptions').update({ password: newPass }).eq('email', user.email);
@@ -4129,26 +4180,49 @@ const handleOpenDuplicateModal = () => {
                         alert("❌ បរាជ័យ: " + err.message);
                       }
                     }} className="space-y-4">
+                      
+                      {/* ប្រអប់លេខសម្ងាត់ថ្មី */}
                       <div>
                         <label className="block text-xs font-bold text-slate-500 uppercase mb-1">លេខសម្ងាត់ថ្មី</label>
-                        <input 
-                          type="password" 
-                          name="newPass"
-                          required
-                          placeholder="••••••••" 
-                          className={`w-full px-3.5 py-2.5 border rounded-xl text-sm outline-none focus:border-blue-500 font-medium ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-900'}`}
-                        />
+                        <div className="relative">
+                          <input 
+                            type={showNewPassword ? "text" : "password"} 
+                            name="newPass"
+                            required
+                            placeholder="••••••••" 
+                            className={`w-full px-3.5 py-2.5 pr-10 border rounded-xl text-sm outline-none focus:border-blue-500 font-medium ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-900'}`}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowNewPassword(!showNewPassword)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-base cursor-pointer select-none"
+                            title={showNewPassword ? "លាក់លេខសម្ងាត់" : "បង្ហាញលេខសម្ងាត់"}
+                          >
+                            {showNewPassword ? "👁️‍🗨️" : "👁️"}
+                          </button>
+                        </div>
                       </div>
 
+                      {/* ប្រអប់បញ្ជាក់លេខសម្ងាត់ថ្មី */}
                       <div>
                         <label className="block text-xs font-bold text-slate-500 uppercase mb-1">បញ្ជាក់លេខសម្ងាត់ថ្មី</label>
-                        <input 
-                          type="password" 
-                          name="confirmPass"
-                          required
-                          placeholder="••••••••" 
-                          className={`w-full px-3.5 py-2.5 border rounded-xl text-sm outline-none focus:border-blue-500 font-medium ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-900'}`}
-                        />
+                        <div className="relative">
+                          <input 
+                            type={showConfirmPassword ? "text" : "password"} 
+                            name="confirmPass"
+                            required
+                            placeholder="••••••••" 
+                            className={`w-full px-3.5 py-2.5 pr-10 border rounded-xl text-sm outline-none focus:border-blue-500 font-medium ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-900'}`}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-base cursor-pointer select-none"
+                            title={showConfirmPassword ? "លាក់លេខសម្ងាត់" : "បង្ហាញលេខសម្ងាត់"}
+                          >
+                            {showConfirmPassword ? "👁️‍🗨️" : "👁️"}
+                          </button>
+                        </div>
                       </div>
 
                       <button 
@@ -8692,6 +8766,96 @@ const handleOpenDuplicateModal = () => {
             </div>
             <span className={`text-[10px] tracking-tight font-bold ${activeTab === "AI" ? 'text-indigo-600 dark:text-indigo-400' : 'opacity-70'}`}>AI Copy</span>
          </button>
+
+         {/* 🌟 Tab 4 ថ្មី: Setting (មាន Menu លោតឡើងលើ) */}
+         <div className="relative flex flex-col items-center justify-center w-full h-full">
+            <button 
+               type="button"
+               onClick={() => setIsMobileSettingsOpen(!isMobileSettingsOpen)}
+               className={`flex flex-col items-center justify-center w-full h-full gap-0.5 transition-all duration-200 cursor-pointer group`}
+            >
+               <div className={`px-4 py-1 rounded-[20px] flex items-center justify-center transition-all duration-300 ${
+                  (activeTab === "PAYMENTS" || activeTab === "SETTINGS" || activeTab === "SUBSCRIPTIONS") 
+                     ? 'bg-blue-600 text-white shadow-[0_4px_12px_rgba(37,99,235,0.4)] scale-105' 
+                     : 'hover:bg-slate-500/10'
+               }`}>
+                  <span className="text-[18px] leading-none">⚙️</span>
+               </div>
+               <span className={`text-[10px] tracking-tight font-bold ${(activeTab === "PAYMENTS" || activeTab === "SETTINGS" || activeTab === "SUBSCRIPTIONS") ? (theme === 'dark' ? 'text-white' : 'text-blue-600') : 'opacity-70'}`}>Setting</span>
+            </button>
+
+            {/* កូន Menu ធ្លាក់ឡើងលើ (Drop-up) ទំនើបទាន់សម័យ */}
+            {isMobileSettingsOpen && (
+               <>
+                  <div className="fixed inset-0 z-40" onClick={() => setIsMobileSettingsOpen(false)}></div>
+                  <div className={`absolute bottom-[115%] right-0 w-[250px] border rounded-3xl shadow-2xl z-50 p-3 flex flex-col gap-2 animate-in slide-in-from-bottom-2 fade-in duration-200 ${theme === 'dark' ? 'bg-[#18191A] border-slate-700' : 'bg-white border-slate-100'}`}>
+                     
+                     {/* 🌟 ១. គ្រប់គ្រងអតិថិជន (បង្ហាញតែ Admin) */}
+                     {isAdmin && (
+                        <button
+                           type="button"
+                           onClick={() => { handleTabChange("SUBSCRIPTIONS"); setIsMobileSettingsOpen(false); }}
+                           className={`flex items-center gap-3 px-4 py-3.5 rounded-xl text-[13.5px] font-bold transition-all text-left relative ${
+                              activeTab === 'SUBSCRIPTIONS' 
+                                 ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md' 
+                                 : (theme === 'dark' ? 'bg-[#242526] text-slate-200 hover:bg-[#3A3B3C] border border-slate-700' : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200')
+                           }`}
+                        >
+                           <span className="text-lg leading-none">👥</span> 
+                           <span className="flex-1">គ្រប់គ្រងអតិថិជន</span>
+                           {pendingSlipsCount > 0 && (
+                              <span className="absolute -top-2 -right-2 bg-red-500 text-white px-2 py-0.5 rounded-full text-[10px] font-black shadow-sm border-2 border-white dark:border-[#18191A] animate-bounce">
+                                 {pendingSlipsCount} ថ្មី
+                              </span>
+                           )}
+                        </button>
+                     )}
+
+                     {/* 🌟 ២. ការទូទាត់ Payment */}
+                     <button
+                        type="button"
+                        onClick={() => { handleTabChange("PAYMENTS"); setIsMobileSettingsOpen(false); }}
+                        className={`flex items-center gap-3 px-4 py-3.5 rounded-xl text-[13.5px] font-bold transition-all text-left ${
+                           activeTab === 'PAYMENTS' 
+                              ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md' 
+                              : (theme === 'dark' ? 'bg-[#242526] text-slate-200 hover:bg-[#3A3B3C] border border-slate-700' : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200')
+                        }`}
+                     >
+                        <span className="text-lg leading-none">💳</span> <span className="flex-1">ការទូទាត់ Payment</span>
+                     </button>
+                     
+                     {/* 🌟 ៣. Change Password */}
+                     <button
+                        type="button"
+                        onClick={() => { handleTabChange("SETTINGS"); setIsMobileSettingsOpen(false); }}
+                        className={`flex items-center gap-3 px-4 py-3.5 rounded-xl text-[13.5px] font-bold transition-all text-left ${
+                           activeTab === 'SETTINGS' 
+                              ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md' 
+                              : (theme === 'dark' ? 'bg-[#242526] text-slate-200 hover:bg-[#3A3B3C] border border-slate-700' : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200')
+                        }`}
+                     >
+                        <span className="text-lg leading-none">🔒</span> <span className="flex-1">Change Password</span>
+                     </button>
+
+                     <div className={`my-0.5 border-t ${theme === 'dark' ? 'border-slate-800' : 'border-slate-100'}`}></div>
+                     
+                     {/* 🌟 ៤. Log out */}
+                     <button
+                        type="button"
+                        onClick={() => { handleLogout(); setIsMobileSettingsOpen(false); }}
+                        className={`flex items-center gap-3 px-4 py-3.5 rounded-xl text-[13.5px] font-bold text-left transition-all border ${
+                           theme === 'dark' 
+                              ? 'bg-red-950/40 text-red-400 hover:bg-red-900/40 border-red-900/50' 
+                              : 'bg-red-50 text-red-600 hover:bg-red-100 border-red-200'
+                        }`}
+                     >
+                        <span className="text-lg leading-none">🚪</span> <span className="flex-1">Log out ចេញពីប្រព័ន្ធ</span>
+                     </button>
+
+                  </div>
+               </>
+            )}
+         </div>
 
       </nav>
       {/* 🚀 AI Audit Modal */}
