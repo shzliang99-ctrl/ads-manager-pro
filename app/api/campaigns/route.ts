@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-// Helper function សម្រាប់ទាញយក Token ទាំងពី Query Parameters ឬ Request Body
+// 🌟 Helper function សម្រាប់ទាញយក Token (គាំទ្រទាំង Query Parameters និង Request Body)
 function getAccessToken(request: Request, body?: any) {
   const { searchParams } = new URL(request.url);
   const clientToken = searchParams.get('access_token') || body?.access_token;
@@ -27,8 +27,8 @@ export async function GET(request: Request) {
       throw new Error("Missing Token or Ad Account ID");
     }
 
-    // 🌟 ដាក់បញ្ចូល effective_status ក្នុង URL Endpoint នេះ ដើម្បីទាញយក Delivery ឱ្យត្រូវដូច Facebook 100%
-    const endpoint = `https://graph.facebook.com/v18.0/${targetAdAccountId}/campaigns?fields=id,name,status,effective_status,daily_budget,lifetime_budget,objective,start_time,stop_time,insights.date_preset(${datePreset}){spend,impressions,reach,actions}&limit=500&access_token=${accessToken}`;
+    // 🌟 ជំហានទី ១៖ ទាញយក Campaigns ព្រមទាំង Ads ខាងក្នុង (ads{status,effective_status}) មកជាមួយ
+    const endpoint = `https://graph.facebook.com/v18.0/${targetAdAccountId}/campaigns?fields=id,name,status,effective_status,daily_budget,lifetime_budget,objective,start_time,stop_time,ads{status,effective_status},insights.date_preset(${datePreset}){spend,impressions,reach,actions}&limit=500&access_token=${accessToken}`;
 
     const response = await fetch(endpoint, { cache: 'no-store' });
     const data = await response.json();
@@ -37,13 +37,32 @@ export async function GET(request: Request) {
       throw new Error(data.error.message);
     }
 
-    return NextResponse.json({ success: true, campaigns: data.data || [] });
+    // 🌟 ជំហានទី ២៖ ពិនិត្យផ្ទៀងផ្ទាត់ (Map)៖ បើ Ads ខាងក្នុងមានស្ថានភាព In Review (PENDING_REVIEW ឬ IN_PROCESS) 
+    // គឺบังคับឱ្យ Campaign មេបង្ហាញ Status តាម Ads នោះភ្លាម
+    const processedCampaigns = (data.data || []).map((camp: any) => {
+      const adsList = camp.ads?.data || [];
+      
+      // ឆែកមើលថាតើមាន Ad ណាមួយកំពុងស្ថិតក្នុង Review ដែរឬទេ
+      const hasReviewAd = adsList.some((ad: any) => {
+        const adStatus = (ad.effective_status || ad.status || "").toUpperCase();
+        return adStatus.includes('REVIEW') || adStatus.includes('PENDING') || adStatus === 'IN_PROCESS';
+      });
+
+      if (hasReviewAd) {
+        // បើមាន Ad កំពុង Review ឱ្យប្ដូរ effective_status របស់ Campaign មកជា PENDING_REVIEW ជាបន្ទាន់
+        camp.effective_status = 'PENDING_REVIEW';
+      }
+
+      return camp;
+    });
+
+    return NextResponse.json({ success: true, campaigns: processedCampaigns });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 400 });
   }
 }
 
-// 🌟 មុខងារ POST វៃឆ្លាត៖ ប្រើ ISO String សម្រាប់ម៉ោង និងទាញយក Error លម្អិតពី FB
+// 🌟 មុខងារ POST វៃឆ្លាត៖ គាំទ្រទាំង CBO និង ABO (កែប្រែថវិកា និងម៉ោងនៅ Ad Set ផ្ទាល់បើ Campaign គ្មាន Budget)
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -54,7 +73,7 @@ export async function POST(request: Request) {
       throw new Error("Missing Campaign ID");
     }
 
-    // ១. ឆែកមើលថា Campaign ប្រើ CBO ឬ ABO?
+    // ១. ឆែកមើលថាតើ Campaign នេះប្រើ CBO (Campaign Budget) ឬ ABO (AdSet Budget)?
     const campInfoRes = await fetch(`https://graph.facebook.com/v18.0/${campaignId}?fields=daily_budget,lifetime_budget&access_token=${accessToken}`);
     const campInfo = await campInfoRes.json();
 
@@ -63,7 +82,7 @@ export async function POST(request: Request) {
       isCBO = true;
     }
 
-    // កែប្រែឈ្មោះ និង/ឬ ថវិកា CBO ទៅកាន់ Campaign Level
+    // ២. កែប្រែឈ្មោះ Campaign
     const campPayload: any = { access_token: accessToken };
     let updateCamp = false;
 
@@ -95,7 +114,7 @@ export async function POST(request: Request) {
       }
     }
 
-    // ២. កែប្រែថវិកា ABO និង ម៉ោងបញ្ចប់ នៅ Ad Set Level
+    // ៣. កែប្រែថវិកា ABO និងម៉ោងបញ្ចប់ នៅកម្រិត Ad Set Level (ផ្ទៀងផ្ទាត់ប្រភេទ Budget ជាមុនសិន)
     if ((budget !== undefined && budget !== "" && !isCBO) || stopTime) {
       const adsetRes = await fetch(`https://graph.facebook.com/v18.0/${campaignId}/adsets?fields=id,daily_budget,lifetime_budget&access_token=${accessToken}`);
       const adsetData = await adsetRes.json();
@@ -105,39 +124,43 @@ export async function POST(request: Request) {
       }
 
       if (adsetData.data && adsetData.data.length > 0) {
-        const targetAdSet = adsetData.data[0];
-        const adsetPayload: any = { access_token: accessToken };
-        let updateAdset = false;
+        for (const targetAdSet of adsetData.data) {
+          const adsetPayload: any = { access_token: accessToken };
+          let updateAdset = false;
 
-        if (budget !== undefined && budget !== "" && !isCBO) {
-          const budgetInCents = Math.round(Number(budget) * 100);
-          if (targetAdSet.lifetime_budget) {
-            adsetPayload.lifetime_budget = budgetInCents;
-          } else {
-            adsetPayload.daily_budget = budgetInCents;
-          }
-          updateAdset = true;
-        }
-
-        if (stopTime) {
-          const dateObj = new Date(stopTime);
-          if (!isNaN(dateObj.getTime())) {
-            adsetPayload.end_time = dateObj.toISOString();
+          // កែប្រែថវិកា Ad Set
+          if (budget !== undefined && budget !== "" && !isCBO) {
+            const budgetInCents = Math.round(Number(budget) * 100);
+            if (targetAdSet.lifetime_budget) {
+              adsetPayload.lifetime_budget = budgetInCents;
+            } else {
+              adsetPayload.daily_budget = budgetInCents;
+            }
             updateAdset = true;
           }
-        }
 
-        if (updateAdset) {
-          const adsetUpdateRes = await fetch(`https://graph.facebook.com/v18.0/${targetAdSet.id}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(adsetPayload),
-          });
+          // 🌟 ពិនិត្យយ៉ាងតឹងរ៉ឹង៖ បញ្ជូន end_time ទៅបានុ កាលណា Ad Set នោះមាន lifetime_budget ស្រាប់ប៉ុណ្ណោះ!
+          // បើជា Daily Budget (recurring) គឺដាច់ខាតហាមផ្ញើ end_time ទៅជាមួយ ដើម្បីការពារ Error នេះ
+          if (stopTime && targetAdSet.lifetime_budget) {
+            const dateObj = new Date(stopTime);
+            if (!isNaN(dateObj.getTime())) {
+              adsetPayload.end_time = dateObj.toISOString();
+              updateAdset = true;
+            }
+          }
 
-          const adsetUpdateData = await adsetUpdateRes.json();
-          if (adsetUpdateData.error) {
-            const errMsg = adsetUpdateData.error.error_user_msg || adsetUpdateData.error.message;
-            throw new Error(`[AdSet Update Failed]: ${errMsg}`);
+          if (updateAdset) {
+            const adsetUpdateRes = await fetch(`https://graph.facebook.com/v18.0/${targetAdSet.id}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(adsetPayload),
+            });
+
+            const adsetUpdateData = await adsetUpdateRes.json();
+            if (adsetUpdateData.error) {
+              const errMsg = adsetUpdateData.error.error_user_msg || adsetUpdateData.error.message;
+              throw new Error(`[AdSet Update Failed]: ${errMsg}`);
+            }
           }
         }
       }
@@ -145,8 +168,15 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true, message: "Updated successfully" });
   } catch (error: any) {
-    console.error("Update API Error:", error.message);
-    return NextResponse.json({ success: false, error: error.message }, { status: 400 });
+    let errorMessage = error.message;
+
+    // 🌟 បម្លែងសារ Error របស់ Facebook ឱ្យទៅជាភាសាខ្មែរងាយយល់
+    if (errorMessage.includes("too far in the future") || errorMessage.includes("one year")) {
+      errorMessage = "⚠️ កាលបរិច្ឆេទបញ្ចប់ (End Date) មិនអាចកំណត់លើសពី ១ ឆ្នាំ ាប់ពីថ្ងៃនេះបានទេ។ សូមជ្រើសរើសថ្ងៃខែឆ្នាំក្រោម ១ ឆ្នាំ។";
+    }
+
+    console.error("Update API Error:", errorMessage);
+    return NextResponse.json({ success: false, error: errorMessage }, { status: 400 });
   }
 }
 

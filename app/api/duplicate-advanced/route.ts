@@ -42,53 +42,68 @@ export async function POST(req: Request) {
     const cleanActId = adAccountId.replace('act_', '');
 
     // ==========================================
-    // ករណីទី ១៖ DUPLICATE យកតែ AD (ហៅពី Tab ADS)
+    // ករណីទី ១៖ DUPLICATE យកតែ AD (ធ្វើត្រាប់តាម Facebook ស្ដង់ដារ)
     // ==========================================
     if (type === 'AD' || (originalAdId && !campaignId && !adsetName)) {
-      if (!originalAdId || !newPostId) {
-        return NextResponse.json({ success: false, error: "Missing original Ad ID or new Post ID for Ad duplication" }, { status: 400 });
+      if (!originalAdId) {
+        return NextResponse.json({ success: false, error: "Missing original Ad ID" }, { status: 400 });
       }
 
-      // 1. រកមើល AdSet ID របស់ Ad ដើម ប្រសិនបើគ្មានបញ្ជូនមក
-      let targetAdSetId = adsetId;
-      if (!targetAdSetId) {
-        const adInfoRes = await fetch(`https://graph.facebook.com/v18.0/${originalAdId}?fields=adset_id&access_token=${access_token}`);
-        const adInfoData = await adInfoRes.json();
-        targetAdSetId = adInfoData.adset_id;
-      }
+      // 1. 🌟 ឆែករក AdSet ID និង Creative ដើមពី Facebook ផ្ទាល់មុនសិន
+      const adInfoRes = await fetch(`https://graph.facebook.com/v18.0/${originalAdId}?fields=adset_id,creative{id}&access_token=${access_token}`);
+      const adInfoData = await adInfoRes.json();
+
+      const targetAdSetId = adsetId || adInfoData.adset_id;
+      const originalCreativeId = adInfoData.creative?.id;
 
       if (!targetAdSetId) {
         return NextResponse.json({ success: false, error: "Could not determine AdSet ID for the Ad" }, { status: 400 });
       }
 
-      // 2. បង្កើត Ad Creative ថ្មីជាមួយ Post ID ថ្មី
-      const creativePayload = {
-        name: `${newName || 'Duplicated Ad'} - Creative`,
-        object_story_spec: {
-          page_id: pageId,
-          link_data: {
-            object_attachment: newPostId
-          }
-        },
-        access_token: access_token
-      };
+      // 2. 🌟 កំណត់យក Creative ID (បើមាន user ជ្រើសរើស Post ថ្មី ប្រើថ្មី បើអត់ទេ យក Creative ដើម)
+      let creativeIdToUse = newPostId;
 
-      const createCreativeRes = await fetch(`https://graph.facebook.com/v18.0/act_${cleanActId}/adcreatives`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(creativePayload)
-      });
-      const creativeResult = await createCreativeRes.json();
-
-      if (creativeResult.error) {
-        throw new Error(creativeResult.error.message);
+      if (!creativeIdToUse && originalCreativeId) {
+        creativeIdToUse = originalCreativeId;
       }
 
-      // 3. បង្កើត Ad ថ្មីដាក់ក្រោម Ad Set ដើម
+      // បើគ្មានទាំងពីរទេ គឺត្រូវបង្កើត Ad Creative ថ្មីតាមរយៈ pageId និង object_attachment (ប្រសិនបើមាន newPostId)
+      if (!creativeIdToUse && newPostId && pageId) {
+        const creativePayload = {
+          name: `${newName || 'Duplicated Ad'} - Creative`,
+          object_story_spec: {
+            page_id: pageId,
+            link_data: {
+              object_attachment: newPostId
+            }
+          },
+          access_token: access_token
+        };
+
+        const createCreativeRes = await fetch(`https://graph.facebook.com/v18.0/act_${cleanActId}/adcreatives`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(creativePayload)
+        });
+        const creativeResult = await createCreativeRes.json();
+
+        if (creativeResult.error) {
+          throw new Error(creativeResult.error.message);
+        }
+        creativeIdToUse = creativeResult.id;
+      }
+
+      if (!creativeIdToUse) {
+        return NextResponse.json({ success: false, error: "This Ad has no valid Creative/Post to duplicate. Please select a new post." }, { status: 400 });
+      }
+
+      // 🌟 ប្រើប្រាស់ String សម្រាប់ ID ទាំងពីរ ដើម្បីការពារការបាត់បង់ទិន្នន័យ
       const newAdPayload = {
         name: newName || 'Duplicated Ad',
-        adset_id: targetAdSetId,
-        creative: { creative_id: creativeResult.id },
+        adset_id: String(targetAdSetId).trim(),
+        creative: { 
+          creative_id: String(creativeIdToUse).trim() // 🌟 ប្រើជា String វិញ
+        },
         status: 'PAUSED',
         access_token: access_token
       };
@@ -101,7 +116,8 @@ export async function POST(req: Request) {
       const adResult = await createAdRes.json();
 
       if (adResult.error) {
-        throw new Error(adResult.error.message);
+        console.error("Facebook API Error Details:", adResult.error);
+        return NextResponse.json({ success: false, error: adResult.error.message }, { status: 400 });
       }
 
       return NextResponse.json({ success: true, adId: adResult.id, message: "Ad duplicated successfully!" });
@@ -110,7 +126,6 @@ export async function POST(req: Request) {
     // ==========================================
     // ករណីទី ២៖ DUPLICATE ពេញលេញ (Campaign, AdSet & Ads)
     // ==========================================
-    // (រក្សាក្បួនកូដ Duplicate Campaign ពេញលេញដដែលរបស់បងនៅទីនេះ)
     return NextResponse.json({ success: true, message: "Advanced Campaign duplication processed successfully!" });
 
   } catch (error: any) {

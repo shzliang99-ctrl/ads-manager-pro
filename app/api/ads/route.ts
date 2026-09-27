@@ -96,24 +96,54 @@ export async function GET(request: Request) {
   }
 }
 
+// 🌟 មុខងារ PUT សម្រាប់ Ad៖ ដោះស្រាយការកែប្រែទាំងឈ្មោះ (name) និងស្ថានភាព (status) យ៉ាងរលូន
 export async function PUT(request: Request) {
   try {
     const body = await request.json();
-    const { id, status } = body;
+    const { id, name, status } = body;
     const accessToken = getAccessToken(request, body);
 
-    if (!accessToken) throw new Error("Missing Facebook Access Token");
+    if (!accessToken) {
+      throw new Error("Missing Facebook Access Token");
+    }
+
+    if (!id) {
+      throw new Error("Missing Ad ID");
+    }
+
+    // រៀបចំ Payload សម្រាប់ផ្ញើទៅ Facebook Graph API
+    const adPayload: any = { access_token: accessToken };
+    let updateNeeded = false;
+
+    if (name !== undefined && name.trim() !== "") {
+      adPayload.name = name;
+      updateNeeded = true;
+    }
+
+    if (status !== undefined && status !== "") {
+      adPayload.status = status;
+      updateNeeded = true;
+    }
+
+    if (!updateNeeded) {
+      throw new Error("No fields provided to update");
+    }
 
     const res = await fetch(`https://graph.facebook.com/v18.0/${id}`, {
-      method: 'POST',
+      method: 'POST', // Facebook Graph API ប្រើប្រាស់ POST សម្រាប់ការ Update តាម ID
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: status, access_token: accessToken })
+      body: JSON.stringify(adPayload)
     });
+
     const data = await res.json();
 
-    if (data.error) throw new Error(data.error.message);
+    if (data.error) {
+      throw new Error(data.error.message);
+    }
+
     return NextResponse.json({ success: true, data });
   } catch (error: any) {
+    console.error("Ad Update API Error:", error.message);
     return NextResponse.json({ success: false, error: error.message }, { status: 400 });
   }
 }

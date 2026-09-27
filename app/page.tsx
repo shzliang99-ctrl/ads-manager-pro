@@ -36,6 +36,454 @@ const datePresetOptions = [
 
 export default function Home() {
 
+  // =====================================================================
+  // 🌟 ប្រព័ន្ធ 3-in-1 Smart Edit Modal (ទាញទិន្នន័យដើមទាំង ៣ ផ្នែកមកបំពេញ 100%)
+  // =====================================================================
+  const [isFullEditModalOpen, setIsFullEditModalOpen] = useState(false);
+  const [fullEditContext, setFullEditContext] = useState({ campaignId: '', adsetId: '', adId: '' });
+  const [isSavingFullEdit, setIsSavingFullEdit] = useState(false);
+
+  // មុខងារចាប់យកជួរដែលបានធីក (Tick) ជាក់ស្ដែងលើតារាង
+  const getTickedItemForEdit = (list: any[], selectedIds: string[]) => {
+    if (!list || list.length === 0) return null;
+    if (typeof document !== "undefined") {
+      const rows = document.querySelectorAll("tbody tr");
+      for (let i = 0; i < rows.length; i++) {
+        const cb = rows[i].querySelector('input[type="checkbox"]') as HTMLInputElement;
+        if (cb && cb.checked && list[i]) return list[i];
+      }
+    }
+    const matched = list.filter(item => selectedIds.some(id => String(id) === String(item.id)));
+    return matched.length > 0 ? matched[matched.length - 1] : null;
+  };
+
+  // 🌟 មុខងារពេលចុចប៊ូតុង Edit ធំ៖ ទាញយកទិន្នន័យដើមពី Facebook ទាំង Campaign, Ad Set, Placements និង Ad
+  const handleOpenFullEditModal = async () => {
+    const token = localStorage.getItem('fb_user_token');
+    if (!token) {
+      alert("⚠️ រកមិនឃើញ Token ទេ សូម Connect Facebook ជាមុនសិន!");
+      return;
+    }
+
+    let targetCampId = '';
+    let targetAdsetId = '';
+    let targetAdId = '';
+
+    // ១. ឆែករកធាតុដែលបាន Select តាម Tab បច្ចុប្បន្ន
+    if (activeManageTab === 'CAMPAIGNS') {
+      const camp = getTickedItemForEdit(campaignsList, selectedCampaigns);
+      if (!camp) return alert("⚠️ សូមធីក (Tick) ជ្រើសរើស Campaign យ៉ាងហោចណាស់មួយជាមុនសិន!");
+      targetCampId = camp.id;
+    } else if (activeManageTab === 'ADSETS') {
+      const adset = getTickedItemForEdit(adsetsList, selectedAdSets);
+      if (!adset) return alert("⚠️ សូមធីក (Tick) ជ្រើសរើស Ad Set យ៉ាងហោចណាស់មួយជាមុនសិន!");
+      targetAdsetId = adset.id;
+      targetCampId = adset.campaign_id || selectedCampaigns[0] || '';
+    } else if (activeManageTab === 'ADS') {
+      const ad = getTickedItemForEdit(adsList, selectedAds);
+      if (!ad) return alert("⚠️ សូមធីក (Tick) ជ្រើសរើស Ad យ៉ាងហោចណាស់មួយជាមុនសិន!");
+      targetAdId = ad.id;
+      targetAdsetId = ad.adset_id || '';
+      targetCampId = ad.campaign_id || selectedCampaigns[0] || '';
+    }
+
+    showToast("⏳ កំពុងទាញយកទិន្នន័យដើមទាំង ៣ ផ្នែកពី Facebook...", "info");
+
+    try {
+      // ២. ស្វែងរក ID ដែលជាប់ទាក់ទងគ្នាទាំង ៣ ផ្នែក (Campaign <-> Ad Set <-> Ad)
+      if (targetAdId && (!targetAdsetId || !targetCampId)) {
+        const r = await fetch(`https://graph.facebook.com/v18.0/${targetAdId}?fields=adset_id,campaign_id&access_token=${token}`);
+        const d = await r.json();
+        if (d.adset_id) targetAdsetId = d.adset_id;
+        if (d.campaign_id) targetCampId = d.campaign_id;
+      }
+
+      if (targetAdsetId && !targetCampId) {
+        const r = await fetch(`https://graph.facebook.com/v18.0/${targetAdsetId}?fields=campaign_id&access_token=${token}`);
+        const d = await r.json();
+        if (d.campaign_id) targetCampId = d.campaign_id;
+      }
+
+      if (targetCampId && !targetAdsetId) {
+        const r = await fetch(`https://graph.facebook.com/v18.0/${targetCampId}/adsets?fields=id&limit=1&access_token=${token}`);
+        const d = await r.json();
+        if (d?.data?.[0]?.id) targetAdsetId = d.data[0].id;
+      }
+
+      if (targetAdsetId && !targetAdId) {
+        const r = await fetch(`https://graph.facebook.com/v18.0/${targetAdsetId}/ads?fields=id&limit=1&access_token=${token}`);
+        const d = await r.json();
+        if (d?.data?.[0]?.id) targetAdId = d.data[0].id;
+      } else if (targetCampId && !targetAdId) {
+        const r = await fetch(`https://graph.facebook.com/v18.0/${targetCampId}/ads?fields=id&limit=1&access_token=${token}`);
+        const d = await r.json();
+        if (d?.data?.[0]?.id) targetAdId = d.data[0].id;
+      }
+
+      // ៣. ទាញយកទិន្នន័យ Campaign ដើម
+      let campHasBudget = false;
+      if (targetCampId) {
+        const cRes = await fetch(`https://graph.facebook.com/v18.0/${targetCampId}?fields=name,daily_budget,lifetime_budget&access_token=${token}`);
+        const cData = await cRes.json();
+        if (!cData.error) {
+          if (cData.name) setCampaignName(cData.name);
+          if (cData.daily_budget) {
+            setBudgetType("DAILY");
+            setBudget((Number(cData.daily_budget) / 100).toString());
+            campHasBudget = true;
+          } else if (cData.lifetime_budget) {
+            setBudgetType("LIFETIME");
+            setBudget((Number(cData.lifetime_budget) / 100).toString());
+            campHasBudget = true;
+          }
+        }
+      }
+
+      // ៤. ទាញយកទិន្នន័យ Ad Set ដើម (Name, Budget, Location, Gender, Age, Interests, Placements + ប្រអប់តូចៗ)
+      if (targetAdsetId) {
+        const asRes = await fetch(`https://graph.facebook.com/v18.0/${targetAdsetId}?fields=name,daily_budget,lifetime_budget,targeting,promoted_object&access_token=${token}`);
+        const asData = await asRes.json();
+        if (!asData.error) {
+          if (asData.name) setAdsetName(asData.name);
+          if (!campHasBudget) {
+            if (asData.daily_budget) {
+              setBudgetType("DAILY");
+              setBudget((Number(asData.daily_budget) / 100).toString());
+            } else if (asData.lifetime_budget) {
+              setBudgetType("LIFETIME");
+              setBudget((Number(asData.lifetime_budget) / 100).toString());
+            }
+          }
+
+          // ទាញយក Page ID ពី Ad Set
+          if (asData.promoted_object?.page_id) {
+            const pId = String(asData.promoted_object.page_id);
+            setSelectedPage(pId);
+            const foundPage = pages.find(p => String(p.id) === pId) || facebookPages.find(p => String(p.id) === pId);
+            if (foundPage?.name) setFbPageName(foundPage.name);
+          }
+
+          // បំបែកទិន្នន័យ Targeting & Placements
+          const t = asData.targeting;
+          if (t) {
+            if (t.age_min) setAgeMin(String(t.age_min));
+            if (t.age_max) setAgeMax(String(t.age_max));
+
+            if (t.genders && t.genders.length > 0) {
+              if (t.genders[0] === 1) setGender("MALE");
+              else if (t.genders[0] === 2) setGender("FEMALE");
+              else setGender("ALL");
+            } else {
+              setGender("ALL");
+            }
+
+            // ទាញយក Interests (Detailed Targeting)
+            const interestNames: string[] = [];
+            if (t.flexible_spec && Array.isArray(t.flexible_spec)) {
+              t.flexible_spec.forEach((spec: any) => {
+                if (spec.interests && Array.isArray(spec.interests)) {
+                  spec.interests.forEach((intObj: any) => {
+                    if (intObj.name) interestNames.push(intObj.name);
+                  });
+                }
+              });
+            }
+            if (t.interests && Array.isArray(t.interests)) {
+              t.interests.forEach((intObj: any) => {
+                if (intObj.name) interestNames.push(intObj.name);
+              });
+            }
+            setTargeting(interestNames.join(", "));
+
+            // ទាញយក Placements និងប្រអប់ធីកតូចៗទាំងអស់
+            const pubPlatforms: string[] = t.publisher_platforms || [];
+            const fbPos: string[] = t.facebook_positions || [];
+            const igPos: string[] = t.instagram_positions || [];
+            const msgPos: string[] = t.messenger_positions || [];
+            const anPos: string[] = t.audience_network_positions || [];
+
+            if (pubPlatforms.length > 0 || fbPos.length > 0 || igPos.length > 0) {
+              setPlacementType("MANUAL");
+              setPlatforms({
+                facebook: pubPlatforms.includes('facebook'),
+                instagram: pubPlatforms.includes('instagram'),
+                audienceNetwork: pubPlatforms.includes('audience_network'),
+                messenger: pubPlatforms.includes('messenger'),
+                whatsapp: false,
+                threads: false
+              });
+
+              setDetailedPlacements({
+                fb_feed: fbPos.length === 0 || fbPos.includes('feed'),
+                fb_profile: fbPos.includes('profile_feed'),
+                ig_feed: igPos.includes('stream'),
+                ig_profile: igPos.includes('profile_feed'),
+                fb_marketplace: fbPos.includes('marketplace'),
+                fb_right_col: fbPos.includes('right_hand_column'),
+                ig_explore: igPos.includes('explore'),
+                fb_business: false,
+                threads_feed: false,
+                fb_notifications: fbPos.includes('notification'),
+                ig_stories: igPos.includes('story'),
+                fb_stories: fbPos.includes('story'),
+                msg_stories: msgPos.includes('story'),
+                ig_reels: igPos.includes('reels'),
+                fb_reels: fbPos.includes('facebook_reels'),
+                wa_status: false,
+                instream_reels: fbPos.includes('instream_video'),
+                fb_reels_ads: fbPos.includes('facebook_reels_overlay'),
+                fb_search: fbPos.includes('search'),
+                ig_search: false,
+                wa_messages: false,
+                an_native: anPos.includes('classic'),
+                an_rewarded: anPos.includes('rewarded_video')
+              });
+            } else {
+              setPlacementType("ADVANTAGE");
+            }
+
+            if (t.device_platforms && Array.isArray(t.device_platforms)) {
+              const hasMob = t.device_platforms.includes('mobile');
+              const hasDesk = t.device_platforms.includes('desktop');
+              if (hasMob && !hasDesk) setDeviceType("MOBILE");
+              else if (!hasMob && hasDesk) setDeviceType("DESKTOP");
+              else setDeviceType("ALL");
+            }
+          }
+        }
+      }
+
+      // ៥. ទាញយកទិន្នន័យ Ad និង Post Creative ដើមមកបង្ហាញទាំងរូបភាព និងអត្ថបទ
+      if (targetAdId) {
+        const adRes = await fetch(`https://graph.facebook.com/v18.0/${targetAdId}?fields=name,creative{id,effective_object_story_id,object_story_id,call_to_action_type,thumbnail_url,image_url,body}&access_token=${token}`);
+        const adData = await adRes.json();
+        if (!adData.error) {
+          if (adData.name) setAdName(adData.name);
+          if (adData.creative?.call_to_action_type) {
+            setCallToAction(adData.creative.call_to_action_type);
+          }
+
+          const storyId = adData.creative?.effective_object_story_id || adData.creative?.object_story_id;
+          if (storyId) {
+            setSelectedPost(storyId);
+            setDuplicatePostId(storyId);
+
+            const storyPageId = storyId.includes('_') ? storyId.split('_')[0] : '';
+            if (storyPageId) {
+              setSelectedPage(storyPageId);
+              const foundPage = pages.find(p => String(p.id) === storyPageId) || facebookPages.find(p => String(p.id) === storyPageId);
+              if (foundPage?.name) setFbPageName(foundPage.name);
+            }
+
+            // បើ Post ដើមនោះមិនទាន់មានក្នុងបញ្ជី posts ត្រូវទាញរូបភាពនិងអត្ថបទមកបញ្ចូលភ្លាម ដើម្បីឱ្យលោត Preview 100%
+            const existsInPosts = posts.some(p => String(p.id) === String(storyId));
+            if (!existsInPosts) {
+              try {
+                const pRes = await fetch(`https://graph.facebook.com/v18.0/${storyId}?fields=id,message,story,full_picture,created_time&access_token=${token}`);
+                const pData = await pRes.json();
+                if (pData && pData.id) {
+                  setPosts(prev => [pData, ...prev.filter(p => p.id !== pData.id)]);
+                } else {
+                  setPosts(prev => [{
+                    id: storyId,
+                    message: adData.creative?.body || adData.name || `Post ID: ${storyId}`,
+                    full_picture: adData.creative?.image_url || adData.creative?.thumbnail_url || ""
+                  }, ...prev]);
+                }
+              } catch {
+                // រក្សាទុក Fallback បើទាញមិនបាន
+              }
+            }
+          }
+        }
+      }
+
+      setFullEditContext({ campaignId: targetCampId, adsetId: targetAdsetId, adId: targetAdId });
+      setIsFullEditModalOpen(true);
+
+    } catch (err: any) {
+      alert("❌ មិនអាចទាញយកទិន្នន័យដើមបានទេ: " + err.message);
+    }
+  };
+
+  // 🌟 មុខងារពេលចុចប៊ូតុង យល់ព្រមរក្សាទុក (Save Changes) ទាំង ៣ ផ្នែក
+  const handleExecuteFullEdit = async () => {
+    setIsSavingFullEdit(true);
+    try {
+      const clientToken = localStorage.getItem('fb_user_token');
+      const adAccountIdClean = (selectedAdAccount || localStorage.getItem('selectedAdAccount') || '').replace('act_', '');
+
+      if (!clientToken || !adAccountIdClean) {
+        throw new Error("រកមិនឃើញ Token ឬ Ad Account ID ទេ!");
+      }
+
+      // ១. កែប្រែ Campaign (Name & Budget)
+      if (fullEditContext.campaignId) {
+        await fetch('/api/campaigns', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            campaignId: fullEditContext.campaignId,
+            name: campaignName,
+            budget: budget,
+            access_token: clientToken
+          })
+        });
+      }
+
+      // ២. កែប្រែ Ad Set (Name & Budget)
+      if (fullEditContext.adsetId) {
+        await fetch('/api/adsets', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            adsetId: fullEditContext.adsetId,
+            name: adsetName,
+            budget: budget,
+            access_token: clientToken
+          })
+        });
+      }
+
+      // ៣. កែប្រែ Ad (Name & Post Creative)
+      if (fullEditContext.adId) {
+        let creativeIdToUse: string | null = null;
+        const postToUse = selectedPost || duplicatePostId;
+
+        if (postToUse) {
+          const cleanPost = String(postToUse).trim();
+          const rawPostNumber = cleanPost.includes('_') ? cleanPost.split('_')[1] : cleanPost;
+          const postPageId = cleanPost.includes('_') ? cleanPost.split('_')[0] : selectedPage;
+          const fullStoryId = `${postPageId}_${rawPostNumber}`;
+
+          const tryCreateEditCreative = async (payload: any) => {
+            const r = await fetch(`https://graph.facebook.com/v18.0/act_${adAccountIdClean}/adcreatives`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ...payload, access_token: clientToken })
+            });
+            return await r.json();
+          };
+
+          let cData = await tryCreateEditCreative({
+            name: `${adName || 'Ad'} - Creative ${Date.now()}`,
+            object_story_id: fullStoryId,
+            call_to_action: { type: callToAction || 'SEND_MESSAGE', value: { app_destination: 'MESSENGER' } }
+          });
+
+          if (!cData?.id) {
+            cData = await tryCreateEditCreative({
+              name: `${adName || 'Ad'} - Creative ${Date.now()}`,
+              object_story_id: fullStoryId
+            });
+          }
+
+          if (cData?.id) creativeIdToUse = String(cData.id);
+        }
+
+        const adUpdatePayload: any = { name: adName, access_token: clientToken };
+        if (creativeIdToUse) {
+          adUpdatePayload.creative = { creative_id: creativeIdToUse };
+        }
+
+        await fetch(`https://graph.facebook.com/v18.0/${fullEditContext.adId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(adUpdatePayload)
+        });
+      }
+
+      showToast("✅ បានរក្សាទុកការកែប្រែទាំង ៣ ផ្នែកដោយជោគជ័យ!", "success");
+      setIsFullEditModalOpen(false);
+
+      if (activeManageTab === 'CAMPAIGNS' && typeof fetchCampaigns === 'function') fetchCampaigns();
+      else if (activeManageTab === 'ADSETS' && typeof fetchAdsets === 'function') fetchAdsets();
+      else if (typeof fetchAds === 'function') fetchAds();
+
+    } catch (err: any) {
+      alert("❌ បរាជ័យក្នុងការកែប្រែ: " + err.message);
+    } finally {
+      setIsSavingFullEdit(false);
+    }
+  };
+  //////////////////////////////////////////////////////////
+
+  // 🌟 មុខងារបើក Modal Duplicate សម្រាប់ Tab Ads
+  const handleOpenAdDuplicateModal = async () => {
+    if (!selectedAds || selectedAds.length === 0) {
+      alert("⚠️ សូមធីក (Tick) ជ្រើសរើស Ad យ៉ាងហោចណាស់មួយពីក្នុងតារាង Ads ជាមុនសិន!");
+      return;
+    }
+
+    const targetAdId = selectedAds[0];
+    const targetAdData = adsList.find(a => a.id === targetAdId);
+
+    if (!targetAdData) {
+      alert("❌ រកមិនឃើញទិន្នន័យ Ad នេះទេ!");
+      return;
+    }
+
+    setOriginalAdId(targetAdId);
+    setDuplicateAdName(`${targetAdData.name || 'Ad'} - Copy`);
+
+    // ទាញយកប្រភព Post ដើមមកទុកជាស្រេច
+    const creativeId = targetAdData.creative?.effective_object_story_id || targetAdData.creative?.object_story_id;
+    if (creativeId) {
+      setDuplicatePostId(creativeId);
+    }
+
+    setIsSingleAdDuplicateModalOpen(true);
+  };
+
+  // 🌟 State សម្រាប់គ្រប់គ្រងផ្ទាំង Pop-up លុប Ad Set និង Ad បែបទំនើប
+  const [isCustomDeleteModalOpen, setIsCustomDeleteModalOpen] = useState(false);
+  const [itemToDeleteData, setItemToDeleteData] = useState<{ id: string; name: string; type: 'ADSET' | 'AD' } | null>(null);
+  const [isExecutingDelete, setIsExecutingDelete] = useState(false);
+
+  const handleConfirmCustomDelete = async () => {
+  if (!itemToDeleteData) return;
+  setIsExecutingDelete(true);
+  try {
+    const token = localStorage.getItem('fb_user_token');
+    if (!token) {
+      alert("⚠️ រកមិនឃើញ Token ទេ សូម Connect Facebook ឡើងវិញ!");
+      return;
+    }
+
+    const res = await fetch(`https://graph.facebook.com/v18.0/${itemToDeleteData.id}?access_token=${token}`, {
+      method: 'DELETE'
+    });
+    const data = await res.json();
+
+    if (res.ok || data.success) {
+      showToast(`✅ បានលុប ${itemToDeleteData.type === 'ADSET' ? 'Ad Set' : 'Ad'} ដោយជោគជ័យ!`, "success");
+      setIsCustomDeleteModalOpen(false);
+      setItemToDeleteData(null);
+      
+      // Refresh ទិន្នន័យតាម Tab
+      if (itemToDeleteData.type === 'ADSET' && typeof fetchAdsets === 'function') fetchAdsets();
+      if (itemToDeleteData.type === 'AD' && typeof fetchAds === 'function') fetchAds();
+    } else {
+      alert("❌ Facebook បដិសេធ: " + (data.error?.message || "Unknown error"));
+    }
+  } catch (err: any) {
+    alert("❌ Error: " + err.message);
+  } finally {
+    setIsExecutingDelete(false);
+  }
+};
+
+  const [customAlert, setCustomAlert] = useState<{ title: string; message: string } | null>(null);
+
+  const [editingAdSetEndTimeId, setEditingAdSetEndTimeId] = useState<string | null>(null);
+  
+  const [editingCampaignNameId, setEditingCampaignNameId] = useState<string | null>(null);
+  const [editingAdSetNameId, setEditingAdSetNameId] = useState<string | null>(null);
+  const [editingAdNameId, setEditingAdNameId] = useState<string | null>(null);
+
+  const [editingBudgetId, setEditingBudgetId] = useState<string | null>(null);
+  const [editingAdSetBudgetId, setEditingAdSetBudgetId] = useState<string | null>(null);
+
   // 🌟 ឆែកមើលថាតើ User ដែលកំពុង Login ជា Admin ដែរឬត់? (ប្តូរ Email នេះជា Email ផ្ទាល់ខ្លួនរបស់បង)
   const ADMIN_EMAIL = "sengsoveasna93@gmail.com"; 
   const [isAdmin, setIsAdmin] = useState(false);
@@ -737,6 +1185,7 @@ export default function Home() {
 
   // 🌟 States សម្រាប់មុខងារ Duplicate (មាន Pop-up ជ្រើសរើស Post)
   const [isDuplicateModalOpen, setIsDuplicateModalOpen] = useState(false);
+  const [originalAdId, setOriginalAdId] = useState("");
   const [duplicateAdName, setDuplicateAdName] = useState("");
   const [duplicatePostId, setDuplicatePostId] = useState("");
   const [postSelectionContext, setPostSelectionContext] = useState<'create' | 'duplicate'>('create'); // ដើម្បីដឹងថាចុច Select Post ពីផ្ទាំងណា
@@ -1110,7 +1559,8 @@ export default function Home() {
     }
   }, []);
 
-  // 🌟 ធ្វើឱ្យប្រព័ន្ធចងចាំ Ads ដែលបានជ្រើសរើស
+
+  // 🌟 ធ្វើឱ្យប្រព័ន្ធចងចាំ Ads ដែលបានជ្រើសរើស (Tick) អចិន្ត្រៃយ៍ ទោះប្ដូរ Tab ក៏មិនបាត់
   const [selectedAds, setSelectedAds] = useState<string[]>(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("selectedAds");
@@ -1817,28 +2267,26 @@ export default function Home() {
     const pageInfo = pages.find(p => p.id === selectedPage);
     if (!pageInfo) return;
 
-    // 🔍 ឆែកមើលក្នុង Cache ថាតើធ្លាប់ទាញ Posts របស់ Page នេះទុកហើយឬនៅ?
+    // 🛑 បិទកន្លែងនេះចោលដោយប្រើប្រាស់សញ្ញា // ខាងមុខជួរនីមួយៗ
     const cacheKey = `cached_posts_${selectedPage}`;
     const cachedData = localStorage.getItem(cacheKey);
-    
-    if (cachedData) {
-      try {
-        const parsedPosts = JSON.parse(cachedData);
-        if (parsedPosts && parsedPosts.length > 0) {
-          setPosts(parsedPosts);
-          const savedPost = localStorage.getItem("selectedPost");
-          if (savedPost && parsedPosts.find((p: any) => p.id === savedPost)) {
-            setSelectedPost(savedPost);
-          } else {
-            setSelectedPost(parsedPosts[0].id);
-          }
-          console.log("⚡ ប្រើប្រាស់ទិន្នន័យ Posts ពី Cache ស្រាប់ (លឿន និងមិន Error)");
-          return; // 🛑 បើមានក្នុង Cache ហើយ គឺមិនបាច់ហៅ API ទៅ Facebook ទៀតទេ!
-        }
-      } catch (e) {
-        console.error("Parse cached posts error:", e);
-      }
-    }
+    // if (cachedData) {
+    //   try {
+    //     const parsedPosts = JSON.parse(cachedData);
+    //     if (parsedPosts && parsedPosts.length > 0) {
+    //       setPosts(parsedPosts);
+    //       const savedPost = localStorage.getItem("selectedPost");
+    //       if (savedPost && parsedPosts.find((p: any) => p.id === savedPost)) {
+    //         setSelectedPost(savedPost);
+    //       } else {
+    //         setSelectedPost(parsedPosts[0].id);
+    //       }
+    //       return; 
+    //     }
+    //   } catch (e) {
+    //     console.error("Parse cached posts error:", e);
+    //   }
+    // }
 
     // 🚀 បើគ្មានក្នុង Cache ទើបហៅ API ទៅ Facebook មួយដងគត់
     setFetchingPosts(true);
@@ -2128,125 +2576,165 @@ export default function Home() {
     }
   };
 
- // 🚀 មុខងារ Duplicate ឆ្លាតវៃ៖ ឆែករក Ad Set ID  অটো និងហៅ API ទាញយកបើគ្មាន
-const handleDuplicate = async () => {
+const handleDeleteItem = async (targetId: string, itemName: string) => {
+  if (!confirm(`តើបងពិតជាចង់លុប "${itemName || 'ធាតុនេះ'}" នេះមែនទេ?`)) return;
   try {
-    // ១. បើស្ថិតនៅលើ Tab CAMPAIGNS
+    const token = localStorage.getItem('fb_user_token');
+    if (!token) {
+      alert("⚠️ រកមិនឃើញ Token ទេ សូម Connect Facebook ឡើងវិញ!");
+      return;
+    }
+
+    let endpoint = '';
     if (activeManageTab === 'CAMPAIGNS') {
-      if (!selectedCampaigns || selectedCampaigns.length === 0) {
-        alert("⚠️ សូមធីកជ្រើសរើស Campaign យ៉ាងហោចណាស់មួយដើម្បី Duplicate!");
-        return;
-      }
+      endpoint = `/api/campaigns?id=${targetId}&access_token=${token}`;
+    } else if (activeManageTab === 'ADSETS') {
+      endpoint = `https://graph.facebook.com/v18.0/${targetId}?access_token=${token}`;
+    } else if (activeManageTab === 'ADS') {
+      endpoint = `https://graph.facebook.com/v18.0/${targetId}?access_token=${token}`;
+    }
+
+    const res = await fetch(endpoint, { method: 'DELETE' });
+    const data = await res.json();
+
+    if (res.ok || data.success) {
+      showToast("✅ បានលុបជួរនេះដោយជោគជ័យ!", "success");
       
-      const originalCampId = selectedCampaigns[0];
-      const clientToken = localStorage.getItem('fb_user_token');
+      if (activeManageTab === 'CAMPAIGNS' && typeof fetchCampaigns === 'function') fetchCampaigns();
+      else if (activeManageTab === 'ADSETS' && typeof fetchAdsets === 'function') fetchAdsets();
+      else if (activeManageTab === 'ADS' && typeof fetchAds === 'function') fetchAds();
+    } else {
+      alert("❌ Facebook បដិសេធ: " + (data.error?.message || "Unknown error"));
+    }
+  } catch(e: any) {
+    alert("❌ Error: " + e.message);
+  }
+};
 
-      if (!clientToken) {
-        alert("⚠️ រកមិនឃើញ Token ទេ! សូម Connect Facebook ឡើងវិញ។");
-        return;
-      }
+  const handleDeleteSingleAdSet = async (adsetId: string, adsetName: string) => {
+  if (!confirm(`តើបងពិតជាចង់លុប Ad Set "${adsetName}" នេះមែនទេ?`)) return;
+  try {
+    const token = localStorage.getItem('fb_user_token');
+    if (!token) {
+      alert("⚠️ រកមិនឃើញ Token ទេ!");
+      return;
+    }
 
-      showToast("⏳ កំពុងទាញយកទិន្នន័យស៊ីជម្រៅពី Facebook...", "info");
+    const res = await fetch(`https://graph.facebook.com/v18.0/${adsetId}?access_token=${token}`, {
+      method: 'DELETE'
+    });
+    const data = await res.json();
 
-      const res = await fetch(`https://graph.facebook.com/v18.0/${originalCampId}?fields=name,daily_budget,lifetime_budget,objective,adsets{name,targeting,daily_budget,lifetime_budget,bid_strategy},ads{name,creative{object_story_spec,effective_object_story_id,object_story_id}}&access_token=${clientToken}`);
-      const campToDup = await res.json();
+    if (res.ok || data.success) {
+      showToast("✅ បានលុប Ad Set ដោយជោគជ័យ!", "success");
+      if (typeof fetchAdsets === 'function') fetchAdsets();
+    } else {
+      alert("❌ Facebook បដិសេធ: " + (data.error?.message || "Unknown error"));
+    }
+  } catch (err: any) {
+    alert("❌ Error: " + err.message);
+  }
+};
 
-      if (campToDup.error) {
-        throw new Error(campToDup.error.message);
-      }
+  // 🚀 មុខងារសម្រាប់ប៊ូតុង Duplicate ធំខាងលើ (គាំទ្រទាំង Campaigns, Ad sets និង Ads ១០០%)
+  const handleDuplicate = async () => {
+    // មុខងារជំនួយ៖ ស្វែងរកជួរដែលកំពុងធីក (Tick) ជាក់ស្ដែងនៅលើតារាងបច្ចុប្បន្ន
+    const getTickedItemFromTable = (list: any[], selectedIds: string[]) => {
+      if (!list || list.length === 0) return null;
 
-      setTargetAdToDuplicate(campToDup);
-      
-      saveParam("campaignName", `${campToDup.name || 'Campaign'} - Copy`, setCampaignName);
-      if (campToDup.daily_budget) {
-        saveParam("budgetType", "DAILY", setBudgetType);
-        saveParam("budget", String(Number(campToDup.daily_budget) / 100), setBudget);
-      } else if (campToDup.lifetime_budget) {
-        saveParam("budgetType", "LIFETIME", setBudgetType);
-        saveParam("budget", String(Number(campToDup.lifetime_budget) / 100), setBudget);
-      }
-
-      const adsetInfo = campToDup.adsets?.data?.[0];
-      if (adsetInfo) {
-        saveParam("adsetName", `${adsetInfo.name || 'Ad Set'} - Copy`, setAdsetName);
-        const t = adsetInfo.targeting;
-        if (t) {
-          if (t.age_min) saveParam("ageMin", String(t.age_min), setAgeMin);
-          if (t.age_max) saveParam("ageMax", String(t.age_max), setAgeMax);
-          
-          let interestsArr: string[] = [];
-          if (t.flexible_spec) {
-             t.flexible_spec.forEach((spec: any) => {
-                if (spec.interests) spec.interests.forEach((i: any) => interestsArr.push(i.name));
-             });
-          } else if (t.interests) {
-             t.interests.forEach((i: any) => interestsArr.push(i.name));
-          }
-
-          if (interestsArr.length > 0) {
-             const keywords = interestsArr.join(", ");
-             saveParam("targeting", keywords, setTargeting);
-             setInterestQuery(keywords);
+      // ១. ឆែកមើលប្រអប់ Checkbox ដែលបានធីកជាក់ស្ដែងនៅលើអេក្រង់មុនគេ
+      if (typeof document !== "undefined") {
+        const rows = document.querySelectorAll("tbody tr");
+        for (let i = 0; i < rows.length; i++) {
+          const cb = rows[i].querySelector('input[type="checkbox"]') as HTMLInputElement;
+          if (cb && cb.checked && list[i]) {
+            return list[i];
           }
         }
       }
 
+      // ២. បើរកតាមអេក្រង់មិនឃើញ ឆែករកតាមរយៈ State ដែលត្រូវគ្នាជាមួយតារាងបច្ចុប្បន្ន
+      const matchedItems = list.filter(item =>
+        selectedIds.some(id => String(id) === String(item.id))
+      );
+      if (matchedItems.length > 0) {
+        return matchedItems[matchedItems.length - 1];
+      }
+
+      return null;
+    };
+
+    // =========================================================
+    // 1. បើកំពុងនៅផ្ទាំង CAMPAIGNS -> បើកផ្ទាំង Duplicate Campaign
+    // =========================================================
+    if (activeManageTab === 'CAMPAIGNS') {
+      const targetCamp = getTickedItemFromTable(campaignsList, selectedCampaigns);
+      if (!targetCamp) {
+        alert("⚠️ សូមធីក (Tick) ជ្រើសរើស Campaign យ៉ាងហោចណាស់មួយពីក្នុងតារាងជាមុនសិន!");
+        return;
+      }
+
+      setCampaignName(`${targetCamp.name || 'Campaign'} - Copy`);
+      if (targetCamp.daily_budget) {
+        setBudgetType("DAILY");
+        setBudget((Number(targetCamp.daily_budget) / 100).toString());
+      } else if (targetCamp.lifetime_budget) {
+        setBudgetType("LIFETIME");
+        setBudget((Number(targetCamp.lifetime_budget) / 100).toString());
+      }
       setIsAdDuplicateModalOpen(true);
     } 
-    // ២. បើស្ថិតនៅលើ Tab ADSETS
+    // =========================================================
+    // 2. បើកំពុងនៅផ្ទាំង ADSETS -> បើកផ្ទាំង Duplicate Ad Set
+    // =========================================================
     else if (activeManageTab === 'ADSETS') {
-      if (!adsetsList || adsetsList.length === 0) {
-        alert("⚠️ អត់ទាន់មានទិន្នន័យ Ad Set ក្នុងតារាងទេបង! សូមជ្រើសរើស Campaign ដែលមាន Ad Set សិន។");
+      const targetAdSet = getTickedItemFromTable(adsetsList, selectedAdSets);
+      if (!targetAdSet) {
+        alert("⚠️ សូមធីក (Tick) ជ្រើសរើស Ad Set យ៉ាងហោចណាស់មួយពីក្នុងតារាងជាមុនសិន!");
         return;
       }
-      const targetAdsetItem = adsetsList[0]; 
-      handleOpenAdSetDuplicateModal(targetAdsetItem);
+
+      setOriginalAdId(targetAdSet.id);
+      setDuplicateAdName(`${targetAdSet.name || 'Ad Set'} - Copy`);
+      if (!duplicatePostId && (selectedPost || posts[0]?.id)) {
+        setDuplicatePostId(selectedPost || posts[0]?.id || "");
+      }
+
+      // ទាញយក Post ID ដើមរបស់ Ad Set នោះមកបង្ហាញក្នុងប្រអប់ជាស្រេច
+      const token = localStorage.getItem('fb_user_token');
+      if (token) {
+        fetch(`https://graph.facebook.com/v18.0/${targetAdSet.id}/ads?fields=creative{effective_object_story_id,object_story_id}&limit=1&access_token=${token}`)
+          .then(r => r.json())
+          .then(d => {
+            const storyId = d?.data?.[0]?.creative?.effective_object_story_id || d?.data?.[0]?.creative?.object_story_id;
+            if (storyId) setDuplicatePostId(storyId);
+          })
+          .catch(() => {});
+      }
+
+      setIsSingleAdDuplicateModalOpen(true);
     } 
-    // ៣. 🌟 បើស្ថិតនៅលើ Tab ADS (មានប្រព័ន្ធ Auto-Fetch AdSet ID ឆ្លាតវៃ)
+    // =========================================================
+    // 3. បើកំពុងនៅផ្ទាំង ADS -> បើកផ្ទាំង Duplicate Ads (ចម្លងតែ Ad)
+    // =========================================================
     else if (activeManageTab === 'ADS') {
-      if (!selectedAds || selectedAds.length === 0) {
-        alert("⚠️ សូមធីក (Tick) ជ្រើសរើស Ad ណាមួយក្នុងតារាងជាមុនសិន មុននឹងចុច Duplicate!");
+      const targetAdData = getTickedItemFromTable(adsList, selectedAds);
+      if (!targetAdData) {
+        alert("⚠️ សូមធីក (Tick) ជ្រើសរើស Ad យ៉ាងហោចណាស់មួយពីក្នុងតារាង Ads ជាមុនសិន!");
         return;
       }
 
-      const targetAdItem = adsList.find(a => a.id === selectedAds[0]);
-      if (!targetAdItem) {
-        alert("❌ រកមិនឃើញទិន្នន័យ Ad នេះទេ!");
-        return;
+      setOriginalAdId(targetAdData.id);
+      setDuplicateAdName(`${targetAdData.name || 'Ad'} - Copy`);
+
+      const creativeId = targetAdData.creative?.effective_object_story_id || targetAdData.creative?.object_story_id;
+      if (creativeId) {
+        setDuplicatePostId(creativeId);
       }
 
-      // 🛑 ឆែកមើលថាតើមាន Page រើសឬនៅ?
-      if (!selectedPage) {
-        alert("⚠️ សូមជ្រើសរើស Facebook Page នៅផ្នែកខាងលើជាមុនសិន!");
-        return;
-      }
-
-      showToast("⏳ កំពុងពិនិត្យ និងស្វែងរក Ad Set ID ពី Facebook...", "info");
-
-      // 🌟 ប្រើប្រាស់ API Graph ដើម្បីទាញយក adset_id ផ្ទាល់ពី Facebook មកភ្លាមៗ
-      const clientToken = localStorage.getItem('fb_user_token');
-      const apiRes = await fetch(`https://graph.facebook.com/v18.0/${targetAdItem.id}?fields=adset_id,name&access_token=${clientToken}`);
-      const apiData = await apiRes.json();
-
-      let validAdSetId = apiData.adset_id || targetAdItem.adset_id || targetAdItem.adrol_id;
-
-      if (!validAdSetId) {
-        alert("❌ រកមិនឃើញ Ad Set ID សម្រាប់ Ad នេះទេ! សូមពិនិត្យមើលការតភ្ជាប់ Account ឡើងវិញ។");
-        return;
-      }
-
-      // 💾 បញ្ចូល adset_id ចូលទៅក្នុង targetAdItem ទុកប្រើប្រាស់ពេលចុច OK
-      targetAdItem.adset_id = validAdSetId;
-
-      setTargetAdToDuplicate(targetAdItem);
-      setDuplicateAdName(`${targetAdItem.name || 'Ad'} - Copy`);
-      setDuplicatePostId(""); // ឱ្យទទេសិន ដើម្បីបង្ខំឱ្យរើស Post ថ្មី
-      setIsSingleAdDuplicateModalOpen(true); // បើកផ្ទាំង Pop-up ស្អាត
+      setIsSingleAdDuplicateModalOpen(true);
     }
-  } catch (err: any) {
-    alert("❌ បរាជ័យ: " + err.message);
-  }
-};
+  };
 
   const handleOpenAdSetDuplicateModal = (adsetItem: any) => {
   setSelectedAdSetForDupe(adsetItem);
@@ -2309,27 +2797,241 @@ const handleExecuteAdSetDuplicateAdvanced = async () => {
   }
 };
 
- const executeAdDuplicateWithPost = async () => {
-  if (!duplicatePostId) {
-    alert("⚠️ សូមជ្រើសរើស Post ថ្មីមួយជាមុនសិន!");
+const handleExecuteDuplicate = async () => {
+  try {
+    if (!selectedAds || selectedAds.length === 0) {
+      alert("⚠️ សូមជ្រើសរើស Ad យ៉ាងហោចណាស់មួយ!");
+      return;
+    }
+
+    if (!duplicatePostId || duplicatePostId.trim() === "") {
+      alert("⚠️ សូមជ្រើសរើស Post ថ្មីមួយជាមុនសិន មុននឹងចុច Publish!");
+      return;
+    }
+
+    const targetAdItem = adsList.find(a => a.id === selectedAds[0]);
+    const clientToken = localStorage.getItem('fb_user_token');
+
+    showToast("⏳ កំពុងដំណើរការ Duplicate Ad ទៅកាន់ Facebook...", "info");
+
+    // ហៅទៅកាន់ API Backend របស់យើង
+    const res = await fetch('/api/duplicate-advanced', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'AD',
+        originalAdId: targetAdItem?.id,
+        adsetId: targetAdItem?.adset_id || targetAdItem?.adrol_id,
+        newName: duplicateAdName,
+        newPostId: duplicatePostId, // 🌟 Post ID ថ្មីដែលបានជ្រើសរើសពីប្រអប់ Select Post
+        pageId: selectedPage,
+        access_token: clientToken,
+        adAccountId: selectedAdAccount
+      })
+    });
+
+    const result = await res.json();
+
+    if (!result.success) {
+      throw new Error(result.error || "Failed to duplicate ad");
+    }
+
+    alert("🎉 ជោគជ័យ! Ad ត្រូវបាន Duplicate រួចរាល់ហើយ។");
+    setIsSingleAdDuplicateModalOpen(false);
+    // Refresh តារាងទិន្នន័យឡើងវិញនៅទីនេះបើមាន
+  } catch (err: any) {
+    alert("❌ បរាជ័យ: " + err.message);
+  }
+};
+
+  // 🌟 មុខងារ Duplicate Ads៖ បង្កើតចេញតែលើផ្ទាំង Ads មួយគត់ (មិនប៉ះពាល់ Campaign ឬ Ad Set ដាច់ខាត)
+const executeAdDuplicateWithPost = async () => {
+  const finalPostId = duplicatePostId || selectedPost;
+
+  if (!finalPostId) {
+    alert("⚠️ សូមជ្រើសរើស Post ណាមួយជាមុនសិន!");
     return;
   }
 
-  const targetAdItem = targetAdToDuplicate || (selectedAds.length > 0 ? adsList.find(a => a.id === selectedAds[0]) : adsList[0]);
+  setIsExecutingAdDuplicate(true);
+  try {
+    const clientToken = localStorage.getItem('fb_user_token');
+    const adAccountIdClean = (selectedAdAccount || localStorage.getItem('selectedAdAccount') || '').replace('act_', '');
 
-  if (!targetAdItem) {
-    alert("❌ រកមិនឃើញ Ad ដើមសម្រាប់ Duplicate ទេ!");
-    return;
+    if (!clientToken || !adAccountIdClean) {
+      throw new Error("រកមិនឃើញ Token ឬ Ad Account ID ទេ!");
+    }
+
+    const cleanPost = String(finalPostId).trim();
+    const rawPostNumber = cleanPost.includes('_') ? cleanPost.split('_')[1] : cleanPost;
+    const selectedPostPageId = cleanPost.includes('_') ? cleanPost.split('_')[0] : selectedPage;
+
+    let targetAdSetId = "";
+    let fullStoryId = "";
+
+    // =========================================================
+    // 🅰️ ករណីចុច Duplicate នៅក្នុងផ្ទាំង ADS (Clone តែ Ad សុទ្ធ ១០០% មិនប៉ះពាល់ Campaign និង Ad Set)
+    // =========================================================
+    if (activeManageTab === 'ADS') {
+      const targetAdItem = adsList.find(a => a.id === originalAdId) || adsList[0];
+      if (!targetAdItem) {
+        throw new Error("រកមិនឃើញទិន្នន័យ Ad ដើមទេ!");
+      }
+
+      // ១. ទាញយកតែ adset_id ដើមរបស់ Ad នោះមកប្រើ (មិនបង្កើត Ad Set ថ្មីទេ)
+      const adInfoRes = await fetch(`https://graph.facebook.com/v18.0/${targetAdItem.id}?fields=adset_id,creative{effective_object_story_id,object_story_id}&access_token=${clientToken}`);
+      const adInfo = await adInfoRes.json();
+      if (adInfo.error) {
+        throw new Error(adInfo.error.error_user_msg || adInfo.error.message);
+      }
+
+      targetAdSetId = adInfo.adset_id || targetAdItem.adset_id;
+      if (!targetAdSetId) {
+        throw new Error("រកមិនឃើញ Ad Set ID របស់ Ad ដើមនេះទេ!");
+      }
+
+      // ២. ទាញយក Page ID របស់ Ad Set ដើម ដើម្បីផ្គុំជាមួយលេខ Post ថ្មីឱ្យត្រូវគ្នា ១០០%
+      const adsetRes = await fetch(`https://graph.facebook.com/v18.0/${targetAdSetId}?fields=promoted_object&access_token=${clientToken}`);
+      const adsetData = await adsetRes.json();
+      
+      const origStoryId = adInfo.creative?.effective_object_story_id || adInfo.creative?.object_story_id || "";
+      const origPageId = adsetData?.promoted_object?.page_id || selectedPostPageId || (origStoryId.includes('_') ? origStoryId.split('_')[0] : selectedPage);
+
+      fullStoryId = `${origPageId}_${rawPostNumber}`;
+    } 
+    // =========================================================
+    // 🅱️ ករណីចុច Duplicate នៅក្នុងផ្ទាំង ADSETS (សម្រាប់ទុកប្រើពេលនៅផ្ទាំង Ad Sets)
+    // =========================================================
+    else if (activeManageTab === 'ADSETS') {
+      const targetAdSetItem = adsetsList.find(a => a.id === originalAdId) || adsetsList[0];
+      if (!targetAdSetItem) {
+        throw new Error("រកមិនឃើញទិន្នន័យ Ad Set ដើមទេ!");
+      }
+
+      const adsetRes = await fetch(`https://graph.facebook.com/v18.0/${targetAdSetItem.id}?fields=name,campaign_id,daily_budget,lifetime_budget,billing_event,optimization_goal,bid_strategy,targeting,destination_type,promoted_object&access_token=${clientToken}`);
+      const adsetData = await adsetRes.json();
+      if (adsetData.error) {
+        throw new Error(adsetData.error.error_user_msg || adsetData.error.message);
+      }
+
+      const pageIdForNewAdSet = selectedPostPageId || adsetData?.promoted_object?.page_id || selectedPage;
+      fullStoryId = `${pageIdForNewAdSet}_${rawPostNumber}`;
+
+      const newAdSetPayload: any = {
+        name: duplicateAdName || `${adsetData.name || 'Ad Set'} - Copy`,
+        campaign_id: adsetData.campaign_id || targetAdSetItem.campaign_id,
+        billing_event: adsetData.billing_event || 'IMPRESSIONS',
+        optimization_goal: adsetData.optimization_goal || 'CONVERSATIONS',
+        targeting: adsetData.targeting,
+        promoted_object: { page_id: pageIdForNewAdSet },
+        status: 'PAUSED',
+        access_token: clientToken
+      };
+      if (adsetData.daily_budget) newAdSetPayload.daily_budget = adsetData.daily_budget;
+      if (adsetData.lifetime_budget) newAdSetPayload.lifetime_budget = adsetData.lifetime_budget;
+      if (adsetData.bid_strategy) newAdSetPayload.bid_strategy = adsetData.bid_strategy;
+      if (adsetData.destination_type) newAdSetPayload.destination_type = adsetData.destination_type;
+
+      const createAdSetRes = await fetch(`https://graph.facebook.com/v18.0/act_${adAccountIdClean}/adsets`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newAdSetPayload)
+      });
+      const newAdSetData = await createAdSetRes.json();
+      if (!newAdSetData || !newAdSetData.id) {
+        throw new Error(newAdSetData?.error?.error_user_msg || newAdSetData?.error?.message || "បរាជ័យក្នុងការបង្កើត Ad Set ថ្មី");
+      }
+
+      targetAdSetId = newAdSetData.id;
+    }
+
+    // 🌟 មុខងារបង្កើត Ad Creative និងបង្កើត Ad ថ្មីចូលទៅក្នុង Tab Ads ផ្ទាល់
+    const tryCreateAdOnly = async (creativePayload: any) => {
+      const cRes = await fetch(`https://graph.facebook.com/v18.0/act_${adAccountIdClean}/adcreatives`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...creativePayload,
+          access_token: clientToken
+        })
+      });
+      const cData = await cRes.json();
+      if (!cData || !cData.id) {
+        return { ok: false, error: cData?.error };
+      }
+
+      // បាញ់ទៅបង្កើតតែ Ad ថ្មីប៉ុណ្ណោះ (/ads) ក្រោម targetAdSetId ចាស់ដដែល
+      const aRes = await fetch(`https://graph.facebook.com/v18.0/act_${adAccountIdClean}/ads`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: duplicateAdName || 'Duplicated Ad',
+          adset_id: targetAdSetId,
+          creative: { creative_id: cData.id },
+          status: 'PAUSED',
+          access_token: clientToken
+        })
+      });
+      const aData = await aRes.json();
+      if (!aData || !aData.id) {
+        return { ok: false, error: aData?.error };
+      }
+
+      return { ok: true, adId: aData.id };
+    };
+
+    // 🌟 សាកល្បងបង្កើត Ad ជាមួយ Post ថ្មី (៣ ជម្រើសការពារ Error ពី Facebook)
+    let result = await tryCreateAdOnly({
+      name: `${duplicateAdName || 'Ad'} - Creative ${Date.now()}`,
+      object_story_id: fullStoryId,
+      call_to_action: {
+        type: 'SEND_MESSAGE',
+        value: { app_destination: 'MESSENGER' }
+      }
+    });
+
+    if (!result.ok) {
+      result = await tryCreateAdOnly({
+        name: `${duplicateAdName || 'Ad'} - Creative ${Date.now()}`,
+        object_story_id: fullStoryId,
+        call_to_action: {
+          type: 'SEND_MESSAGE'
+        }
+      });
+    }
+
+    if (!result.ok) {
+      result = await tryCreateAdOnly({
+        name: `${duplicateAdName || 'Ad'} - Creative ${Date.now()}`,
+        object_story_id: fullStoryId
+      });
+    }
+
+    if (!result.ok) {
+      const fbErr = result.error?.error_user_msg || result.error?.message || "មិនអាចបង្កើត Ad ជាមួយ Post នេះបានទេ";
+      throw new Error(fbErr);
+    }
+
+    // 🌟 បិទផ្ទាំង Pop-up និង Refresh តែតារាង Ads ប៉ុណ្ណោះ
+    setIsSingleAdDuplicateModalOpen(false);
+
+    if (activeManageTab === 'ADS') {
+      showToast("🎉 បាន Duplicate Ad ថ្មីចូលក្នុងផ្ទាំង Ads ដោយជោគជ័យ (មិនប៉ះពាល់ Campaign/Ad Set)!", "success");
+      if (typeof fetchAds === 'function') fetchAds();
+    } else {
+      showToast("🎉 Duplicate Ad Set បានជោគជ័យ!", "success");
+      if (typeof fetchAdsets === 'function') fetchAdsets();
+    }
+
+  } catch (err: any) {
+    alert("❌ បរាជ័យ: " + err.message);
+  } finally {
+    setIsExecutingAdDuplicate(false);
   }
+};
 
-  // 🌟 បន្ថែមការទាញយក AdSet ID ឱ្យបានត្រឹមត្រូវ ១០០%
-  const adsetIdToUse = targetAdItem.adset_id || targetAdItem.adrol_id || targetAdItem.ad_set_id;
-
-  if (!adsetIdToUse) {
-    alert("❌ រកមិនឃើញ Ad Set ID របស់ Ad នេះទេ!");
-    return;
-  }
-
+// 🌟 Function បន្តដំណើរការ Duplicate Ad
+const proceedDuplicateAd = async (adsetIdToUse: string, targetAdItem: any) => {
   setIsExecutingAdDuplicate(true);
   try {
     const clientToken = localStorage.getItem('fb_user_token');
@@ -2341,8 +3043,8 @@ const handleExecuteAdSetDuplicateAdvanced = async () => {
       body: JSON.stringify({
         type: 'AD', 
         originalAdId: targetAdItem.id,
-        adsetId: adsetIdToUse, // ប្រើប្រាស់ ID ដែលបានទាញយកត្រឹមត្រូវ
-        newName: duplicateAdName || `${targetAdItem.name} - Copy`,
+        adsetId: adsetIdToUse,
+        newName: duplicateAdName || `${targetAdItem.name || 'Ad'} - Copy`,
         newPostId: duplicatePostId,
         pageId: selectedPage,
         access_token: clientToken,
@@ -2363,54 +3065,108 @@ const handleExecuteAdSetDuplicateAdvanced = async () => {
   }
 };
 
-  // 🌟 មុខងារលុប Ad ជាក់លាក់តាមការ Tick ជ្រើសរើស (Selective Delete)
-const handleDeleteSelectedAds = async () => {
-  // ឆែកមើលថាតើកំពុងនៅ Tab ណា ហើយបាន Tick ឬยัง
-  const itemsToDelete = activeManageTab === 'ADS' ? selectedAds : (activeManageTab === 'ADSETS' ? selectedAdSets : selectedCampaigns);
+// Helper សម្រាប់ឆែករក ID
+const idOrMatch = (item: any, id: string) => {
+  return item.id === id || item.ad_id === id;
+};
 
-  if (!itemsToDelete || itemsToDelete.length === 0) {
-    alert("⚠️ សូមធីក (Tick) ជ្រើសរើសធាតុណាមួយដែលចង់លុបជាមុនសិន!");
-    return;
-  }
+  // 🌟 មុខងារលុបតែធាតុជាក់លាក់ដែលបាន Tick ឬលុបជួរដែលកំពុងជ្រើសរើសស្របតាម Tab នីមួយៗ
+// 🌟 មុខងារលុបស្តង់ដារ Facebook 100%៖ Select លើប៉ុស្តិ៍ណា គឺលុបតែប៉ុស្តិ៍នោះក្នុង Tab បច្ចុប្បន្ន (ហាមប៉ះពាល់កន្លែងផ្សេងដាច់ខាត)
+  const handleDeleteSelectedAds = async () => {
+    let currentList: any[] = [];
+    let stateSelectedIds: string[] = [];
+    let tabLabel = "";
 
-  if (!confirm(`តើបងពិតជាចង់លុបចំនួន ${itemsToDelete.length} នេះមែនទេ? (លុបហើយមិនអាចទាញយកវិញបានទេ)`)) return;
+    // ១. កំណត់តារាងទិន្នន័យឱ្យចំតាម Tab បច្ចុប្បន្នដាច់ខាត
+    if (activeManageTab === 'CAMPAIGNS') {
+      currentList = campaignsList;
+      stateSelectedIds = selectedCampaigns;
+      tabLabel = "Campaign";
+    } else if (activeManageTab === 'ADSETS') {
+      currentList = adsetsList;
+      stateSelectedIds = selectedAdSets;
+      tabLabel = "Ad Set";
+    } else if (activeManageTab === 'ADS') {
+      currentList = adsList;
+      stateSelectedIds = selectedAds;
+      tabLabel = "Ad";
+    }
 
-  try {
-    const token = localStorage.getItem('fb_user_token');
-    if (!token) {
-      alert("⚠️ រកមិនឃើញ Token ទេ សូម Connect Facebook ឡើងវិញ!");
+    // ២. ចាប់យកតែជួរណាដែលបានធីក (Tick) ជាក់ស្ដែងនៅលើតារាងបច្ចុប្បន្នប៉ុណ្ណោះ
+    const tickedItems: any[] = [];
+    if (typeof document !== "undefined") {
+      const rows = document.querySelectorAll("tbody tr");
+      for (let i = 0; i < rows.length; i++) {
+        const cb = rows[i].querySelector('input[type="checkbox"]') as HTMLInputElement;
+        if (cb && cb.checked && currentList[i]) {
+          tickedItems.push(currentList[i]);
+        }
+      }
+    }
+
+    // បើរកតាម DOM មិនឃើញ ផ្ទៀងផ្ទាត់តាម State ដែលមានក្នុងតារាងបច្ចុប្បន្ន
+    const finalItemsToDelete = tickedItems.length > 0
+      ? tickedItems
+      : currentList.filter(item => stateSelectedIds.some(id => String(id) === String(item.id)));
+
+    if (finalItemsToDelete.length === 0) {
+      alert(`⚠️ សូមធីក (Tick) ជ្រើសរើសប៉ុស្តិ៍នៅក្នុងផ្ទាំង ${tabLabel} យ៉ាងហោចណាស់មួយជាមុនសិន!`);
       return;
     }
 
-    // រត់ Loop លុបាតែ ID ណាដែលត្រូវបាន Tick ជ្រើសរើសប៉ុណ្ណោះ
-    for (const itemId of itemsToDelete) {
-      let endpoint = `/api/campaigns?id=${itemId}&access_token=${token}`;
-      if (activeManageTab === 'ADS') {
-        endpoint = `https://graph.facebook.com/v18.0/${itemId}?access_token=${token}`;
-      } else if (activeManageTab === 'ADSETS') {
-        endpoint = `https://graph.facebook.com/v18.0/${itemId}?access_token=${token}`;
-      }
-
-      const method = activeManageTab === 'CAMPAIGNS' ? 'DELETE' : 'DELETE';
-      await fetch(endpoint, { method: method });
+    // ៣. បើធីក ១ ប៉ុស្តិ៍ នៅក្នុងផ្ទាំង Ad Sets ឬ Ads -> បើកផ្ទាំង Pop-up លុបដ៏ស្រស់ស្អាតបង្ហាញឈ្មោះប៉ុស្តិ៍នោះច្បាស់ៗ
+    if (finalItemsToDelete.length === 1 && (activeManageTab === 'ADSETS' || activeManageTab === 'ADS')) {
+      const targetItem = finalItemsToDelete[0];
+      setItemToDeleteData({
+        id: targetItem.id,
+        name: targetItem.name || tabLabel,
+        type: activeManageTab === 'ADSETS' ? 'ADSET' : 'AD'
+      });
+      setIsCustomDeleteModalOpen(true);
+      return;
     }
 
-    showToast("✅ បានលុបធាតុដែលបានជ្រើសរើសដោយជោគជ័យ!", "success");
-    
-    // សម្អាតការ Select វិញ
-    if (activeManageTab === 'ADS') setSelectedAds([]);
-    else if (activeManageTab === 'ADSETS') setSelectedAdSets([]);
-    else setSelectedCampaigns([]);
+    // ៤. បើនៅផ្ទាំង Campaigns ឬធីកច្រើនប៉ុស្តិ៍ព្រមគ្នា -> បញ្ជាក់មុននឹងលុបតែប៉ុស្តិ៍ដែលបានធីកនោះ
+    const namesPreview = finalItemsToDelete.map(item => `• ${item.name || item.id}`).join('\n');
+    if (!confirm(`តើបងពិតជាចង់លុប ${tabLabel} ចំនួន ${finalItemsToDelete.length} ដែលបាន Select នេះមែនទេ?\n\n${namesPreview}\n\n(សកម្មភាពនេះលុបតែប៉ុស្តិ៍ដែលបានជ្រើសរើសប៉ុណ្ណោះ មិនប៉ះពាល់កន្លែងផ្សេងទេ)`)) {
+      return;
+    }
 
-    // Refresh ទិន្នន័យក្នុងតារាងឡើងវិញ
-    if (activeManageTab === 'ADS' && typeof fetchAds === 'function') fetchAds();
-    if (activeManageTab === 'ADSETS' && typeof fetchAdsets === 'function') fetchAdsets();
-    if (activeManageTab === 'CAMPAIGNS' && typeof fetchCampaigns === 'function') fetchCampaigns();
+    try {
+      const token = localStorage.getItem('fb_user_token');
+      if (!token) {
+        alert("⚠️ រកមិនឃើញ Token ទេ សូម Connect Facebook ឡើងវិញ!");
+        return;
+      }
 
-  } catch (err: any) {
-    alert("❌ មានបញ្ហាក្នុងการលុប: " + err.message);
-  }
-};
+      for (const item of finalItemsToDelete) {
+        const endpoint = activeManageTab === 'CAMPAIGNS'
+          ? `/api/campaigns?id=${item.id}&access_token=${token}`
+          : `https://graph.facebook.com/v18.0/${item.id}?access_token=${token}`;
+
+        await fetch(endpoint, { method: 'DELETE' });
+      }
+
+      showToast(`✅ បានលុប ${tabLabel} ចំនួន ${finalItemsToDelete.length} ដោយជោគជ័យ!`, "success");
+
+      const deletedIds = finalItemsToDelete.map(i => String(i.id));
+
+      // ៥. សម្អាតតែសញ្ញាធីករបស់ប៉ុស្តិ៍ដែលបានលុប និង Refresh តែតារាងនៃផ្ទាំងនោះប៉ុណ្ណោះ
+      if (activeManageTab === 'CAMPAIGNS') {
+        setSelectedCampaigns(prev => prev.filter(id => !deletedIds.includes(String(id))));
+        if (typeof fetchCampaigns === 'function') fetchCampaigns();
+      } else if (activeManageTab === 'ADSETS') {
+        setSelectedAdSets(prev => prev.filter(id => !deletedIds.includes(String(id))));
+        if (typeof fetchAdsets === 'function') fetchAdsets();
+      } else if (activeManageTab === 'ADS') {
+        setSelectedAds(prev => prev.filter(id => !deletedIds.includes(String(id))));
+        if (typeof fetchAds === 'function') fetchAds();
+      }
+
+    } catch (err: any) {
+      alert("❌ មានបញ្ហាក្នុងការលុប: " + err.message);
+    }
+  };
 
   const handleToggleAdStatus = async (adId: string, currentStatus: string) => {
     const newStatus = currentStatus === 'ACTIVE' ? 'PAUSED' : 'ACTIVE';
@@ -2442,23 +3198,20 @@ const handleDeleteSelectedAds = async () => {
     }
   };
 
-  // 🌟 1. Function សម្រាប់ទាញយក Ads ទាំងអស់ពី Campaigns ដែលបាន Select (គាំទ្រ Multi-selection)
+  // 🌟 មុខងារទាញយក Ads និងចម្រាញ់បង្ហាញតែប៉ុស្តិ៍របស់ Ad Set ដែលបាន Select យ៉ាងជាក់លាក់ ១០០%
 const fetchAds = async () => {
-  // បើអត់ទាន់បាន Select Campaign ទេ ឬក៏គ្មាន Campaign ក្នុង List សោះ ឱ្យវាទាញយក Campaign ដំបូងបង្អស់មកបង្គ្រប់កិច្ច
-  let targetIds = selectedCampaigns;
-  if (targetIds.length === 0 && campaignsList.length > 0) {
-    targetIds = [campaignsList[0].id];
+  let targetCampaignIds = selectedCampaigns;
+  if (targetCampaignIds.length === 0 && campaignsList.length > 0) {
+    targetCampaignIds = [campaignsList[0].id];
   }
 
-  if (targetIds.length === 0) return;
+  if (targetCampaignIds.length === 0) return;
 
   setLoadingAds(true);
   try {
     const token = localStorage.getItem('fb_user_token');
     const tokenParam = token ? `&access_token=${token}` : '';
-
-    // 🌟 បញ្ជូន Campaign IDs ទាំងអស់ដែលបាន Select (គั่นដោយសញ្ញាក្បៀស ,)
-    const campIdsString = targetIds.join(',');
+    const campIdsString = targetCampaignIds.join(',');
     
     let apiDatePreset = selectedDatePreset.toLowerCase();
     if (apiDatePreset === 'lifetime') apiDatePreset = 'maximum';
@@ -2467,7 +3220,35 @@ const fetchAds = async () => {
     const data = await res.json();
     
     if (data.success) {
-      setAdsList(data.ads || []);
+      let fetchedAds = data.ads || [];
+
+      // ១. ផ្ទៀងផ្ទាត់យកតែ Ad Set ID ណាដែលកំពុងមានពិតប្រាកដក្នុងតារាង Ad Sets បច្ចុប្បន្ន (ការពារកុំឱ្យជាប់ ID ចាស់ដែលលុបរួច)
+      const validSelectedAdSets = adsetsList.length > 0
+        ? selectedAdSets.filter(id => adsetsList.some((as: any) => String(as.id) === String(id)))
+        : selectedAdSets;
+
+      // ២. បើមានការ Select លើ Ad Set ណាមួយ ត្រូវឆែករក adset_id ពិតប្រាកដរបស់ប៉ុស្តិ៍នីមួយៗ រួចបង្ហាញតែប៉ុស្តិ៍នោះ
+      if (validSelectedAdSets.length > 0 && token) {
+        const adsWithAdSetId = await Promise.all(
+          fetchedAds.map(async (ad: any) => {
+            if (ad.adset_id) return ad;
+            try {
+              const r = await fetch(`https://graph.facebook.com/v18.0/${ad.id}?fields=adset_id&access_token=${token}`);
+              const d = await r.json();
+              return { ...ad, adset_id: d.adset_id || "" };
+            } catch {
+              return ad;
+            }
+          })
+        );
+
+        // ត្រងយកតែប៉ុស្តិ៍ (Ad) ដែលស្ថិតក្រោម Ad Set ដែលបងបាន Select ប៉ុណ្ណោះ
+        fetchedAds = adsWithAdSetId.filter((ad: any) =>
+          validSelectedAdSets.some(selectedId => String(selectedId) === String(ad.adset_id))
+        );
+      }
+
+      setAdsList(fetchedAds);
     } else {
       console.error("Error fetching ads:", data.error);
     }
@@ -2515,47 +3296,54 @@ const fetchAdsets = async () => {
     }
   }, [activeManageTab, selectedCampaigns, selectedDatePreset]);
 
-  // 🌟 ទាញយក Ads ដោយស្វ័យប្រវត្តិ នៅពេលប្ដូរមក Tab 'ADS' ឬពេលប្ដូរ Campaign ដែលបានជ្រើសរើស
+  // 🌟 ទាញយក Ads ដោយស្វ័យប្រវត្តិ នៅពេលប្ដូរមក Tab 'ADS' ឬពេលប្ដូរ Campaign / Ad Set ដែលបានជ្រើសរើស
   useEffect(() => {
     if (activeManageTab === 'ADS' && selectedCampaigns.length > 0) {
       fetchAds();
     }
-  }, [activeManageTab, selectedCampaigns]);
+  }, [activeManageTab, selectedCampaigns, selectedAdSets]);
   
 
   // 🌟 មុខងារសម្រាប់បញ្ជូនទិន្នន័យទៅ Save (Update ទៅកាន់ Facebook ពិតប្រាកដ)
   const handleSaveQuickEdit = async () => {
-    setIsSavingEdit(true);
-    try {
-      // ផ្លាស់ប្តូរ URL មក /api/campaigns វិញ ទើបត្រូវកន្លែងជាមួយកូដ Backend របស់យើង
-      const res = await fetch('/api/campaigns', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          campaignId: editCampaignId,
-          name: editCampaignName,
-          budget: editBudget,
-          startTime: editStartDate,
-          stopTime: editEndDate
-        })
-      });
-      
-      const data = await res.json();
+  if (!editCampaignName.trim()) {
+    alert("⚠️ សូមបញ្ចូលឈ្មោះ Campaign!");
+    return;
+  }
 
-      // ចាប់លទ្ធផលពិតប្រាកដពី API
-      if (data.success) {
-        alert("✅ បានរក្សាទុកការកែប្រែចូល Facebook ដោយជោគជ័យ!");
-        setIsEditModalOpen(false);
-        fetchCampaigns(); // ទាញយកទិន្នន័យថ្មីពី Facebook មកបង្ហាញភ្លាមៗ
-      } else {
-        // បើ Facebook បដិសេធ (ឧទាហរណ៍: លុយតិចពេក, ខុសទម្រង់) វានឹងលោតប្រាប់នៅទីនេះ
-        alert("❌ Facebook បដិសេធការកែប្រែ:\n\n" + data.error);
-      }
-    } catch (error) {
-      alert("❌ មានបញ្ហាតភ្ជាប់ទៅកាន់ Server API។");
+  setIsSavingEdit(true);
+  try {
+    const clientToken = localStorage.getItem('fb_user_token');
+    
+    // បាញ់ទិន្នន័យទៅកាន់ API Backend របស់អ្នក
+    const res = await fetch('/api/campaigns', {
+      method: 'POST', // ឬ PUT អាស្រ័យលើ API របស់អ្នក
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        campaignId: editCampaignId,
+        name: editCampaignName,
+        budget: editBudget,
+        startTime: editStartDate,
+        stopTime: editEndDate,
+        access_token: clientToken
+      })
+    });
+    
+    const data = await res.json();
+
+    if (data.success) {
+      showToast("✅ បានរក្សាទុកការកែប្រែចូល Facebook ដោយជោគជ័យ!", "success");
+      setIsEditModalOpen(false);
+      fetchCampaigns(); // Refresh តារាងទិន្នន័យឡើងវិញភ្លាមៗ
+    } else {
+      alert("❌ Facebook បដិសេធការកែប្រែ:\n\n" + (data.error || "Unknown error"));
     }
+  } catch (error: any) {
+    alert("❌ មានបញ្ហាតភ្ជាប់ទៅកាន់ Server API: " + error.message);
+  } finally {
     setIsSavingEdit(false);
-  };
+  }
+};
 
   const [isDuplicating, setIsDuplicating] = useState(false);
 
@@ -2574,18 +3362,35 @@ const fetchAdsets = async () => {
   });
   const [isExecutingAdSetDupe, setIsExecutingAdSetDupe] = useState(false);
 
-  // 🌟 កែសម្រួលមុខងារនេះឱ្យស្អាត និងមិនឱ្យជាប់ Post ចាស់
-  const handleOpenDuplicateModal = () => {
-    if (selectedCampaigns.length === 0) {
-      alert("⚠️ សូមជ្រើសរើស Campaign ណាមួយជាមុនសិន!");
-      return;
-    }
-    setDuplicateAdName("New Ad - Copy");
-    setDuplicatePostId(""); // 👈 ត្រូវកំណត់ឱ្យទទេសិន ដើម្បីកុំឱ្យវាទាញយក Post ចាស់មកជាន់ពីលើ!
-    setIsDuplicateModalOpen(true);
-  };
+  // ឧទាហរណ៍កូដកែសម្រួលនៅខាង Frontend (page.tsx) ត្រង់កន្លែងចុច Duplicate Ad
+const handleOpenDuplicateModal = () => {
+  // ១. ឆែកមើលថាតើបាន ടിក លើតារាង Ad ដែរឬទេ
+  if (!selectedAds || selectedAds.length === 0) {
+    alert("⚠️ សូមជ្រើសរើស Ad យ៉ាងហោចណាស់មួយពីក្នុងតារាង!");
+    return;
+  }
 
+  // ២. ទាញយក ID របស់ Ad ទី១ ដែលបានជ្រើសរើស
+  const targetAdId = selectedAds[0];
+  const targetAdData = adsList.find(a => a.id === targetAdId);
+
+  if (!targetAdData) {
+    alert("❌ រកមិនឃើញទិន្នន័យ Ad នេះទេ! សូម Refresh ទំព័រម្តងទៀត។");
+    return;
+  }
+
+  // ៣. បើក Modal Duplicate និងផ្ដល់តម្លៃដើមឱ្យវា
+  setOriginalAdId(targetAdId);
+  setDuplicateAdName(`${targetAdData.name || 'Ad'} (Duplicated)`);
   
+  // បើ Ad នោះមាន Creative ស្រាប់ អាចទាញទុកជាស្រេច
+  if (targetAdData.creative?.id) {
+    setDuplicatePostId(targetAdData.creative.id);
+  }
+
+  setIsSingleAdDuplicateModalOpen(true);
+};
+
   
   const executeDuplicate = async () => {
     setIsDuplicating(true);
@@ -2672,32 +3477,60 @@ const fetchAdsets = async () => {
   
 
   // 🌟 មុខងារពេលចុចប៊ូតុង Edit
-  const handleEditCampaign = () => {
-    if (selectedCampaigns.length === 0) {
-      alert("⚠️ សូមជ្រើសរើស Campaign យ៉ាងហោចណាស់ ១ ជាមុនសិន!");
-      return;
+  const handleEditCampaign = async () => {
+  if (!selectedCampaigns || selectedCampaigns.length === 0) {
+    alert("⚠️ សូមជ្រើសរើស Campaign យ៉ាងហោចណាស់ ១ ជាមុនសិន!");
+    return;
+  }
+
+  const targetId = selectedCampaigns[0];
+  const clientToken = localStorage.getItem('fb_user_token');
+
+  if (!clientToken) {
+    alert("⚠️ រកមិនឃើញ Token ទេ! សូម Connect Facebook ឡើងវិញ។");
+    return;
+  }
+
+  showToast("⏳ កំពុងទាញយកទិន្នន័យ Campaign ពី Facebook...", "info");
+
+  try {
+    // ហៅទាញយកទិន្នន័យពិតប្រាកដរបស់ Campaign នោះពី Facebook Graph API ផ្ទាល់
+    const res = await fetch(`https://graph.facebook.com/v18.0/${targetId}?fields=name,daily_budget,lifetime_budget,start_time,stop_time&access_token=${clientToken}`);
+    const campData = await res.json();
+
+    if (campData.error) {
+      throw new Error(campData.error.message);
     }
-    
-    // បើ select ច្រើន យក ID ទីមួយមក Edit មុនគេ
-    const targetId = selectedCampaigns[0];
-    const campToEdit = campaignsList.find(c => c.id === targetId);
-    
+
+    // យកទិន្នន័យដែលទាញបានមកដាក់បញ្ចូលក្នុង State សម្រាប់ Edit Form
     setEditCampaignId(targetId);
-    setEditCampaignName(campToEdit ? (campToEdit.name || "") : "Campaign Selected");
-    
-    const bgt = campToEdit?.daily_budget ? (Number(campToEdit.daily_budget) / 100).toString() : (campToEdit?.lifetime_budget ? (Number(campToEdit.lifetime_budget) / 100).toString() : "5");
+    setEditCampaignName(campData.name || "");
+
+    // បម្លែងថវិកាពី Cents មកជា Dollar ($)
+    const bgt = campData.daily_budget 
+      ? (Number(campData.daily_budget) / 100).toString() 
+      : campData.lifetime_budget 
+      ? (Number(campData.lifetime_budget) / 100).toString() 
+      : "5";
     setEditBudget(bgt);
-    
-    setEditStartDate(campToEdit?.start_time ? new Date(campToEdit.start_time).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16));
-    if (campToEdit?.stop_time) {
-      setEditEndDate(new Date(campToEdit.stop_time).toISOString().slice(0, 16));
+
+    // កំណត់កាលវិភាគ Start និង End ឱ្យត្រូវទម្រង់ Input datetime-local
+    setEditStartDate(campData.start_time ? formatForInput(campData.start_time) : new Date().toISOString().slice(0, 16));
+    if (campData.stop_time) {
+      setEditEndDate(formatForInput(campData.stop_time));
     } else {
-      const d = new Date(); d.setDate(d.getDate() + 5);
+      const d = new Date(); 
+      d.setDate(d.getDate() + 5);
       setEditEndDate(d.toISOString().slice(0, 16));
     }
 
+    // បើកផ្ទាំង Modal Edit ឱ្យលោតឡើងមកបង្ហាញទិន្នន័យស្រាប់
     setIsEditModalOpen(true);
-  };
+
+  } catch (err: any) {
+    alert("❌ មិនអាចទាញយកទិន្នន័យ Campaign នេះបានទេ: " + err.message);
+  }
+};
 
   const getSelectedDateLabel = () => {
     const option = datePresetOptions.find(opt => opt.value === selectedDatePreset);
@@ -5142,8 +5975,8 @@ const fetchAdsets = async () => {
             {/* 🌟 ផ្ទាំង Select Post Modal (រចនាបែប Facebook Ads Manager 100%) */}
             {/* ============================================== */}
             {isPostMenuOpen && (
-              <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/75 backdrop-blur-md p-4 animate-in fade-in duration-200">
-                <div className={`rounded-xl shadow-2xl w-full max-w-5xl overflow-hidden flex flex-col h-[85vh] transform transition-all ${theme === 'dark' ? 'bg-[#242526] border border-slate-700 text-slate-100' : 'bg-white border border-slate-300 text-slate-900'}`}>
+            <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/75 backdrop-blur-md p-4 animate-in fade-in duration-200">
+              <div className={`rounded-xl shadow-2xl w-full max-w-5xl overflow-hidden flex flex-col h-[85vh] transform transition-all ${theme === 'dark' ? 'bg-[#242526] border border-slate-700 text-slate-100' : 'bg-white border border-slate-300 text-slate-900'}`}>
                   
                   <div className={`px-6 py-4 border-b flex justify-between items-center ${theme === 'dark' ? 'border-slate-700 bg-[#3A3B3C]' : 'border-slate-200 bg-[#F5F6F8]'}`}>
                     <div>
@@ -5330,22 +6163,29 @@ const fetchAdsets = async () => {
                       {tempSelectedPost && <span className="text-[13px] font-bold text-slate-400">Posts</span>}
                     </div>
                     <div className="flex gap-2">
-                      <button type="button" onClick={() => setIsPostMenuOpen(false)} className={`px-4 py-1.5 rounded-md font-bold text-[14px] transition cursor-pointer ${theme === 'dark' ? 'hover:bg-[#4E4F50] text-slate-300' : 'hover:bg-slate-200 text-slate-700'}`}>Cancel</button>
                       <button 
-                        type="button" 
-                        disabled={!tempSelectedPost}
-                        onClick={() => {
-                          if (postSelectionContext === 'duplicate') {
-                            setDuplicatePostId(tempSelectedPost);
-                          } else {
-                            saveParam("selectedPost", tempSelectedPost, setSelectedPost);
-                          }
-                          setIsPostMenuOpen(false);
-                        }} 
-                        className="px-6 py-1.5 rounded-md font-bold text-[14px] text-white bg-[#1877F2] hover:bg-[#166FE5] disabled:bg-[#E4E6EB] disabled:text-[#BCC0C4] transition cursor-pointer shadow-sm"
-                      >
-                        Continue
-                      </button>
+  type="button" 
+  disabled={!tempSelectedPost}
+  onClick={() => {
+    if (postSelectionContext === 'duplicate') {
+      // ១. ប្ដូរលេខ Post ID ទៅតាម Post ដែលបងទើបតែរើស
+      setDuplicatePostId(tempSelectedPost);
+      
+      // ២. ប្ដូរឈ្មោះ Ad ថ្មីឱ្យត្រូវតាមអត្ថបទរបស់ Post ថ្មីដោយស្វ័យប្រវត្តិ
+      const selectedPostObj = posts.find(p => p.id === tempSelectedPost);
+      if (selectedPostObj && (selectedPostObj.message || selectedPostObj.story)) {
+        const shortMsg = (selectedPostObj.message || selectedPostObj.story).slice(0, 35);
+        setDuplicateAdName(`Post: "${shortMsg}..." - Copy`);
+      }
+    } else {
+      saveParam("selectedPost", tempSelectedPost, setSelectedPost);
+    }
+    setIsPostMenuOpen(false);
+  }} 
+  className="px-6 py-1.5 rounded-md font-bold text-[14px] text-white bg-[#1877F2] hover:bg-[#166FE5] disabled:bg-[#E4E6EB] disabled:text-[#BCC0C4] transition cursor-pointer shadow-sm"
+>
+  Continue
+</button>
                     </div>
                   </div>
 
@@ -5370,83 +6210,29 @@ const fetchAdsets = async () => {
                     >
                       <span>+</span> Create
                     </button>
-                    
+                    {/* 🌟 ប៊ូតុង Edit ធំខាងលើ (Smart Full Edit ៣ ក្នុង ១) */}
                     <button 
                       type="button"
-                      onClick={() => {
-                        // 🌟 ហៅមុខងារ Duplicate ឆ្លាតវៃថ្មីដែលបែងចែកតាម Tab នីមួយៗ
-                        handleDuplicate();
-                      }}
-                      className="font-bold py-2 px-3 rounded-lg text-[13px] flex items-center justify-center gap-1.5 transition cursor-pointer bg-blue-600 hover:bg-blue-700 text-white border-transparent"
-                    >
-                      {isDuplicating ? (
-                        <>⏳ Duplicating...</>
-                      ) : (
-                        <><span className="text-sm">📄</span> Duplicate</>
-                      )}
-                    </button>
-                    <button 
-                      type="button"
-                      onClick={() => {
-                        // ១. ឆែកមើលថាតើកំពុងនៅ Tab Ads មែនឬអត់?
-                        if (activeManageTab === 'ADS') {
-                          
-                          // ២. ឆែកមើលថាមានទិន្នន័យ Ad ក្នុងតារាងឬអត់?
-                          if (!adsList || adsList.length === 0) {
-                            alert("⚠️ អត់ទាន់មានទិន្នន័យ Ad ក្នុងតារាងទេបង! សូមរង់ចាំឱ្យវាទាញទិន្នន័យចេញមកសិន។");
-                            return;
-                          }
-
-                          // ៣. រៀបចំ Link ទាញយក ID
-                          const adAccountClean = selectedAdAccount?.replace('act_', '');
-                          const targetAdId = adsList[0].id; // ទាញយក Ad ID ទីមួយក្នុងតារាង
-                          
-                          if (!targetAdId) {
-                            alert("⚠️ រកមិនឃើញ ID របស់ Ad នេះទេ!");
-                            return;
-                          }
-
-                          // ៤. បង្កើត Link ទៅកាន់កន្លែងកែប្រែក្នុង Meta Ads Manager
-                          const editUrl = `https://adsmanager.facebook.com/adsmanager/manage/ads/edit/standalone?act=${adAccountClean}&selected_ad_ids=${targetAdId}`;
-                          
-                          // ៥. សាកល្បងបើក Tab ថ្មី
-                          const newWindow = window.open(editUrl, '_blank');
-                          
-                          // ៦. បើ Browser របស់បង Block មិនឱ្យបើក Tab ថ្មីទេ ឱ្យវាលោតទៅ Link ហ្នឹងក្នុង Tab ដើមតែម្ដង!
-                          if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
-                            alert("⚠️ Chrome របស់បងបានបិទមិនឱ្យលោត Tab ថ្មីទេ!\n\nប្រព័ន្ធនឹងបញ្ជូនបងទៅកាន់ Ads Manager នៅលើ Tab នេះតែម្ដង។");
-                            window.location.href = editUrl; // បង្ខំឱ្យលោតទៅ
-                          }
-
-                        } else {
-                          // បើនៅ Tab ផ្សេង (Campaigns ឬ Ad Sets) ឱ្យលោតផ្ទាំង Quick Edit
-                          handleEditCampaign();
-                        }
-                      }}
+                      onClick={() => handleOpenFullEditModal()}
                       className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-3 rounded-lg text-[13px] flex items-center justify-center gap-1.5 transition cursor-pointer shadow-sm border border-transparent"
                     >
                       <span className="text-sm">✎</span> Edit
                     </button>
+                    {/* 🌟 ប៊ូតុង Duplicate ធំខាងលើ ដើរតាមតួនាទីរបស់ Tab ទាំង ៣ (Campaigns, Ad sets, Ads) */}
                     <button 
                       type="button"
-                      onClick={() => {
-                        if (activeManageTab === 'ADS') {
-                          handleDeleteSelectedAds();
-                        } else {
-                          if (!selectedCampaigns || selectedCampaigns.length === 0) {
-                            alert("⚠️ សូមធីកជ្រើសរើស Campaign ណាមួយជាមុនសិន!");
-                            return;
-                          }
-                          setIsDeleteModalOpen(true);
-                        }
-                      }}
-                      className={`font-bold py-2 px-3 rounded-lg text-[13px] flex items-center justify-center gap-1.5 transition cursor-pointer shadow-sm border ${
-                        (activeManageTab === 'ADS' ? selectedAds.length > 0 : selectedCampaigns.length > 0)
-                          ? 'bg-red-600 hover:bg-red-700 text-white border-transparent'
-                          : 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
-                      }`}
+                      onClick={() => handleDuplicate()}
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-3.5 rounded-lg text-[13px] flex items-center justify-center gap-1.5 transition cursor-pointer shadow-sm border border-transparent"
                     >
-                      <span className="text-sm">🗑️</span> Delete ({activeManageTab === 'ADS' ? selectedAds.length : selectedCampaigns.length})
+                      <span className="text-sm">📋</span> Duplicate
+                    </button>
+                    {/* 🌟 ប៊ូតុង Delete ធំខាងលើ៖ Select ប៉ុស្តិ៍ណា លុបតែប៉ុស្តិ៍នោះតាម Tab នីមួយៗ (ហាមប៉ះពាល់កន្លែងផ្សេង) */}
+                    <button 
+                      type="button"
+                      onClick={() => handleDeleteSelectedAds()}
+                      className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-3.5 rounded-lg text-[13px] flex items-center justify-center gap-1.5 transition cursor-pointer shadow-sm border border-transparent"
+                    >
+                      <span className="text-sm">🗑️</span> Delete
                     </button>
                   </div>
                   
@@ -5543,149 +6329,194 @@ const fetchAdsets = async () => {
                 {/* 1. TABLE: CAMPAIGNS */}
                 {/* ========================================================= */}
                 {activeManageTab === 'CAMPAIGNS' && (
-                  <div className="w-full h-full flex flex-col justify-between min-w-full">
-                    <div className="w-full overflow-x-auto flex-1 custom-scrollbar">
-                      <table className="w-full text-left border-collapse min-w-[1650px]">
-                        <thead className={`sticky top-0 z-20 shadow-[0_1px_0_0_rgba(0,0,0,0.1)] ${theme === 'dark' ? 'bg-[#18191A] text-slate-400' : 'bg-[#F5F6F8] text-[#65676B]'}`}>
-                          <tr className="text-[12px]">
-                            <th className={`p-3 border-r w-10 text-center ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-                              <input 
-                                type="checkbox" 
-                                onChange={(e) => {
-                                  if (e.target.checked) setSelectedCampaigns(campaignsList.map(c => c.id));
-                                  else setSelectedCampaigns([]);
-                                }}
-                                checked={campaignsList.length > 0 && selectedCampaigns.length === campaignsList.length}
-                                className={`w-3.5 h-3.5 rounded cursor-pointer accent-[#1877F2] ${theme === 'dark' ? 'border-slate-600' : 'border-slate-300'}`} 
-                              />
-                            </th>
-                            <th className={`p-3 border-r w-16 text-center font-bold ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Off / On</th>
-                            <th onClick={() => handleSort('name')} className={`p-3 border-r min-w-[280px] font-bold cursor-pointer transition select-none ${theme === 'dark' ? 'border-slate-700 bg-[#3A3B3C] hover:bg-[#4E4F50] text-slate-200' : 'border-slate-200 bg-[#ECEEF2] hover:bg-[#DEE1E6] text-slate-800'}`}>
-                              <div className="flex items-center justify-between"><span>Campaign</span><span>{sortField === 'name' ? (sortDirection === 'asc' ? '↑' : '↓') : '↕'}</span></div>
-                            </th>
-                            <th onClick={() => handleSort('status')} className={`p-3 border-r min-w-[120px] font-bold cursor-pointer select-none ${theme === 'dark' ? 'border-slate-700 hover:bg-[#3A3B3C]' : 'border-slate-200 hover:bg-slate-200'}`}>
-                              <div className="flex items-center justify-between"><span>Delivery</span><span>{sortField === 'status' ? (sortDirection === 'asc' ? '↑' : '↓') : '↕'}</span></div>
-                            </th>
-                            <th className={`p-3 border-r min-w-[140px] font-bold ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Actions</th>
-                            <th onClick={() => handleSort('results')} className={`p-3 border-r min-w-[150px] font-bold cursor-pointer select-none ${theme === 'dark' ? 'border-slate-700 hover:bg-[#3A3B3C]' : 'border-slate-200 hover:bg-slate-200'}`}>
-                              <div className="flex items-center justify-between"><span>Results</span><span>{sortField === 'results' ? (sortDirection === 'asc' ? '↑' : '↓') : '↕'}</span></div>
-                            </th>
-                            <th className={`p-3 border-r min-w-[120px] font-bold ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Cost per result</th>
-                            
-                            {/* 🌟 ជួរឈរថ្មី៖ បង្ហាញការវាយតម្លៃ AI លើកម្រិត CPA */}
-                            <th className={`p-3 border-r min-w-[150px] font-bold text-blue-600 dark:text-blue-400 ${theme === 'dark' ? 'border-slate-700 bg-blue-950/20' : 'border-slate-200 bg-blue-50/50'}`}>
-                              ការវាយតម្លៃ AI (CPA)
-                            </th>
+                <div className="w-full h-full flex flex-col justify-between min-w-full">
+                  <div className="w-full overflow-x-auto flex-1 custom-scrollbar">
+                    <table className="w-full text-left border-collapse min-w-[1650px]">
+                      <thead className={`sticky top-0 z-20 shadow-[0_1px_0_0_rgba(0,0,0,0.1)] ${theme === 'dark' ? 'bg-[#18191A] text-slate-400' : 'bg-[#F5F6F8] text-[#65676B]'}`}>
+                        <tr className="text-[12px]">
+                          <th className={`p-3 border-r w-10 text-center ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                            <input 
+                              type="checkbox" 
+                              onChange={(e) => {
+                                if (e.target.checked) setSelectedCampaigns(campaignsList.map(c => c.id));
+                                else setSelectedCampaigns([]);
+                              }}
+                              checked={campaignsList.length > 0 && selectedCampaigns.length === campaignsList.length}
+                              className={`w-3.5 h-3.5 rounded cursor-pointer accent-[#1877F2] ${theme === 'dark' ? 'border-slate-600' : 'border-slate-300'}`} 
+                            />
+                          </th>
+                          <th className={`p-3 border-r w-16 text-center font-bold ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Off / On</th>
+                          <th onClick={() => handleSort('name')} className={`p-3 border-r min-w-[280px] font-bold cursor-pointer transition select-none ${theme === 'dark' ? 'border-slate-700 bg-[#3A3B3C] hover:bg-[#4E4F50] text-slate-200' : 'border-slate-200 bg-[#ECEEF2] hover:bg-[#DEE1E6] text-slate-800'}`}>
+                            <div className="flex items-center justify-between"><span>Campaign</span><span>{sortField === 'name' ? (sortDirection === 'asc' ? '↑' : '↓') : '↕'}</span></div>
+                          </th>
+                          <th onClick={() => handleSort('status')} className={`p-3 border-r min-w-[120px] font-bold cursor-pointer select-none ${theme === 'dark' ? 'border-slate-700 hover:bg-[#3A3B3C]' : 'border-slate-200 hover:bg-slate-200'}`}>
+                            <div className="flex items-center justify-between"><span>Delivery</span><span>{sortField === 'status' ? (sortDirection === 'asc' ? '↑' : '↓') : '↕'}</span></div>
+                          </th>
+                          <th className={`p-3 border-r min-w-[140px] font-bold ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Actions</th>
+                          <th onClick={() => handleSort('results')} className={`p-3 border-r min-w-[150px] font-bold cursor-pointer select-none ${theme === 'dark' ? 'border-slate-700 hover:bg-[#3A3B3C]' : 'border-slate-200 hover:bg-slate-200'}`}>
+                            <div className="flex items-center justify-between"><span>Results</span><span>{sortField === 'results' ? (sortDirection === 'asc' ? '↑' : '↓') : '↕'}</span></div>
+                          </th>
+                          <th className={`p-3 border-r min-w-[120px] font-bold ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Cost per result</th>
+                          
+                          {/* 🌟 ជួរឈរថ្មី៖ បង្ហាញការវាយតម្លៃ AI លើកម្រិត CPA */}
+                          <th className={`p-3 border-r min-w-[150px] font-bold text-blue-600 dark:text-blue-400 ${theme === 'dark' ? 'border-slate-700 bg-blue-950/20' : 'border-slate-200 bg-blue-50/50'}`}>
+                            ការវាយតម្លៃ AI (CPA)
+                          </th>
 
-                            <th onClick={() => handleSort('budget')} className={`p-3 border-r min-w-[100px] font-bold cursor-pointer select-none ${theme === 'dark' ? 'border-slate-700 hover:bg-[#3A3B3C]' : 'border-slate-200 hover:bg-slate-200'}`}>
-                              <div className="flex items-center justify-between"><span>Budget</span><span>{sortField === 'budget' ? (sortDirection === 'asc' ? '↑' : '↓') : '↕'}</span></div>
-                            </th>
-                            <th onClick={() => handleSort('spend')} className={`p-3 border-r min-w-[120px] font-bold cursor-pointer transition ${theme === 'dark' ? 'border-slate-700 bg-[#3A3B3C] hover:bg-[#4E4F50] text-slate-200' : 'border-slate-200 bg-slate-100 hover:bg-slate-200 text-slate-900'}`}>
-                              <div className="flex items-center justify-between"><span>Amount spent</span><span>{sortField === 'spend' ? (sortDirection === 'asc' ? '↑' : '↓') : '↕'}</span></div>
-                            </th>
-                            <th onClick={() => handleSort('impressions')} className={`p-3 border-r min-w-[100px] font-bold cursor-pointer select-none ${theme === 'dark' ? 'border-slate-700 hover:bg-[#3A3B3C]' : 'border-slate-200 hover:bg-slate-200'}`}>
-                              <div className="flex items-center justify-between"><span>Impressions</span><span>{sortField === 'impressions' ? (sortDirection === 'asc' ? '↑' : '↓') : '↕'}</span></div>
-                            </th>
-                            <th onClick={() => handleSort('reach')} className={`p-3 border-r min-w-[100px] font-bold cursor-pointer select-none ${theme === 'dark' ? 'border-slate-700 hover:bg-[#3A3B3C]' : 'border-slate-200 hover:bg-slate-200'}`}>
-                              <div className="flex items-center justify-between"><span>Reach</span><span>{sortField === 'reach' ? (sortDirection === 'asc' ? '↑' : '↓') : '↕'}</span></div>
-                            </th>
-                            <th className="p-3 min-w-[100px] font-bold">Ends</th>
+                          <th onClick={() => handleSort('budget')} className={`p-3 border-r min-w-[100px] font-bold cursor-pointer select-none ${theme === 'dark' ? 'border-slate-700 hover:bg-[#3A3B3C]' : 'border-slate-200 hover:bg-slate-200'}`}>
+                            <div className="flex items-center justify-between"><span>Budget</span><span>{sortField === 'budget' ? (sortDirection === 'asc' ? '↑' : '↓') : '↕'}</span></div>
+                          </th>
+                          <th onClick={() => handleSort('spend')} className={`p-3 border-r min-w-[120px] font-bold cursor-pointer transition ${theme === 'dark' ? 'border-slate-700 bg-[#3A3B3C] hover:bg-[#4E4F50] text-slate-200' : 'border-slate-200 bg-slate-100 hover:bg-slate-200 text-slate-900'}`}>
+                            <div className="flex items-center justify-between"><span>Amount spent</span><span>{sortField === 'spend' ? (sortDirection === 'asc' ? '↑' : '↓') : '↕'}</span></div>
+                          </th>
+                          <th onClick={() => handleSort('impressions')} className={`p-3 border-r min-w-[100px] font-bold cursor-pointer select-none ${theme === 'dark' ? 'border-slate-700 hover:bg-[#3A3B3C]' : 'border-slate-200 hover:bg-slate-200'}`}>
+                            <div className="flex items-center justify-between"><span>Impressions</span><span>{sortField === 'impressions' ? (sortDirection === 'asc' ? '↑' : '↓') : '↕'}</span></div>
+                          </th>
+                          <th onClick={() => handleSort('reach')} className={`p-3 border-r min-w-[100px] font-bold cursor-pointer select-none ${theme === 'dark' ? 'border-slate-700 hover:bg-[#3A3B3C]' : 'border-slate-200 hover:bg-slate-200'}`}>
+                            <div className="flex items-center justify-between"><span>Reach</span><span>{sortField === 'reach' ? (sortDirection === 'asc' ? '↑' : '↓') : '↕'}</span></div>
+                          </th>
+                          <th className="p-3 min-w-[100px] font-bold">Ends</th>
+                        </tr>
+                      </thead>
+                      <tbody className={`text-[13px] ${theme === 'dark' ? 'text-slate-300' : 'text-[#050505]'}`}>
+                        {campaignsList.length === 0 && !loadingCampaigns ? (
+                          <tr>
+                            <td colSpan={13} className={`p-10 text-center font-medium ${theme === 'dark' ? 'bg-[#242526] text-slate-500' : 'bg-slate-50 text-slate-500'}`}>No campaigns found.</td>
                           </tr>
-                        </thead>
-                        <tbody className={`text-[13px] ${theme === 'dark' ? 'text-slate-300' : 'text-[#050505]'}`}>
-                          {campaignsList.length === 0 && !loadingCampaigns ? (
-                            <tr>
-                              <td colSpan={13} className={`p-10 text-center font-medium ${theme === 'dark' ? 'bg-[#242526] text-slate-500' : 'bg-slate-50 text-slate-500'}`}>No campaigns found.</td>
-                            </tr>
-                          ) : (
-                            campaignsList.map((c) => {
-                              const ins = getInsights(c);
-                              const results = getResults(ins, c.objective); 
-                              const spend = ins ? ins.spend : null;
-                              const cpa = (results !== "-" && spend && Number(results) > 0) ? (Number(spend) / Number(results)) : null;
-                              const isSelected = selectedCampaigns.includes(c.id);
+                        ) : (
+                          campaignsList.map((c) => {
+                            const ins = getInsights(c);
+                            const results = getResults(ins, c.objective); 
+                            const spend = ins ? ins.spend : null;
+                            const cpa = (results !== "-" && spend && Number(results) > 0) ? (Number(spend) / Number(results)) : null;
+                            const isSelected = selectedCampaigns.includes(c.id);
 
-                              return (
-                                <tr key={c.id} className={`border-b transition duration-150 group min-h-[48px] ${theme === 'dark' ? (isSelected ? 'bg-blue-900/30 border-slate-700' : 'border-slate-700 hover:bg-[#3A3B3C]') : (isSelected ? 'bg-[#EBF5FF] border-slate-200' : 'border-slate-200 hover:bg-[#F0F2F5]')}`}>
-                                  <td className={`p-3 border-r text-center align-middle w-10 ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-                                    <input 
-                                      type="checkbox" 
-                                      checked={selectedCampaigns.includes(c.id)}
-                                      onChange={(e) => {
-                                        if (e.target.checked) {
-                                          setSelectedCampaigns([...selectedCampaigns, c.id]);
-                                        } else {
-                                          setSelectedCampaigns(selectedCampaigns.filter(id => id !== c.id));
-                                        }
-                                      }}
-                                      className="w-3.5 h-3.5 rounded border-slate-300 cursor-pointer accent-[#1877F2]" 
-                                    />
-                                  </td>
-                                  
-                                  <td className={`p-3 border-r text-center align-middle w-16 ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-                                    <div onClick={() => handleToggleStatus(c.id, c.status)} className={`w-8 h-4 rounded-full mx-auto relative cursor-pointer ${c.status === 'ACTIVE' ? 'bg-[#1877F2]' : 'bg-[#BCC0C4]'}`}>
-                                      <div className={`w-3.5 h-3.5 bg-white rounded-full absolute top-[1px] shadow-xs transition-all ${c.status === 'ACTIVE' ? 'right-[2px]' : 'left-[2px]'}`}></div>
+                            return (
+                              <tr key={c.id} className={`border-b transition duration-150 group min-h-[48px] ${theme === 'dark' ? (isSelected ? 'bg-blue-900/30 border-slate-700' : 'border-slate-700 hover:bg-[#3A3B3C]') : (isSelected ? 'bg-[#EBF5FF] border-slate-200' : 'border-slate-200 hover:bg-[#F0F2F5]')}`}>
+                                <td className={`p-3 border-r text-center align-middle w-10 ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                                  <input 
+                                    type="checkbox" 
+                                    checked={selectedCampaigns.includes(c.id)}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        setSelectedCampaigns([...selectedCampaigns, c.id]);
+                                      } else {
+                                        setSelectedCampaigns(selectedCampaigns.filter(id => id !== c.id));
+                                      }
+                                    }}
+                                    className="w-3.5 h-3.5 rounded border-slate-300 cursor-pointer accent-[#1877F2]" 
+                                  />
+                                </td>
+                                
+                                <td className={`p-3 border-r text-center align-middle w-16 ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                                  <div onClick={() => handleToggleStatus(c.id, c.status)} className={`w-8 h-4 rounded-full mx-auto relative cursor-pointer ${c.status === 'ACTIVE' ? 'bg-[#1877F2]' : 'bg-[#BCC0C4]'}`}>
+                                    <div className={`w-3.5 h-3.5 bg-white rounded-full absolute top-[1px] shadow-xs transition-all ${c.status === 'ACTIVE' ? 'right-[2px]' : 'left-[2px]'}`}></div>
+                                  </div>
+                                </td>
+
+                                {/* Campaign Name & Quick Edit */}
+                                <td className={`p-3 border-r align-middle min-w-[280px] ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                                  {editingCampaignNameId === c.id ? (
+                                    <div className="flex items-center gap-1">
+                                      <input 
+                                        type="text" 
+                                        defaultValue={c.name}
+                                        id={`campNameInput_${c.id}`}
+                                        className="w-full px-2 py-1 text-xs border rounded font-bold text-blue-600 bg-white dark:bg-[#3A3B3C] outline-none"
+                                        autoFocus
+                                      />
+                                      <button 
+                                        onClick={async () => {
+                                          const val = (document.getElementById(`campNameInput_${c.id}`) as HTMLInputElement)?.value;
+                                          if (!val) return;
+                                          try {
+                                            const token = localStorage.getItem('fb_user_token');
+                                            const res = await fetch('/api/campaigns', {
+                                              method: 'POST',
+                                              headers: { 'Content-Type': 'application/json' },
+                                              body: JSON.stringify({ campaignId: c.id, name: val, access_token: token })
+                                            });
+                                            const data = await res.json();
+                                            if (data.success) {
+                                              showToast("✅ បានកែប្រែឈ្មោះ Campaign ដោយជោគជ័យ!", "success");
+                                              setEditingCampaignNameId(null);
+                                              fetchCampaigns();
+                                            } else {
+                                              alert("❌ បរាជ័យ: " + data.error);
+                                            }
+                                          } catch(err: any) {
+                                            alert("❌ Error: " + err.message);
+                                          }
+                                        }}
+                                        className="text-white bg-emerald-600 px-1.5 py-1 rounded text-[10px] font-bold cursor-pointer"
+                                      >
+                                        ✓
+                                      </button>
+                                      <button 
+                                        onClick={() => setEditingCampaignNameId(null)}
+                                        className="text-slate-500 hover:text-red-500 px-1 text-xs font-bold cursor-pointer"
+                                      >
+                                        ✕
+                                      </button>
                                     </div>
-                                  </td>
-
-                                  <td className={`p-3 border-r align-middle min-w-[280px] ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-                                    <div className="flex items-center justify-between group/name relative">
+                                  ) : (
+                                    <div className="flex flex-col">
                                       <span 
                                         onClick={() => {
                                           setSelectedCampaigns([c.id]);
                                           setActiveManageTab('ADSETS');
-                                          localStorage.setItem('activeManageTab', 'ADSETS'); // 🌟 ថែមបន្ទាត់នេះ
+                                          localStorage.setItem('activeManageTab', 'ADSETS');
                                         }} 
                                         className="text-[#1877F2] font-semibold cursor-pointer hover:underline truncate max-w-[260px] block"
                                       >
                                         {c.name}
                                       </span>
-                                      <div className={`hidden group-hover/name:flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded shadow-xs border absolute right-0 z-10 ${theme === 'dark' ? 'bg-[#18191A] text-slate-300 border-slate-600' : 'bg-[#E7F3FF] text-slate-700 border-blue-200'}`}>
-                                          <span className="hover:text-blue-500 cursor-pointer">Charts</span> | 
-                                          <span onClick={() => handleInlineEdit(c.id)} className="hover:text-blue-500 cursor-pointer">Edit</span> | 
-                                          <span onClick={() => handleDeleteSingleCampaign(c.id, c.name)} className="text-red-500 hover:text-red-400 cursor-pointer">Delete</span>
+                                      
+                                      {/* 🌟 ប៊ូតុងបង្ហាញជាប់នៅខាងក្រោមឈ្មោះ ស្អាតដូចក្នុងរូប */}
+                                      <div className="flex items-center gap-1.5 text-[12px] font-medium mt-1">
+                                        <span onClick={() => setEditingCampaignNameId(c.id)} className="text-[#1877F2] hover:underline cursor-pointer">Edit</span>
+                                        <span className="text-slate-400">|</span>
+                                        <span onClick={() => { setSelectedCampaigns([c.id]); handleDuplicate(); }} className="text-[#1877F2] hover:underline cursor-pointer">Duplicate</span>
+                                        <span className="text-slate-400">|</span>
+                                        <span 
+                                          onClick={() => {
+                                            if (!selectedCampaigns || selectedCampaigns.length === 0) {
+                                              setSelectedCampaigns([c.id]);
+                                            }
+                                            setIsDeleteModalOpen(true);
+                                          }} 
+                                          className="text-[#1877F2] hover:underline cursor-pointer font-medium"
+                                        >
+                                          Delete
+                                        </span>
                                       </div>
                                     </div>
-                                  </td>
+                                  )}
+                                </td>
 
-                                  {/* Delivery CAMPAIGNS*/}
-                                  <td className={`p-3 border-r align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                                {/* Delivery */}
+                                <td className={`p-3 border-r align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
                                   {(() => {
                                     const status = (c.effective_status || c.status || "").toUpperCase();
-                                    
-                                    // បើ Campaign មេត្រូវបានបិទ (Campaign off)
-                                    if (status.includes('CAMPAIGN_OFF') || status.includes('CAMPAIGN OFF')) {
-                                      return (
-                                        <span className="flex items-center gap-1.5 font-medium text-slate-400 dark:text-slate-400">
-                                          <span className="w-2 h-2 rounded-full bg-slate-400"></span> Campaign off
-                                        </span>
-                                      );
-                                    } 
-                                    // បើស្ថិតក្នុងស្ថានភាពកំពុងពិនិត្យពី Facebook
-                                    else if (status.includes('REVIEW') || status.includes('PENDING') || status === 'PENDING_REVIEW' || status === 'IN_REVIEW') {
+                                    if (status.includes('REVIEW') || status === 'PENDING_REVIEW' || status === 'IN_PROCESS') {
                                       return (
                                         <span className="flex items-center gap-1.5 font-medium text-amber-500">
-                                          <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span> PENDING_REVIEW
+                                          <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span> In review
                                         </span>
                                       );
-                                    } 
-                                    // បើដំណើរការធម្មតា
-                                    else if (status === 'ACTIVE') {
+                                    } else if (status === 'ACTIVE') {
                                       return (
                                         <span className="flex items-center gap-1.5 font-medium text-[#31A24C]">
-                                          <span className="w-2 h-2 rounded-full bg-[#31A24C]"></span> ACTIVE
+                                          <span className="w-2 h-2 rounded-full bg-[#31A24C]"></span> Active
                                         </span>
                                       );
-                                    } 
-                                    // បើបិទ (Paused / Off)
-                                    else if (status === 'PAUSED' || status === 'OFF') {
+                                    } else if (status === 'PAUSED' || status === 'OFF') {
                                       return (
                                         <span className="flex items-center gap-1.5 font-medium text-slate-500">
                                           <span className="w-2 h-2 rounded-full bg-[#BCC0C4]"></span> Paused
                                         </span>
                                       );
-                                    } 
-                                    else {
+                                    } else {
                                       return (
                                         <span className="flex items-center gap-1.5 font-medium text-slate-400">
                                           <span className="w-2 h-2 rounded-full bg-slate-400"></span> {status}
@@ -5695,47 +6526,204 @@ const fetchAdsets = async () => {
                                   })()}
                                 </td>
 
-                                  <td className={`p-3 border-r align-middle min-w-[140px] ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-                                    <span className={`text-[11px] border px-2 py-0.5 rounded-full font-medium ${theme === 'dark' ? 'bg-[#18191A] text-slate-400 border-slate-600' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>2 recommendations</span>
-                                  </td>
+                                <td className={`p-3 border-r align-middle min-w-[140px] ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                                  <span className={`text-[11px] border px-2 py-0.5 rounded-full font-medium ${theme === 'dark' ? 'bg-[#18191A] text-slate-400 border-slate-600' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>2 recommendations</span>
+                                </td>
 
-                                  <td className={`p-3 border-r text-right align-middle min-w-[150px] ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-                                    <div className="font-semibold">{results === "-" ? "-" : formatNumber(results)}</div>
-                                    <div className="text-[10px] text-slate-500 uppercase mt-0.5">{c.objective === 'OUTCOME_ENGAGEMENT' ? 'Messaging Conversations' : 'Results'}</div>
-                                  </td>
+                                <td className={`p-3 border-r text-right align-middle min-w-[150px] ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                                  <div className="font-semibold">{results === "-" ? "-" : formatNumber(results)}</div>
+                                  <div className="text-[10px] text-slate-500 uppercase mt-0.5">{c.objective === 'OUTCOME_ENGAGEMENT' ? 'Messaging Conversations' : 'Results'}</div>
+                                </td>
 
-                                  <td className={`p-3 border-r text-right align-middle min-w-[120px] ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-                                    <div className="font-semibold">{cpa ? "$" + cpa.toFixed(2) : "-"}</div>
-                                    <div className="text-[10px] text-slate-500 uppercase mt-0.5">Per Conversation</div>
-                                  </td>
+                                <td className={`p-3 border-r text-right align-middle min-w-[120px] ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                                  <div className="font-semibold">{cpa ? "$" + cpa.toFixed(2) : "-"}</div>
+                                  <div className="text-[10px] text-slate-500 uppercase mt-0.5">Per Conversation</div>
+                                </td>
 
-                                  {/* 🌟 ផ្ទាំងបង្ហាញ Badge វាយតម្លៃ CPA ស្វ័យប្រវត្តិតាមលក្ខខណ្ឌ */}
-                                  <td className={`p-3 border-r align-middle min-w-[150px] ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-                                    {cpa !== null ? getCpaBadge(cpa) : <span className="text-slate-400 text-xs">-</span>}
-                                  </td>
+                                <td className={`p-3 border-r align-middle min-w-[150px] ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                                  {cpa !== null ? getCpaBadge(cpa) : <span className="text-slate-400 text-xs">-</span>}
+                                </td>
 
-                                  <td className={`p-3 border-r text-right align-middle min-w-[100px] ${theme === 'dark' ? 'border-slate-700 text-slate-400' : 'border-slate-200 text-slate-600'}`}>
-                                    {c.daily_budget ? (
-                                      <><div>{formatCurrency(c.daily_budget)}</div><div className="text-[10px] uppercase">Daily</div></>
-                                    ) : c.lifetime_budget ? (
-                                      <><div>{formatCurrency(c.lifetime_budget)}</div><div className="text-[10px] uppercase">Lifetime</div></>
-                                    ) : (
-                                      <div className="text-[11px] text-slate-500">Using ad set budget</div>
-                                    )}
-                                  </td>
+                                {/* Budget */}
+                                <td className={`p-3 border-r text-right align-middle text-slate-500 relative group/budget ${theme === 'dark' ? 'border-slate-700 text-slate-300' : 'border-slate-200 text-slate-700'}`}>
+                                  {editingBudgetId === c.id ? (
+                                    <div className="flex items-center justify-end gap-1">
+                                      <input 
+                                        type="number" 
+                                        step="0.5"
+                                        defaultValue={c.daily_budget ? Number(c.daily_budget)/100 : (c.lifetime_budget ? Number(c.lifetime_budget)/100 : 5)}
+                                        id={`budgetInput_${c.id}`}
+                                        className="w-20 px-2 py-1 text-xs border rounded font-bold text-emerald-500 bg-white dark:bg-[#3A3B3C] outline-none"
+                                        autoFocus
+                                      />
+                                      <button 
+                                        onClick={async () => {
+                                          const val = (document.getElementById(`budgetInput_${c.id}`) as HTMLInputElement)?.value;
+                                          if (!val) return;
+                                          try {
+                                            const token = localStorage.getItem('fb_user_token');
+                                            const res = await fetch('/api/campaigns', {
+                                              method: 'POST',
+                                              headers: { 'Content-Type': 'application/json' },
+                                              body: JSON.stringify({ campaignId: c.id, budget: val, access_token: token })
+                                            });
+                                            const data = await res.json();
+                                            if (data.success) {
+                                              showToast("✅ បានកែប្រែថវិកា Campaign ដោយជោគជ័យ!", "success");
+                                              setEditingBudgetId(null);
+                                              fetchCampaigns();
+                                            } else {
+                                              alert("❌ បរាជ័យ: " + data.error);
+                                            }
+                                          } catch(err: any) {
+                                            alert("❌ Error: " + err.message);
+                                          }
+                                        }}
+                                        className="text-white bg-emerald-600 px-1.5 py-1 rounded text-[10px] font-bold cursor-pointer"
+                                      >
+                                        ✓
+                                      </button>
+                                      <button 
+                                        onClick={() => setEditingBudgetId(null)}
+                                        className="text-slate-500 hover:text-red-500 px-1 text-xs font-bold cursor-pointer"
+                                      >
+                                        ✕
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <div className="flex items-center justify-end gap-2">
+                                      <div>
+                                        {c.daily_budget ? (
+                                          <><div className="font-semibold">{formatCurrency(c.daily_budget)}</div><div className="text-[10px] uppercase text-slate-400">Daily</div></>
+                                        ) : c.lifetime_budget ? (
+                                          <><div className="font-semibold">{formatCurrency(c.lifetime_budget)}</div><div className="text-[10px] uppercase text-slate-400">Lifetime</div></>
+                                        ) : (
+                                          <div className="text-[11px] text-slate-400 italic">Using ad set budget</div>
+                                        )}
+                                      </div>
+                                      <button 
+                                        onClick={() => setEditingBudgetId(c.id)}
+                                        className="opacity-0 group-hover/budget:opacity-100 transition-opacity p-1 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded cursor-pointer"
+                                        title="Quick Edit Budget"
+                                      >
+                                        ✏️
+                                      </button>
+                                    </div>
+                                  )}
+                                </td>
 
-                                  <td className={`p-3 border-r text-right font-bold align-middle min-w-[120px] ${theme === 'dark' ? 'border-slate-700 bg-[#3A3B3C] text-white' : 'border-slate-200 bg-slate-50 text-slate-900'}`}>
-                                    {spend ? "$" + Number(spend).toFixed(2) : "$0.00"}
-                                  </td>
+                                <td className={`p-3 border-r text-right font-bold align-middle min-w-[120px] ${theme === 'dark' ? 'border-slate-700 bg-[#3A3B3C] text-white' : 'border-slate-200 bg-slate-50 text-slate-900'}`}>
+                                  {spend ? "$" + Number(spend).toFixed(2) : "$0.00"}
+                                </td>
 
-                                  <td className={`p-3 border-r text-right align-middle min-w-[100px] ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>{formatNumber(ins?.impressions)}</td>
-                                  <td className={`p-3 border-r text-right align-middle min-w-[100px] ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>{formatNumber(ins?.reach)}</td>
-                                  <td className={`p-3 text-[12px] align-middle min-w-[100px] ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Ongoing</td>
-                                </tr>
-                              );
-                            })
-                          )}
-                        </tbody>
+                                <td className={`p-3 border-r text-right align-middle min-w-[100px] ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>{formatNumber(ins?.impressions)}</td>
+                                <td className={`p-3 border-r text-right align-middle min-w-[100px] ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>{formatNumber(ins?.reach)}</td>
+                                
+                                {/* 🌟 Ends Column (Inline Quick Edit សម្រាប់ Campaigns - ប្រើ State ផ្ទាល់ ធានាដេញចាប់តម្លៃបាន ១០០%) */}
+                                <td className={`p-3 border-r text-left align-middle text-slate-500 relative group/campend ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                                  {editingAdSetEndTimeId === c.id ? (
+                                    <div className="flex items-center gap-1">
+                                      <input 
+                                        type="datetime-local" 
+                                        defaultValue={c.stop_time ? new Date(c.stop_time).toISOString().slice(0, 16) : ''}
+                                        id={`campEndTimeInput_${c.id}`}
+                                        onChange={(e) => {
+                                          // រក្សាទុកតម្លៃដែលបានជ្រើសរើសចូលក្នុង Element ផ្ទាល់ដើម្បីងាយស្រួលទាញយក
+                                          (e.target as HTMLInputElement).setAttribute('data-val', e.target.value);
+                                        }}
+                                        className="px-2 py-1 text-xs border rounded font-bold text-emerald-500 bg-white dark:bg-[#3A3B3C] outline-none"
+                                        autoFocus
+                                      />
+                                      <button 
+                                        type="button"
+                                        onClick={async (e) => {
+                                          // 🌟 ផ្អាកកុំឱ្យព្រឹត្តិការណ៍ចុចរត់ទៅប៉ះពាល់ជួរតារាងផ្សេងទៀត
+                                          e.stopPropagation();
+
+                                          const inputEl = document.getElementById(`campEndTimeInput_${c.id}`) as HTMLInputElement;
+                                          const val = inputEl ? (inputEl.value || inputEl.getAttribute('data-val')) : '';
+                                          
+                                          if (!val) {
+                                            setCustomAlert({
+                                              title: "សេចក្តីជូនដំណឹង",
+                                              message: "⚠️ សូមជ្រើសរើសកាលបរិច្ឆេទជាមុនសិន!"
+                                            });
+                                            return;
+                                          }
+
+                                          try {
+                                            const token = localStorage.getItem('fb_user_token');
+                                            const res = await fetch('/api/campaigns', {
+                                              method: 'POST',
+                                              headers: { 'Content-Type': 'application/json' },
+                                              body: JSON.stringify({ campaignId: c.id, stopTime: val, access_token: token })
+                                            });
+                                            const data = await res.json();
+                                            
+                                                if (data.success) {
+                                            showToast("✅ បានកែប្រែពេលវេលាបញ្ចប់ Campaign ដោយជោគជ័យ!", "success");
+                                            setEditingAdSetEndTimeId(null);
+                                            fetchCampaigns();
+                                          } else {
+                                            // 🌟 បម្លែងសារ Error របស់ Facebook ឱ្យទៅជាភាសាខ្មែរនៅទីនេះផ្ទាល់តែម្ដង
+                                            let errMsg = data.error || "មានបញ្ហាកើតឡើង សូមព្យាយាមម្ដងទៀត";
+                                            
+                                            if (errMsg.includes("too far in the future") || errMsg.includes("one year")) {
+                                              errMsg = "⚠️ កាលបរិច្ឆេទបញ្ចប់ (End Date) មិនអាចកំណត់លើសពី ១ ឆ្នាំ ាប់ពីថ្ងៃនេះបានទេ។ សូមជ្រើសរើសថ្ងៃខែឆ្នាំក្រោម ១ ឆ្នាំ។";
+                                            } else if (errMsg.includes("The post you selected")) {
+                                              errMsg = "⚠️ Post ដែលបានជ្រើសរើសសម្រាប់ការផ្សាយនេះ មិនអាចរកឃើញ ឬគ្មានសិទ្ធិប្រើប្រាស់ទេ។";
+                                            }
+
+                                            alert(errMsg);
+                                          }
+                                          } catch(err: any) {
+                                            setCustomAlert({
+                                              title: "សេចក្តីជូនដំណឹង",
+                                              message: "❌ Error: " + err.message
+                                            });
+                                          }
+                                        }}
+                                        className="text-white bg-emerald-600 px-2 py-1 rounded text-xs font-bold cursor-pointer hover:bg-emerald-700 transition"
+                                      >
+                                        ✓
+                                      </button>
+                                      <button 
+                                        type="button"
+                                        onClick={() => setEditingAdSetEndTimeId(null)}
+                                        className="text-slate-500 hover:text-red-500 px-1 text-xs font-bold cursor-pointer"
+                                      >
+                                        ✕
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <div className="flex items-center justify-between gap-2">
+                                      <div>
+                                        {c.stop_time ? (
+                                          <span>{new Date(c.stop_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                                        ) : (
+                                          <span className="text-slate-500">Ongoing</span>
+                                        )}
+                                      </div>
+
+                                      {c.stop_time && (
+                                        <button 
+                                          type="button"
+                                          onClick={() => setEditingAdSetEndTimeId(c.id)}
+                                          className="opacity-0 group-hover/campend:opacity-100 transition-opacity p-1 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded cursor-pointer"
+                                          title="Quick Edit End Time"
+                                        >
+                                          ✏️
+                                        </button>
+                                      )}
+                                    </div>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+
 
                         {/* 🌟 Footer បូកសរុប (បានតម្រឹមបន្ថែម ១ ជួរឈរ សម្រាប់ CPA Status ឱ្យស្មើគ្នា ១០០%) */}
                         <tfoot className={`sticky bottom-0 z-20 font-bold text-[13px] border-t-2 ${theme === 'dark' ? 'bg-[#18191A] border-slate-600 text-white' : 'bg-[#F5F6F8] border-slate-300 text-slate-900'}`}>
@@ -5784,77 +6772,690 @@ const fetchAdsets = async () => {
                   {/* 2. TABLE: AD SETS */}
                   {/* ========================================================= */}
                   {activeManageTab === 'ADSETS' && (
+                  <div className="w-full overflow-x-auto">
+                    <table className="w-full text-left border-collapse min-w-[1800px]">
+                      <thead className={`sticky top-0 z-20 shadow-[0_1px_0_0_rgba(0,0,0,0.1)] ${theme === 'dark' ? 'bg-[#18191A] text-slate-400' : 'bg-[#F5F6F8] text-[#65676B]'}`}>
+                        <tr className="text-[12px] uppercase">
+                          <th className={`p-3 border-r w-10 text-center ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                            <input 
+                              type="checkbox" 
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedAdSets(adsetsList.map(a => a.id));
+                                } else {
+                                  setSelectedAdSets([]);
+                                }
+                              }}
+                              checked={adsetsList.length > 0 && selectedAdSets.length === adsetsList.length}
+                              className="w-3.5 h-3.5 accent-[#1877F2] cursor-pointer" 
+                            />
+                          </th>
+                          <th className={`p-3 border-r w-16 text-center font-bold ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Off / On</th>
+                          <th className={`p-3 border-r min-w-[250px] font-bold ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Ad set name</th>
+                          <th className={`p-3 border-r min-w-[120px] font-bold ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Delivery</th>
+                          <th className={`p-3 border-r min-w-[140px] font-bold text-right ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Results</th>
+                          <th className={`p-3 border-r min-w-[120px] font-bold text-right ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Cost per result</th>
+                          <th className={`p-3 border-r min-w-[120px] font-bold text-right ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Budget</th>
+                          <th className={`p-3 border-r min-w-[120px] font-bold text-right ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Amount spent</th>
+                          <th className={`p-3 border-r min-w-[100px] font-bold text-right ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Impressions</th>
+                          <th className={`p-3 border-r min-w-[100px] font-bold text-right ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Reach</th>
+                          <th className={`p-3 border-r min-w-[130px] font-bold text-right ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Total messaging...</th>
+                          <th className={`p-3 border-r min-w-[130px] font-bold text-right ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>New messaging...</th>
+                          <th className={`p-3 border-r min-w-[120px] font-bold text-right ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Ends</th>
+                          <th className={`p-3 border-r min-w-[130px] font-bold text-right ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Bid strategy</th>
+                          <th className="p-3 min-w-[150px] font-bold">Last significant edit</th>
+                        </tr>
+                      </thead>
+                      <tbody className={`text-[13px] ${theme === 'dark' ? 'text-slate-300' : 'text-[#050505]'}`}>
+                        {loadingAdsets ? (
+                          <tr><td colSpan={15} className="p-10 text-center text-slate-500">កំពុងទាញយកបញ្ជី Ad Sets...</td></tr>
+                        ) : adsetsList.length === 0 ? (
+                          <tr><td colSpan={15} className="p-10 text-center text-slate-500">រកមិនឃើញ Ad Sets ក្រោម Campaign នេះទេ</td></tr>
+                        ) : (
+                          adsetsList.map((adset) => {
+                            const ins = getInsights(adset);
+                            const parentCamp = campaignsList.find(c => c.id === selectedCampaigns[0]);
+                            const objective = parentCamp?.objective || 'OUTCOME_ENGAGEMENT';
+                            const results = getResults(ins, objective);
+                            const spend = ins ? ins.spend : null;
+                            const cpa = (results !== "-" && spend && Number(results) > 0) ? (Number(spend) / Number(results)) : null;
+
+                            let totalMsg = "-";
+                            let newMsg = "-";
+                            if (ins && ins.actions) {
+                              const tMsgObj = ins.actions.find((a: any) => a.action_type === 'onsite_conversion.messaging_conversation_started_7d');
+                              const nMsgObj = ins.actions.find((a: any) => a.action_type === 'onsite_conversion.messaging_first_reply');
+                              if (tMsgObj) totalMsg = tMsgObj.value;
+                              if (nMsgObj) newMsg = nMsgObj.value;
+                            }
+
+                            const bidStrategy = adset.bid_strategy ? adset.bid_strategy.replace(/_/g, ' ').toLowerCase() : 'Highest volume';
+                            const lastEditDate = adset.updated_time ? new Date(adset.updated_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '-';
+                            const endDate = adset.end_time ? new Date(adset.end_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Ongoing';
+
+                            return (
+                              <tr key={adset.id} className={`border-b transition min-h-[48px] ${theme === 'dark' ? (selectedAdSets.includes(adset.id) ? 'bg-blue-900/30 border-slate-700' : 'border-slate-700 hover:bg-[#3A3B3C]') : (selectedAdSets.includes(adset.id) ? 'bg-[#EBF5FF] border-slate-200' : 'border-slate-200 hover:bg-slate-50')}`}>
+                                <td className={`p-3 border-r text-center align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                                  <input 
+                                    type="checkbox" 
+                                    checked={selectedAdSets.includes(adset.id)}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        setSelectedAdSets([...selectedAdSets, adset.id]);
+                                      } else {
+                                        setSelectedAdSets(selectedAdSets.filter(id => id !== adset.id));
+                                      }
+                                    }}
+                                    className="w-3.5 h-3.5 accent-[#1877F2] cursor-pointer" 
+                                  />
+                                </td>
+                                <td className={`p-3 border-r text-center align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                                  <div className={`w-8 h-4 rounded-full mx-auto relative cursor-pointer ${adset.status === 'ACTIVE' ? 'bg-[#1877F2]' : 'bg-[#BCC0C4]'}`}>
+                                    <div className={`w-3.5 h-3.5 bg-white rounded-full absolute top-[1px] ${adset.status === 'ACTIVE' ? 'right-[2px]' : 'left-[2px]'}`}></div>
+                                  </div>
+                                </td>
+
+                                {/* 🌟 ទីតាំងដាក់កូដ Quick Edit Ad Set Name ដ៏ត្រឹមត្រូវ */}
+                                  <td className={`p-3 border-r font-semibold text-[#1877F2] relative group/adsetname align-middle min-w-[250px] ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                                    {editingAdSetNameId === adset.id ? (
+                                      <div className="flex items-center gap-1">
+                                        <input 
+                                          type="text" 
+                                          defaultValue={adset.name}
+                                          id={`adsetNameInput_${adset.id}`}
+                                          className="w-full px-2 py-1 text-xs border rounded font-bold text-blue-600 bg-white dark:bg-[#3A3B3C] outline-none"
+                                          autoFocus
+                                        />
+                                        <button 
+                                          onClick={async () => {
+                                            const val = (document.getElementById(`adsetNameInput_${adset.id}`) as HTMLInputElement)?.value;
+                                            if (!val) return;
+                                            try {
+                                              const token = localStorage.getItem('fb_user_token');
+                                              const res = await fetch('/api/adsets', {
+                                                method: 'POST',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({ adsetId: adset.id, name: val, access_token: token }) 
+                                              });
+                                              const data = await res.json();
+                                              if (data.success) {
+                                                showToast("✅ បានកែប្រែឈ្មោះ Ad Set ដោយជោគជ័យ!", "success");
+                                                setEditingAdSetNameId(null);
+                                                fetchAdsets(); 
+                                              } else {
+                                                alert("❌ Facebook បដិសេធ: " + data.error);
+                                              }
+                                            } catch(err: any) {
+                                              alert("❌ Error: " + err.message);
+                                            }
+                                          }}
+                                          className="text-white bg-emerald-600 px-1.5 py-1 rounded text-[10px] font-bold cursor-pointer"
+                                        >
+                                          ✓
+                                        </button>
+                                        <button 
+                                          onClick={() => setEditingAdSetNameId(null)}
+                                          className="text-slate-500 hover:text-red-500 px-1 text-xs font-bold cursor-pointer"
+                                        >
+                                          ✕
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <div className="flex flex-col">
+                                        <span className="truncate max-w-[200px] block font-semibold text-slate-800 dark:text-slate-200">{adset.name}</span>
+                                        
+                                        {/* 🌟 ប៊ូតុងបង្ហាញជាប់នៅខាងក្រោមឈ្មោះ Ad Set */}
+                                        <div className="flex items-center gap-1.5 text-[12px] font-medium mt-1">
+                                          <span onClick={() => setEditingAdSetNameId(adset.id)} className="text-[#1877F2] hover:underline cursor-pointer">Edit</span>
+                                          <span className="text-slate-400">|</span>
+                                          <span 
+                                            onClick={() => {
+                                              // 🌟 កំណត់យក Ad Set ID នេះទុកសម្រាប់ Duplicate Ad Set + បង្កើត Ad ថ្មី
+                                              setOriginalAdId(adset.id);
+                                              setDuplicateAdName(`${adset.name || 'Ad Set'} - Copy`);
+                                              setDuplicatePostId(selectedPost || "");
+                                              setIsSingleAdDuplicateModalOpen(true);
+                                            }} 
+                                            className="text-[#1877F2] hover:underline cursor-pointer"
+                                          >
+                                            Duplicate
+                                          </span>
+                                          <span className="text-slate-400">|</span>
+                                          <span 
+                                            onClick={() => {
+                                              setItemToDeleteData({ id: adset.id, name: adset.name, type: 'ADSET' });
+                                              setIsCustomDeleteModalOpen(true);
+                                            }} 
+                                            className="text-[#1877F2] hover:underline cursor-pointer font-medium"
+                                          >
+                                            Delete
+                                          </span>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </td>
+
+                                <td className={`p-3 border-r align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                                  {(() => {
+                                    const status = (adset.effective_status || adset.status || "").toUpperCase();
+                                    if (status.includes('CAMPAIGN_OFF') || status.includes('CAMPAIGN OFF')) {
+                                      return <span className="flex items-center gap-1.5 font-medium text-slate-400"><span className="w-2 h-2 rounded-full bg-slate-400"></span> Campaign off</span>;
+                                    } else if (status.includes('REVIEW') || status.includes('PENDING') || status === 'PENDING_REVIEW' || status === 'IN_REVIEW') {
+                                      return <span className="flex items-center gap-1.5 font-medium text-amber-500"><span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span> PENDING_REVIEW</span>;
+                                    } else if (status === 'ACTIVE') {
+                                      return <span className="flex items-center gap-1.5 font-medium text-[#31A24C]"><span className="w-2 h-2 rounded-full bg-[#31A24C]"></span> ACTIVE</span>;
+                                    } else if (status === 'PAUSED' || status === 'OFF') {
+                                      return <span className="flex items-center gap-1.5 font-medium text-slate-500"><span className="w-2 h-2 rounded-full bg-[#BCC0C4]"></span> Paused</span>;
+                                    } else {
+                                      return <span className="flex items-center gap-1.5 font-medium text-slate-400"><span className="w-2 h-2 rounded-full bg-slate-400"></span> {status}</span>;
+                                    }
+                                  })()}
+                                </td>
+                                <td className={`p-3 border-r text-right align-middle min-w-[140px] ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                                  <div className="font-semibold">{results === "-" ? "-" : formatNumber(results)}</div>
+                                  <div className="text-[10px] text-slate-500 uppercase mt-0.5">{objective === 'OUTCOME_ENGAGEMENT' || objective === 'MESSAGES' ? 'Messaging Conversations' : 'Results'}</div>
+                                </td>
+                                <td className={`p-3 border-r text-right align-middle min-w-[120px] ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                                  <div className="font-semibold">{cpa ? "$" + cpa.toFixed(2) : "-"}</div>
+                                  <div className="text-[10px] text-slate-500 uppercase mt-0.5">Per Result</div>
+                                </td>
+
+                                {/* 🌟 Budget (Inline Quick Edit សម្រាប់ Tab Ad Sets) */}
+                                <td className={`p-3 border-r text-right align-middle text-slate-500 relative group/adsetbudget ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                                  {editingAdSetBudgetId === adset.id ? (
+                                    <div className="flex items-center justify-end gap-1">
+                                      <input 
+                                        type="number" 
+                                        step="0.5"
+                                        defaultValue={adset.daily_budget ? Number(adset.daily_budget)/100 : (adset.lifetime_budget ? Number(adset.lifetime_budget)/100 : 5)}
+                                        id={`adsetInput_${adset.id}`}
+                                        className="w-20 px-2 py-1 text-xs border rounded font-bold text-emerald-500 bg-white dark:bg-[#3A3B3C] outline-none"
+                                        autoFocus
+                                      />
+                                      <button 
+                                        onClick={async () => {
+                                          const val = (document.getElementById(`adsetInput_${adset.id}`) as HTMLInputElement)?.value;
+                                          if (!val) return;
+                                          try {
+                                            const token = localStorage.getItem('fb_user_token');
+                                            const res = await fetch('/api/adsets', {
+                                              method: 'POST',
+                                              headers: { 'Content-Type': 'application/json' },
+                                              body: JSON.stringify({ adsetId: adset.id, budget: val, access_token: token })
+                                            });
+                                            const data = await res.json();
+                                            if (data.success) {
+                                              showToast("✅ បានកែប្រែថវិកា Ad Set ដោយជោគជ័យ!", "success");
+                                              setEditingAdSetBudgetId(null);
+                                              fetchAdsets();
+                                            } else {
+                                              alert("❌ បរាជ័យ: " + data.error);
+                                            }
+                                          } catch(err: any) {
+                                            alert("❌ Error: " + err.message);
+                                          }
+                                        }}
+                                        className="text-white bg-emerald-600 px-1.5 py-1 rounded text-[10px] font-bold cursor-pointer"
+                                      >
+                                        ✓
+                                      </button>
+                                      <button 
+                                        onClick={() => setEditingAdSetBudgetId(null)}
+                                        className="text-slate-500 hover:text-red-500 px-1 text-xs font-bold cursor-pointer"
+                                      >
+                                        ✕
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <div className="flex items-center justify-end gap-2">
+                                      <div>
+                                        {(() => {
+                                          if (adset.daily_budget) {
+                                            return <div className="font-semibold">${(Number(adset.daily_budget) / 100).toFixed(2)} Daily</div>;
+                                          } else if (adset.lifetime_budget) {
+                                            return <div className="font-semibold">${(Number(adset.lifetime_budget) / 100).toFixed(2)} Lifetime</div>;
+                                          } else {
+                                            return <div className="text-[11px] text-slate-500 italic">Using campaign budget</div>;
+                                          }
+                                        })()}
+                                      </div>
+
+                                      <button 
+                                        onClick={() => setEditingAdSetBudgetId(adset.id)}
+                                        className="opacity-0 group-hover/adsetbudget:opacity-100 transition-opacity p-1 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded cursor-pointer"
+                                        title="Quick Edit Budget"
+                                      >
+                                        ✏️
+                                      </button>
+                                    </div>
+                                  )}
+                                </td>
+
+                                <td className={`p-3 border-r text-right font-bold align-middle ${theme === 'dark' ? 'border-slate-700 text-white' : 'border-slate-200 text-slate-900'}`}>
+                                  ${Number(spend).toFixed(2)}
+                                </td>
+                                <td className={`p-3 border-r text-right align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>{formatNumber(ins?.impressions)}</td>
+                                <td className={`p-3 border-r text-right align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>{formatNumber(ins?.reach)}</td>
+                                <td className={`p-3 border-r text-right align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>{totalMsg}</td>
+                                <td className={`p-3 border-r text-right align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>{newMsg}</td>
+                                <td className={`p-3 border-r text-[12px] align-middle ${theme === 'dark' ? 'border-slate-700 text-slate-400' : 'border-slate-200 text-slate-600'}`}>{endDate}</td>
+                                <td className={`p-3 border-r text-[12px] capitalize align-middle ${theme === 'dark' ? 'border-slate-700 text-slate-400' : 'border-slate-200 text-slate-600'}`}>{bidStrategy}</td>
+                                {/* 🌟 Ends Column (Inline Quick Edit សម្រាប់ Ad Sets ដែលមានថ្ងៃខែច្បាស់លាស់) */}
+                                <td className={`p-3 border-r text-left align-middle text-slate-500 relative group/adsetend ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                                  {editingAdSetEndTimeId === adset.id ? (
+                                    <div className="flex items-center gap-1">
+                                      <input 
+                                        type="datetime-local" 
+                                        defaultValue={adset.end_time ? new Date(adset.end_time).toISOString().slice(0, 16) : ''}
+                                        id={`adsetEndTimeInput_${adset.id}`}
+                                        className="px-2 py-1 text-xs border rounded font-bold text-emerald-500 bg-white dark:bg-[#3A3B3C] outline-none"
+                                        autoFocus
+                                      />
+                                      <button 
+                                        onClick={async () => {
+                                          const val = (document.getElementById(`adsetEndTimeInput_${adset.id}`) as HTMLInputElement)?.value;
+                                          if (!val) return;
+                                          try {
+                                            const token = localStorage.getItem('fb_user_token');
+                                            const res = await fetch('/api/adsets', {
+                                              method: 'POST',
+                                              headers: { 'Content-Type': 'application/json' },
+                                              body: JSON.stringify({ adsetId: adset.id, stopTime: val, access_token: token })
+                                            });
+                                            const data = await res.json();
+                                            if (data.success) {
+                                              showToast("✅ បានកែប្រែពេលវេលាបញ្ចប់ដោយជោគជ័យ!", "success");
+                                              setEditingAdSetEndTimeId(null);
+                                              fetchAdsets(); // ទាញយកទិន្នន័យ Ad Sets មកបង្ហាញឡើងវិញ
+                                            } else {
+                                              alert("❌ បរាជ័យ: " + data.error);
+                                            }
+                                          } catch(err: any) {
+                                            alert("❌ Error: " + err.message);
+                                          }
+                                        }}
+                                        className="text-white bg-emerald-600 px-1.5 py-1 rounded text-[10px] font-bold cursor-pointer"
+                                      >
+                                        ✓
+                                      </button>
+                                      <button 
+                                        onClick={() => setEditingAdSetEndTimeId(null)}
+                                        className="text-slate-500 hover:text-red-500 px-1 text-xs font-bold cursor-pointer"
+                                      >
+                                        ✕
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <div className="flex items-center justify-between gap-2">
+                                      <div>
+                                        {adset.end_time ? (
+                                          <span>{new Date(adset.end_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                                        ) : (
+                                          <span className="text-slate-500">Ongoing</span>
+                                        )}
+                                      </div>
+
+                                      {/* 🌟 បង្ហាញសញ្ញាខ្មៅដៃ เฉพาะករណីដែលមាន end_time (មិនមែន Ongoing) */}
+                                      {adset.end_time && (
+                                        <button 
+                                          onClick={() => setEditingAdSetEndTimeId(adset.id)}
+                                          className="opacity-0 group-hover/adsetend:opacity-100 transition-opacity p-1 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded cursor-pointer"
+                                          title="Quick Edit End Time"
+                                        >
+                                          ✏️
+                                        </button>
+                                      )}
+                                    </div>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                  {/* ========================================================= */}
+                  {/* 3. TABLE: ADS */}
+                  {/* ========================================================= */}
+                  {activeManageTab === 'ADS' && (
                     <div className="w-full overflow-x-auto">
-                      <table className="w-full text-left border-collapse min-w-[1800px]">
+                      <table className="w-full text-left border-collapse min-w-[1650px]">
                         <thead className={`sticky top-0 z-20 shadow-[0_1px_0_0_rgba(0,0,0,0.1)] ${theme === 'dark' ? 'bg-[#18191A] text-slate-400' : 'bg-[#F5F6F8] text-[#65676B]'}`}>
-                          <tr className="text-[12px] uppercase">
-                            <th className={`p-3 border-r w-10 text-center ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}><input type="checkbox" className="w-3.5 h-3.5 accent-[#1877F2]" /></th>
+                          <tr className="text-[12px]">
+                            <th className={`p-3 border-r w-10 text-center ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                              <input 
+                                type="checkbox" 
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedAds(adsList.map(ad => ad.id));
+                                  } else {
+                                    setSelectedAds([]);
+                                  }
+                                }}
+                                checked={adsList.length > 0 && selectedAds.length === adsList.length}
+                                className="w-3.5 h-3.5 accent-[#1877F2] cursor-pointer" 
+                              />
+                            </th>
                             <th className={`p-3 border-r w-16 text-center font-bold ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Off / On</th>
-                            <th className={`p-3 border-r min-w-[250px] font-bold ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Ad set name</th>
+                            <th className={`p-3 border-r min-w-[300px] font-bold ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Ad name</th>
                             <th className={`p-3 border-r min-w-[120px] font-bold ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Delivery</th>
                             <th className={`p-3 border-r min-w-[140px] font-bold text-right ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Results</th>
                             <th className={`p-3 border-r min-w-[120px] font-bold text-right ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Cost per result</th>
+                            
+                            <th className={`p-3 border-r min-w-[150px] font-bold text-blue-600 dark:text-blue-400 ${theme === 'dark' ? 'border-slate-700 bg-blue-950/20' : 'border-slate-200 bg-blue-50/50'}`}>
+                              ការវាយតម្លៃ AI (CPA)
+                            </th>
+
                             <th className={`p-3 border-r min-w-[120px] font-bold text-right ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Budget</th>
                             <th className={`p-3 border-r min-w-[120px] font-bold text-right ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Amount spent</th>
                             <th className={`p-3 border-r min-w-[100px] font-bold text-right ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Impressions</th>
                             <th className={`p-3 border-r min-w-[100px] font-bold text-right ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Reach</th>
-                            <th className={`p-3 border-r min-w-[130px] font-bold text-right ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Total messaging...</th>
-                            <th className={`p-3 border-r min-w-[130px] font-bold text-right ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>New messaging...</th>
-                            <th className={`p-3 border-r min-w-[120px] font-bold text-right ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Ends</th>
-                            <th className={`p-3 border-r min-w-[130px] font-bold text-right ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Bid strategy</th>
-                            <th className="p-3 min-w-[150px] font-bold">Last significant edit</th>
+                            <th className="p-3 min-w-[100px] font-bold">Ends</th>
                           </tr>
                         </thead>
                         <tbody className={`text-[13px] ${theme === 'dark' ? 'text-slate-300' : 'text-[#050505]'}`}>
-                          {loadingAdsets ? (
-                            <tr><td colSpan={15} className="p-10 text-center text-slate-500">កំពុងទាញយកបញ្ជី Ad Sets...</td></tr>
-                          ) : adsetsList.length === 0 ? (
-                            <tr><td colSpan={15} className="p-10 text-center text-slate-500">រកមិនឃើញ Ad Sets ក្រោម Campaign នេះទេ</td></tr>
+                          {loadingAds ? (
+                            <tr><td colSpan={12} className="p-10 text-center text-slate-500">កំពុងទាញយកបញ្ជី Ads...</td></tr>
+                          ) : adsList.length === 0 ? (
+                            <tr><td colSpan={12} className="p-10 text-center text-slate-500">រកមិនឃើញ Ads ក្រោម Campaign នេះទេ</td></tr>
                           ) : (
-                            adsetsList.map((adset) => {
-                              const ins = getInsights(adset);
-                              const parentCamp = campaignsList.find(c => c.id === selectedCampaigns[0]);
+                            adsList.map((ad) => {
+                              const ins = ad.insights && ad.insights.data && ad.insights.data.length > 0 ? ad.insights.data[0] : null;
+                              
+                              const parentCamp = campaignsList.find(c => c.id === (ad.campaign_id || selectedCampaigns[0])) || campaignsList[0];
                               const objective = parentCamp?.objective || 'OUTCOME_ENGAGEMENT';
                               const results = getResults(ins, objective);
-                              const spend = ins ? ins.spend : null;
+
+                              const spend = ins?.spend || 0;
+                              const impressions = ins?.impressions || 0;
+                              const reach = ins?.reach || 0;
+                              
                               const cpa = (results !== "-" && spend && Number(results) > 0) ? (Number(spend) / Number(results)) : null;
-
-                              let budgetText = "Using campaign budget";
-                              if (adset.daily_budget) budgetText = `$${(Number(adset.daily_budget) / 100).toFixed(2)} Daily`;
-                              else if (adset.lifetime_budget) budgetText = `$${(Number(adset.lifetime_budget) / 100).toFixed(2)} Lifetime`;
-
-                              let totalMsg = "-";
-                              let newMsg = "-";
-                              if (ins && ins.actions) {
-                                const tMsgObj = ins.actions.find((a: any) => a.action_type === 'onsite_conversion.messaging_conversation_started_7d');
-                                const nMsgObj = ins.actions.find((a: any) => a.action_type === 'onsite_conversion.messaging_first_reply');
-                                if (tMsgObj) totalMsg = tMsgObj.value;
-                                if (nMsgObj) newMsg = nMsgObj.value;
-                              }
-
-                              const bidStrategy = adset.bid_strategy ? adset.bid_strategy.replace(/_/g, ' ').toLowerCase() : 'Highest volume';
-                              const lastEditDate = adset.updated_time ? new Date(adset.updated_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '-';
-                              const endDate = adset.end_time ? new Date(adset.end_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Ongoing';
+                              const isAdSelected = selectedAds.includes(ad.id);
 
                               return (
-                                <tr key={adset.id} className={`border-b transition min-h-[48px] ${theme === 'dark' ? 'border-slate-700 hover:bg-[#3A3B3C]' : 'border-slate-200 hover:bg-slate-50'}`}>
-                                  <td className={`p-3 border-r text-center align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}><input type="checkbox" className="w-3.5 h-3.5 accent-[#1877F2] cursor-pointer" /></td>
+                                <tr key={ad.id} className={`border-b transition min-h-[48px] ${theme === 'dark' ? (isAdSelected ? 'bg-blue-900/30 border-slate-700' : 'border-slate-700 hover:bg-[#3A3B3C]') : (isAdSelected ? 'bg-[#EBF5FF] border-slate-200' : 'border-slate-200 hover:bg-slate-50')}`}>
+                                  
+                                  {/* Checkbox */}
                                   <td className={`p-3 border-r text-center align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-                                    <div className={`w-8 h-4 rounded-full mx-auto relative cursor-pointer ${adset.status === 'ACTIVE' ? 'bg-[#1877F2]' : 'bg-[#BCC0C4]'}`}>
-                                      <div className={`w-3.5 h-3.5 bg-white rounded-full absolute top-[1px] ${adset.status === 'ACTIVE' ? 'right-[2px]' : 'left-[2px]'}`}></div>
+                                    <input 
+                                      type="checkbox" 
+                                      checked={isAdSelected}
+                                      onChange={(e) => {
+                                        if (e.target.checked) {
+                                          setSelectedAds([...selectedAds, ad.id]);
+                                        } else {
+                                          setSelectedAds(selectedAds.filter(id => id !== ad.id));
+                                        }
+                                      }}
+                                      className="w-3.5 h-3.5 accent-[#1877F2] cursor-pointer" 
+                                    />
+                                  </td>
+                                  
+                                  {/* Status Toggle */}
+                                  <td className={`p-3 border-r text-center align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                                    <div 
+                                      onClick={() => handleToggleAdStatus(ad.id, ad.status)}
+                                      className={`w-8 h-4 rounded-full mx-auto relative cursor-pointer transition-colors ${ad.status === 'ACTIVE' ? 'bg-[#1877F2]' : 'bg-[#BCC0C4]'}`}
+                                    >
+                                      <div className={`w-3.5 h-3.5 bg-white rounded-full absolute top-[1px] transition-all ${ad.status === 'ACTIVE' ? 'right-[2px]' : 'left-[2px]'}`}></div>
                                     </div>
                                   </td>
-                                  <td className={`p-3 border-r font-semibold text-[#1877F2] hover:underline cursor-pointer align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-                                    {adset.name}
+
+                                  {/* 🌟 ទីតាំង Quick Edit Ad Name & Thumbnail + Preview & Action Buttons */}
+                                  <td className={`p-3 border-r align-middle relative group/adname hover:z-[60] min-w-[300px] ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                                    {editingAdNameId === ad.id ? (
+                                      <div className="flex items-center gap-1">
+                                        <input 
+                                          type="text" 
+                                          defaultValue={ad.name}
+                                          id={`adNameInput_${ad.id}`}
+                                          className="w-full px-2 py-1 text-xs border rounded font-bold text-blue-600 bg-white dark:bg-[#3A3B3C] outline-none"
+                                          autoFocus
+                                        />
+                                        <button 
+                                          onClick={async () => {
+                                            const val = (document.getElementById(`adNameInput_${ad.id}`) as HTMLInputElement)?.value;
+                                            if (!val) return;
+                                            try {
+                                              const token = localStorage.getItem('fb_user_token');
+                                              const res = await fetch('/api/ads', {
+                                                method: 'PUT',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({ id: ad.id, name: val, access_token: token })
+                                              });
+                                              const data = await res.json();
+                                              if (data.success) {
+                                                showToast("✅ បានកែប្រែឈ្មោះ Ad ដោយជោគជ័យ!", "success");
+                                                setEditingAdNameId(null);
+                                                fetchAds();
+                                              } else {
+                                                alert("❌ បរាជ័យ: " + data.error);
+                                              }
+                                            } catch(err: any) {
+                                              alert("❌ Error: " + err.message);
+                                            }
+                                          }}
+                                          className="text-white bg-emerald-600 px-1.5 py-1 rounded text-[10px] font-bold cursor-pointer"
+                                        >
+                                          ✓
+                                        </button>
+                                        <button 
+                                          onClick={() => setEditingAdNameId(null)}
+                                          className="text-slate-500 hover:text-red-500 px-1 text-xs font-bold cursor-pointer"
+                                        >
+                                          ✕
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <div className="flex items-center justify-between gap-3">
+                                        
+                                        <div className="relative group/preview flex items-center gap-2.5 min-w-0">
+                                          <div className="w-10 h-10 rounded bg-slate-800 flex items-center justify-center text-white text-xs overflow-hidden shrink-0 shadow-xs cursor-pointer border border-slate-300 dark:border-slate-600">
+                                            {ad.creative?.thumbnail_url || ad.creative?.image_url ? (
+                                              <img src={ad.creative.thumbnail_url || ad.creative.image_url} className="w-full h-full object-cover" alt="Ad thumb" />
+                                            ) : (
+                                              '👟'
+                                            )}
+                                          </div>
+
+                                          <div className="flex flex-col min-w-0">
+                                            <span className="font-semibold text-[#1877F2] hover:underline cursor-pointer truncate max-w-[180px]">
+                                              {ad.name}
+                                            </span>
+                                            
+                                            {/* 🌟 ប៊ូតុងទាំង ៣ ដាក់បង្ហាញជាប់ជានិច្ចនៅទីនេះ */}
+                                            <div className="flex items-center gap-1.5 text-[12px] font-medium mt-1">
+                                              <span onClick={() => setEditingAdNameId(ad.id)} className="text-[#1877F2] hover:underline cursor-pointer">Edit</span>
+                                              <span className="text-slate-400">|</span>
+                                              
+                                              {/* 🌟 ពេលចុច Duplicate ត្រង់នេះ វាចម្លង Ad ហ្នឹងផ្ទាល់តែម្ដងដោយស្វ័យប្រវត្តិ */}
+                                              <span 
+                                                onClick={() => {
+                                                  // 🌟 កំណត់យក Ad ID នេះទុកជាគោល ហើយបើកផ្ទាំង Modal ជ្រើសរើស Post
+                                                  setOriginalAdId(ad.id);
+                                                  setDuplicateAdName(`${ad.name || 'Ad'} - Copy`);
+                                                  
+                                                  // ទាញយកប្រភព Post ដើមមកដាក់ទុកជាស្រេច
+                                                  const creativeId = ad.creative?.effective_object_story_id || ad.creative?.object_story_id;
+                                                  if (creativeId) {
+                                                    setDuplicatePostId(creativeId);
+                                                  }
+                                                  
+                                                  // បើកផ្ទាំង Modal ជ្រើសរើស Post ឡើងមក
+                                                  setIsSingleAdDuplicateModalOpen(true);
+                                                }} 
+                                                className="text-[#1877F2] hover:underline cursor-pointer"
+                                              >
+                                                Duplicate
+                                              </span>
+
+                                              <span className="text-slate-400">|</span>
+                                              <span 
+                                                onClick={() => {
+                                                  setItemToDeleteData({ id: ad.id, name: ad.name, type: 'AD' });
+                                                  setIsCustomDeleteModalOpen(true);
+                                                }} 
+                                                className="text-[#1877F2] hover:underline cursor-pointer font-medium"
+                                              >
+                                                Delete
+                                              </span>
+                                            </div>
+                                          </div>
+
+                                          {/* 🚀 ផ្ទាំង Popover ធំលោតមកខាងស្តាំដៃ */}
+                                          <div className="fixed top-1/2 right-[5%] transform -translate-y-1/2 hidden group-hover/preview:flex flex-col w-[340px] rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.4)] border overflow-hidden z-[999999] bg-white dark:bg-[#242526] border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white animate-in fade-in zoom-in-95 duration-200 pointer-events-none">
+                                            
+                                            <div className="p-3.5 flex justify-between items-start bg-white dark:bg-[#242526]">
+                                              <div className="flex items-center gap-2.5">
+                                                {selectedPageData?.picture?.data?.url ? (
+                                                  <img src={selectedPageData.picture.data.url} className="w-9 h-9 rounded-full object-cover border border-slate-100 dark:border-slate-600" />
+                                                ) : (
+                                                  <div className="w-9 h-9 bg-gray-400 rounded-full flex items-center justify-center text-white font-bold">W</div>
+                                                )}
+                                                <div>
+                                                  <div className="font-bold text-[13px] leading-tight text-[#050505] dark:text-white">{selectedPageData?.name || "Page Name"}</div>
+                                                  <div className="text-[11px] flex items-center gap-1 text-[#65676B] dark:text-slate-400">Sponsored <span className="text-[5px]">●</span> 🌎</div>
+                                                </div>
+                                              </div>
+                                              <span className="tracking-widest text-[16px] -mt-2 text-[#65676B] dark:text-slate-400">...</span>
+                                            </div>
+
+                                            <div className="px-3.5 pb-2 text-[13px] break-words whitespace-normal line-clamp-4 text-[#050505] dark:text-slate-300 bg-white dark:bg-[#242526]">
+                                              {(() => {
+                                                const storyId = ad.creative?.effective_object_story_id || ad.creative?.object_story_id;
+                                                const matchedPost = (storyId && typeof posts !== 'undefined') ? posts.find((p: any) => p.id === storyId || (p.id && p.id.endsWith(storyId.split('_').pop() || ''))) : null;
+                                                return ad.enriched_post?.message || matchedPost?.message || ad.creative?.body || ad.creative?.object_story_spec?.text || ad.creative?.name || "គ្មានអត្ថបទបង្ហាញ";
+                                              })()}
+                                            </div>
+
+                                            {/* 3. 🌟 បូមយករូបភាព និងតម្រៀប Auto Grid */}
+                                            <div className="w-full bg-slate-100 dark:bg-slate-800 relative overflow-hidden flex flex-col justify-center border-t border-b dark:border-slate-700">
+                                              {(() => {
+                                                let adImages: string[] = [];
+                                                
+                                                const childAtts = ad.creative?.object_story_spec?.link_data?.child_attachments || ad.creative?.object_story_spec?.template_data?.link?.child_attachments;
+                                                if (childAtts && childAtts.length > 0) {
+                                                    adImages = childAtts.map((att: any) => att.image_url || att.picture || att.image_crops?.['100x100']?.[0]?.[0]);
+                                                } 
+                                                else if (ad.creative?.asset_feed_spec?.images) {
+                                                    adImages = ad.creative.asset_feed_spec.images.map((img: any) => img.url);
+                                                }
+
+                                                adImages = adImages.filter(Boolean);
+
+                                                if (adImages.length <= 1) {
+                                                    const storyId = ad.creative?.effective_object_story_id || ad.creative?.object_story_id;
+                                                    let matchedPost = null;
+                                                    if (storyId && typeof posts !== 'undefined' && posts.length > 0) {
+                                                        matchedPost = posts.find((p: any) => p.id === storyId || (p.id && p.id.endsWith(storyId.split('_').pop() || '')));
+                                                    }
+                                                    const sourcePost = ad.enriched_post || matchedPost;
+
+                                                    let postImages: string[] = [];
+                                                    if (sourcePost?.attachments?.data) {
+                                                        for (const att of sourcePost.attachments.data) {
+                                                            if (att.subattachments?.data) {
+                                                                postImages.push(...att.subattachments.data.map((sub: any) => sub.media?.image?.src));
+                                                            } else if (att.media?.image?.src) {
+                                                                postImages.push(att.media.image.src);
+                                                            }
+                                                        }
+                                                    }
+                                                    postImages = postImages.filter(Boolean);
+                                                    
+                                                    if (postImages.length > adImages.length) {
+                                                        adImages = postImages;
+                                                    } else if (adImages.length === 0 && sourcePost?.full_picture) {
+                                                        adImages = [sourcePost.full_picture];
+                                                    }
+                                                }
+
+                                                if (adImages.length === 0) {
+                                                    if (ad.creative?.image_url) adImages.push(ad.creative.image_url);
+                                                    else if (ad.creative?.thumbnail_url) adImages.push(ad.creative.thumbnail_url);
+                                                }
+
+                                                if (adImages.length === 0) {
+                                                    return <div className="w-full h-[200px] flex items-center justify-center text-xs text-slate-400">គ្មានរូបភាពបង្ហាញ</div>;
+                                                }
+
+                                                if (adImages.length === 1) return <img src={adImages[0]} className="w-full object-cover max-h-[300px]" alt="Ad Preview" />;
+                                                
+                                                if (adImages.length === 2) return (
+                                                    <div className="grid grid-cols-2 gap-0.5 w-full h-[300px]">
+                                                      <img src={adImages[0]} className="w-full h-full object-cover" alt="Img 1"/>
+                                                      <img src={adImages[1]} className="w-full h-full object-cover" alt="Img 2"/>
+                                                    </div>
+                                                );
+
+                                                if (adImages.length === 3) return (
+                                                    <div className="flex flex-col gap-0.5 w-full h-[300px]">
+                                                      <img src={adImages[0]} className="w-full h-[150px] object-cover" alt="Img 1" />
+                                                      <div className="grid grid-cols-2 gap-0.5 h-[148px]">
+                                                        <img src={adImages[1]} className="w-full h-full object-cover" alt="Img 2" />
+                                                        <img src={adImages[2]} className="w-full h-full object-cover" alt="Img 3" />
+                                                      </div>
+                                                    </div>
+                                                );
+
+                                                if (adImages.length >= 4) return (
+                                                    <div className="grid grid-cols-2 gap-0.5 w-full h-[300px]">
+                                                      <img src={adImages[0]} className="w-full h-[149px] object-cover" alt="Img 1" />
+                                                      <img src={adImages[1]} className="w-full h-[149px] object-cover" alt="Img 2" />
+                                                      <img src={adImages[2]} className="w-full h-[149px] object-cover" alt="Img 3" />
+                                                      <div className="relative w-full h-[149px]">
+                                                        <img src={adImages[3]} className="w-full h-full object-cover brightness-[0.55]" alt="Img 4" />
+                                                        {adImages.length > 4 && (
+                                                          <div className="absolute inset-0 flex items-center justify-center text-white font-bold text-3xl drop-shadow-lg">
+                                                            +{adImages.length - 3}
+                                                          </div>
+                                                        )}
+                                                      </div>
+                                                    </div>
+                                                );
+                                              })()}
+                                            </div>
+
+                                            <div className="px-3.5 py-2.5 flex justify-between items-center bg-[#F0F2F5] dark:bg-[#3A3B3C]">
+                                              <div className="flex flex-col">
+                                                <span className="text-[10px] uppercase font-bold text-[#65676B] dark:text-slate-400">CHAT IN MESSENGER</span>
+                                                <span className="font-bold text-[14px] text-[#050505] dark:text-white">Send message</span>
+                                              </div>
+                                              <button type="button" className="px-4 py-1.5 rounded-xl text-[13px] font-bold bg-[#E4E6EB] text-[#050505] dark:bg-[#4E4F50] dark:text-white shadow-sm">Send</button>
+                                            </div>
+
+                                            <div className="px-3.5 py-2.5 flex justify-between text-[12px] border-t bg-white border-gray-200 text-[#65676B] dark:bg-[#242526] dark:border-slate-700 dark:text-slate-400">
+                                              <div className="flex gap-4 font-semibold">
+                                                <span>👍 Like</span>
+                                                <span>💬 Comment</span>
+                                                <span>⤴️ Share</span>
+                                              </div>
+                                            </div>
+
+                                          </div>
+                                        </div>
+
+                                        <button 
+                                          type="button"
+                                          disabled={auditLoading}
+                                          onClick={() => handleAiAudit(ad)}
+                                          className="px-2.5 py-1 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold rounded-lg text-[11px] flex items-center gap-1.5 shadow-sm hover:opacity-90 cursor-pointer shrink-0 disabled:opacity-50"
+                                        >
+                                          <span>✨</span> <span>AI Audit</span>
+                                        </button>
+                                      </div>
+                                    )}
                                   </td>
 
-                                  {/* Delivery AD SETS*/}
+                                  {/* Delivery ADS */}
                                   <td className={`p-3 border-r align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
                                     {(() => {
-                                      // 🌟 ប្ដូរពី c មកជា adset វិញ ព្រោះក្នុងតារាង Ad sets យើងប្រើ biến adset
-                                      const status = (adset.effective_status || adset.status || "").toUpperCase();
+                                      const status = (ad.effective_status || ad.status || "").toUpperCase();
                                       
-                                      // បើ Campaign មេ ឬ Ad Set ត្រូវបានបិទ (Campaign off)
                                       if (status.includes('CAMPAIGN_OFF') || status.includes('CAMPAIGN OFF')) {
                                         return (
                                           <span className="flex items-center gap-1.5 font-medium text-slate-400 dark:text-slate-400">
@@ -5862,7 +7463,6 @@ const fetchAdsets = async () => {
                                           </span>
                                         );
                                       } 
-                                      // បើស្ថិតក្នុងស្ថានភាពកំពុងពិនិត្យពី Facebook
                                       else if (status.includes('REVIEW') || status.includes('PENDING') || status === 'PENDING_REVIEW' || status === 'IN_REVIEW') {
                                         return (
                                           <span className="flex items-center gap-1.5 font-medium text-amber-500">
@@ -5870,7 +7470,6 @@ const fetchAdsets = async () => {
                                           </span>
                                         );
                                       } 
-                                      // បើដំណើរការធម្មតា
                                       else if (status === 'ACTIVE') {
                                         return (
                                           <span className="flex items-center gap-1.5 font-medium text-[#31A24C]">
@@ -5878,7 +7477,6 @@ const fetchAdsets = async () => {
                                           </span>
                                         );
                                       } 
-                                      // បើបិទ (Paused / Off)
                                       else if (status === 'PAUSED' || status === 'OFF') {
                                         return (
                                           <span className="flex items-center gap-1.5 font-medium text-slate-500">
@@ -5896,31 +7494,108 @@ const fetchAdsets = async () => {
                                     })()}
                                   </td>
                                   
-                                  <td className={`p-3 border-r text-right align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                                  {/* Results */}
+                                  <td className={`p-3 border-r text-right align-middle min-w-[140px] ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
                                     <div className="font-semibold">{results === "-" ? "-" : formatNumber(results)}</div>
-                                    <div className="text-[10px] text-slate-500 uppercase mt-0.5">{objective === 'OUTCOME_ENGAGEMENT' || objective === 'MESSAGES' ? 'Messaging Conversations' : 'Results'}</div>
+                                    <div className="text-[10px] text-slate-500 uppercase mt-0.5">Results</div>
                                   </td>
 
-                                  <td className={`p-3 border-r text-right align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                                  {/* Cost Per Result */}
+                                  <td className={`p-3 border-r text-right align-middle min-w-[120px] ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
                                     <div className="font-semibold">{cpa ? "$" + cpa.toFixed(2) : "-"}</div>
                                     <div className="text-[10px] text-slate-500 uppercase mt-0.5">Per Result</div>
                                   </td>
 
-                                  <td className={`p-3 border-r text-right align-middle text-slate-500 ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-                                    <div className="text-[12px]">{budgetText}</div>
+                                  {/* 🌟 AI CPA Badge & Tooltip ៥ កម្រិត */}
+                                  <td className={`p-3 border-r align-middle min-w-[150px] ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                                    {cpa !== null ? getCpaBadge(cpa) : <span className="text-slate-400 text-xs">-</span>}
                                   </td>
-                                  
+
+                                  {/* 🌟 Budget (Inline Quick Edit សម្រាប់ Ad / Ad Set) */}
+                                  <td className={`p-3 border-r text-right align-middle text-slate-500 relative group/adsetbudget ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                                  {editingAdSetBudgetId === ad.id ? (
+                                    <div className="flex items-center justify-end gap-1">
+                                      <input 
+                                        type="number" 
+                                        step="0.5"
+                                        defaultValue={ad.daily_budget ? Number(ad.daily_budget)/100 : (ad.lifetime_budget ? Number(ad.lifetime_budget)/100 : 5)}
+                                        id={`adsetInput_${ad.id}`}
+                                        className="w-20 px-2 py-1 text-xs border rounded font-bold text-emerald-500 bg-white dark:bg-[#3A3B3C] outline-none"
+                                        autoFocus
+                                      />
+                                      <button 
+                                        onClick={async () => {
+                                          const val = (document.getElementById(`adsetInput_${ad.id}`) as HTMLInputElement)?.value;
+                                          if (!val) return;
+                                          try {
+                                            const token = localStorage.getItem('fb_user_token');
+                                            // 🌟 ហៅទៅកាន់ API /api/adsets ព្រោះ Budget ស្ថិតនៅកម្រិត Ad Set
+                                            const res = await fetch('/api/adsets', {
+                                              method: 'POST',
+                                              headers: { 'Content-Type': 'application/json' },
+                                              body: JSON.stringify({ adsetId: ad.adset_id || ad.id, budget: val, access_token: token })
+                                            });
+                                            const data = await res.json();
+                                            if (data.success) {
+                                              showToast("✅ បានកែប្រែថវិកាដោយជោគជ័យ!", "success");
+                                              setEditingAdSetBudgetId(null);
+                                              fetchAds(); // ទាញយកទិន្នន័យ Ads មកបង្ហាញឡើងវិញ
+                                            } else {
+                                              alert("❌ បរាជ័យ: " + data.error);
+                                            }
+                                          } catch(err: any) {
+                                            alert("❌ Error: " + err.message);
+                                          }
+                                        }}
+                                        className="text-white bg-emerald-600 px-1.5 py-1 rounded text-[10px] font-bold cursor-pointer"
+                                      >
+                                        ✓
+                                      </button>
+                                      <button 
+                                        onClick={() => setEditingAdSetBudgetId(null)}
+                                        className="text-slate-500 hover:text-red-500 px-1 text-xs font-bold cursor-pointer"
+                                      >
+                                        ✕
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <div className="flex items-center justify-end gap-2">
+                                      <div>
+                                        {(() => {
+                                          if (ad.daily_budget) {
+                                            return <div className="font-semibold">${(Number(ad.daily_budget) / 100).toFixed(2)} Daily</div>;
+                                          } else if (ad.lifetime_budget) {
+                                            return <div className="font-semibold">${(Number(ad.lifetime_budget) / 100).toFixed(2)} Lifetime</div>;
+                                          } else {
+                                            return <div className="text-[11px] text-slate-500 italic">Using campaign budget</div>;
+                                          }
+                                        })()}
+                                      </div>
+
+                                      <button 
+                                        onClick={() => setEditingAdSetBudgetId(ad.id)}
+                                        className="opacity-0 group-hover/adsetbudget:opacity-100 transition-opacity p-1 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded cursor-pointer"
+                                        title="Quick Edit Budget"
+                                      >
+                                        ✏️
+                                      </button>
+                                    </div>
+                                  )}
+                                </td>
+
+                                  {/* Amount Spent */}
                                   <td className={`p-3 border-r text-right font-bold align-middle ${theme === 'dark' ? 'border-slate-700 text-white' : 'border-slate-200 text-slate-900'}`}>
-                                    {spend ? "$" + Number(spend).toFixed(2) : "$0.00"}
+                                    ${Number(spend).toFixed(2)}
                                   </td>
-                                  
-                                  <td className={`p-3 border-r text-right align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>{formatNumber(ins?.impressions)}</td>
-                                  <td className={`p-3 border-r text-right align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>{formatNumber(ins?.reach)}</td>
-                                  <td className={`p-3 border-r text-right align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>{totalMsg}</td>
-                                  <td className={`p-3 border-r text-right align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>{newMsg}</td>
-                                  <td className={`p-3 border-r text-[12px] align-middle ${theme === 'dark' ? 'border-slate-700 text-slate-400' : 'border-slate-200 text-slate-600'}`}>{endDate}</td>
-                                  <td className={`p-3 border-r text-[12px] capitalize align-middle ${theme === 'dark' ? 'border-slate-700 text-slate-400' : 'border-slate-200 text-slate-600'}`}>{bidStrategy}</td>
-                                  <td className={`p-3 text-[12px] align-middle ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>{lastEditDate}</td>
+
+                                  {/* Impressions */}
+                                  <td className={`p-3 border-r text-right align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>{formatNumber(impressions)}</td>
+
+                                  {/* Reach */}
+                                  <td className={`p-3 border-r text-right align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>{formatNumber(reach)}</td>
+
+                                  {/* Ends */}
+                                  <td className={`p-3 text-[12px] align-middle min-w-[100px] ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Ongoing</td>
                                 </tr>
                               );
                             })
@@ -5929,376 +7604,6 @@ const fetchAdsets = async () => {
                       </table>
                     </div>
                   )}
-
-                  {/* ========================================================= */}
-                  {/* 3. TABLE: ADS */}
-                  {/* ========================================================= */}
-                  {activeManageTab === 'ADS' && (
-                  <div className="w-full overflow-x-auto">
-                    <table className="w-full text-left border-collapse min-w-[1650px]">
-                      <thead className={`sticky top-0 z-20 shadow-[0_1px_0_0_rgba(0,0,0,0.1)] ${theme === 'dark' ? 'bg-[#18191A] text-slate-400' : 'bg-[#F5F6F8] text-[#65676B]'}`}>
-                        <tr className="text-[12px]">
-                          <th className={`p-3 border-r w-10 text-center ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-                            <input 
-                              type="checkbox" 
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setSelectedAds(adsList.map(ad => ad.id));
-                                } else {
-                                  setSelectedAds([]);
-                                }
-                              }}
-                              checked={adsList.length > 0 && selectedAds.length === adsList.length}
-                              className="w-3.5 h-3.5 accent-[#1877F2] cursor-pointer" 
-                            />
-                          </th>
-                          <th className={`p-3 border-r w-16 text-center font-bold ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Off / On</th>
-                          <th className={`p-3 border-r min-w-[300px] font-bold ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Ad name</th>
-                          <th className={`p-3 border-r min-w-[120px] font-bold ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Delivery</th>
-                          <th className={`p-3 border-r min-w-[140px] font-bold text-right ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Results</th>
-                          <th className={`p-3 border-r min-w-[120px] font-bold text-right ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Cost per result</th>
-                          
-                          {/* 🌟 ជួរឈរ AI CPA Badge & Tooltip ៥ កម្រិត */}
-                          <th className={`p-3 border-r min-w-[150px] font-bold text-blue-600 dark:text-blue-400 ${theme === 'dark' ? 'border-slate-700 bg-blue-950/20' : 'border-slate-200 bg-blue-50/50'}`}>
-                            ការវាយតម្លៃ AI (CPA)
-                          </th>
-
-                          <th className={`p-3 border-r min-w-[120px] font-bold text-right ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Budget</th>
-                          <th className={`p-3 border-r min-w-[120px] font-bold text-right ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Amount spent</th>
-                          <th className={`p-3 border-r min-w-[100px] font-bold text-right ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Impressions</th>
-                          <th className={`p-3 border-r min-w-[100px] font-bold text-right ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>Reach</th>
-                          <th className="p-3 min-w-[100px] font-bold">Ends</th>
-                        </tr>
-                      </thead>
-                      <tbody className={`text-[13px] ${theme === 'dark' ? 'text-slate-300' : 'text-[#050505]'}`}>
-                        {loadingAds ? (
-                          <tr><td colSpan={12} className="p-10 text-center text-slate-500">កំពុងទាញយកបញ្ជី Ads...</td></tr>
-                        ) : adsList.length === 0 ? (
-                          <tr><td colSpan={12} className="p-10 text-center text-slate-500">រកមិនឃើញ Ads ក្រោម Campaign នេះទេ</td></tr>
-                        ) : (
-                          adsList.map((ad) => {
-                            const ins = ad.insights && ad.insights.data && ad.insights.data.length > 0 ? ad.insights.data[0] : null;
-                            
-                            const parentCamp = campaignsList.find(c => c.id === (ad.campaign_id || selectedCampaigns[0])) || campaignsList[0];
-                            const objective = parentCamp?.objective || 'OUTCOME_ENGAGEMENT';
-                            const results = getResults(ins, objective);
-
-                            const spend = ins?.spend || 0;
-                            const impressions = ins?.impressions || 0;
-                            const reach = ins?.reach || 0;
-                            
-                            const cpa = (results !== "-" && spend && Number(results) > 0) ? (Number(spend) / Number(results)) : null;
-                            const isAdSelected = selectedAds.includes(ad.id);
-
-                            return (
-                              <tr key={ad.id} className={`border-b transition min-h-[48px] ${theme === 'dark' ? (isAdSelected ? 'bg-blue-900/30 border-slate-700' : 'border-slate-700 hover:bg-[#3A3B3C]') : (isAdSelected ? 'bg-[#EBF5FF] border-slate-200' : 'border-slate-200 hover:bg-slate-50')}`}>
-                                
-                                {/* Checkbox */}
-                                <td className={`p-3 border-r text-center align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-                                  <input 
-                                    type="checkbox" 
-                                    checked={isAdSelected}
-                                    onChange={(e) => {
-                                      if (e.target.checked) {
-                                        setSelectedAds([...selectedAds, ad.id]);
-                                      } else {
-                                        setSelectedAds(selectedAds.filter(id => id !== ad.id));
-                                      }
-                                    }}
-                                    className="w-3.5 h-3.5 accent-[#1877F2] cursor-pointer" 
-                                  />
-                                </td>
-                                
-                                {/* Status Toggle */}
-                                <td className={`p-3 border-r text-center align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-                                  <div 
-                                    onClick={() => handleToggleAdStatus(ad.id, ad.status)}
-                                    className={`w-8 h-4 rounded-full mx-auto relative cursor-pointer transition-colors ${ad.status === 'ACTIVE' ? 'bg-[#1877F2]' : 'bg-[#BCC0C4]'}`}
-                                  >
-                                    <div className={`w-3.5 h-3.5 bg-white rounded-full absolute top-[1px] transition-all ${ad.status === 'ACTIVE' ? 'right-[2px]' : 'left-[2px]'}`}></div>
-                                  </div>
-                                </td>
-
-                                {/* 🌟 ជួរឈរ Ad Name (Update ធំចុងក្រោយ: ប្រព័ន្ធបូមរូបភាព Ultimate Grid 100%) */}
-                                <td className={`p-3 border-r align-middle relative hover:z-[60] ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-                                  <div className="flex items-center justify-between gap-3">
-                                    
-                                    <div className="relative group/preview flex items-center gap-2.5 min-w-0">
-                                      <div className="w-10 h-10 rounded bg-slate-800 flex items-center justify-center text-white text-xs overflow-hidden shrink-0 shadow-xs cursor-pointer border border-slate-300 dark:border-slate-600">
-                                        {ad.creative?.thumbnail_url || ad.creative?.image_url ? (
-                                          <img src={ad.creative.thumbnail_url || ad.creative.image_url} className="w-full h-full object-cover" alt="Ad thumb" />
-                                        ) : (
-                                          '👟'
-                                        )}
-                                      </div>
-
-                                      <span className="font-semibold text-[#1877F2] hover:underline cursor-pointer truncate max-w-[180px]">
-                                        {ad.name}
-                                      </span>
-
-                                      {/* 🚀 ផ្ទាំង Popover ធំលោតមកខាងស្តាំដៃ */}
-                                      <div className="fixed top-1/2 right-[5%] transform -translate-y-1/2 hidden group-hover/preview:flex flex-col w-[340px] rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.4)] border overflow-hidden z-[999999] bg-white dark:bg-[#242526] border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white animate-in fade-in zoom-in-95 duration-200 pointer-events-none">
-                                        
-                                        <div className="p-3.5 flex justify-between items-start bg-white dark:bg-[#242526]">
-                                          <div className="flex items-center gap-2.5">
-                                            {selectedPageData?.picture?.data?.url ? (
-                                              <img src={selectedPageData.picture.data.url} className="w-9 h-9 rounded-full object-cover border border-slate-100 dark:border-slate-600" />
-                                            ) : (
-                                              <div className="w-9 h-9 bg-gray-400 rounded-full flex items-center justify-center text-white font-bold">W</div>
-                                            )}
-                                            <div>
-                                              <div className="font-bold text-[13px] leading-tight text-[#050505] dark:text-white">{selectedPageData?.name || "Wear Luxury Cambodia"}</div>
-                                              <div className="text-[11px] flex items-center gap-1 text-[#65676B] dark:text-slate-400">Sponsored <span className="text-[5px]">●</span> 🌎</div>
-                                            </div>
-                                          </div>
-                                          <span className="tracking-widest text-[16px] -mt-2 text-[#65676B] dark:text-slate-400">...</span>
-                                        </div>
-
-                                        <div className="px-3.5 pb-2 text-[13px] break-words whitespace-normal line-clamp-4 text-[#050505] dark:text-slate-300 bg-white dark:bg-[#242526]">
-                                          {(() => {
-                                            const storyId = ad.creative?.effective_object_story_id || ad.creative?.object_story_id;
-                                            const matchedPost = (storyId && typeof posts !== 'undefined') ? posts.find((p: any) => p.id === storyId || (p.id && p.id.endsWith(storyId.split('_').pop() || ''))) : null;
-                                            return ad.enriched_post?.message || matchedPost?.message || ad.creative?.body || ad.creative?.object_story_spec?.text || ad.creative?.name || "គ្មានអត្ថបទបង្ហាញ";
-                                          })()}
-                                        </div>
-
-                                        {/* 3. 🌟 បូមយករូបភាព និងតម្រៀប Auto Grid */}
-                                        <div className="w-full bg-slate-100 dark:bg-slate-800 relative overflow-hidden flex flex-col justify-center border-t border-b dark:border-slate-700">
-                                          {(() => {
-                                            let adImages: string[] = [];
-                                            
-                                            // ទី១៖ ឆែកមើលក្រែងលោវាជាប្រភេទ Carousel បង្កើតក្នុង Ads Manager ផ្ទាល់
-                                            const childAtts = ad.creative?.object_story_spec?.link_data?.child_attachments || ad.creative?.object_story_spec?.template_data?.link?.child_attachments;
-                                            if (childAtts && childAtts.length > 0) {
-                                                adImages = childAtts.map((att: any) => att.image_url || att.picture || att.image_crops?.['100x100']?.[0]?.[0]);
-                                            } 
-                                            // ទី២៖ ឆែកមើលក្រែងលោវាជា Advantage+ Creative
-                                            else if (ad.creative?.asset_feed_spec?.images) {
-                                                adImages = ad.creative.asset_feed_spec.images.map((img: any) => img.url);
-                                            }
-
-                                            adImages = adImages.filter(Boolean);
-
-                                            // ទី៣៖ បើអត់ទាន់មានរូប ឬមានតែ ១រូប ព្យាយាមទៅជីកកកាយក្នុង Page Post ដើមក្រែងមានច្រើន
-                                            if (adImages.length <= 1) {
-                                                const storyId = ad.creative?.effective_object_story_id || ad.creative?.object_story_id;
-                                                let matchedPost = null;
-                                                if (storyId && typeof posts !== 'undefined' && posts.length > 0) {
-                                                    matchedPost = posts.find((p: any) => p.id === storyId || (p.id && p.id.endsWith(storyId.split('_').pop() || '')));
-                                                }
-                                                const sourcePost = ad.enriched_post || matchedPost;
-
-                                                let postImages: string[] = [];
-                                                if (sourcePost?.attachments?.data) {
-                                                    for (const att of sourcePost.attachments.data) {
-                                                        if (att.subattachments?.data) {
-                                                            postImages.push(...att.subattachments.data.map((sub: any) => sub.media?.image?.src));
-                                                        } else if (att.media?.image?.src) {
-                                                            postImages.push(att.media.image.src);
-                                                        }
-                                                    }
-                                                }
-                                                postImages = postImages.filter(Boolean);
-                                                
-                                                // បើកកាយបានច្រើនជាង យកអាច្រើនជាងមកប្រើ
-                                                if (postImages.length > adImages.length) {
-                                                    adImages = postImages;
-                                                } else if (adImages.length === 0 && sourcePost?.full_picture) {
-                                                    adImages = [sourcePost.full_picture];
-                                                }
-                                            }
-
-                                            // Fallback ចុងក្រោយបង្អស់ (Thumbnail)
-                                            if (adImages.length === 0) {
-                                                if (ad.creative?.image_url) adImages.push(ad.creative.image_url);
-                                                else if (ad.creative?.thumbnail_url) adImages.push(ad.creative.thumbnail_url);
-                                            }
-
-                                            if (adImages.length === 0) {
-                                              return <div className="w-full h-[200px] flex items-center justify-center text-xs text-slate-400">គ្មានរូបភាពបង្ហាញ</div>;
-                                            }
-
-                                            if (adImages.length === 1) return <img src={adImages[0]} className="w-full object-cover max-h-[300px]" alt="Ad Preview" />;
-                                            
-                                            if (adImages.length === 2) return (
-                                                <div className="grid grid-cols-2 gap-0.5 w-full h-[300px]">
-                                                  <img src={adImages[0]} className="w-full h-full object-cover" alt="Img 1"/>
-                                                  <img src={adImages[1]} className="w-full h-full object-cover" alt="Img 2"/>
-                                                </div>
-                                            );
-
-                                            if (adImages.length === 3) return (
-                                                <div className="flex flex-col gap-0.5 w-full h-[300px]">
-                                                  <img src={adImages[0]} className="w-full h-[150px] object-cover" alt="Img 1" />
-                                                  <div className="grid grid-cols-2 gap-0.5 h-[148px]">
-                                                    <img src={adImages[1]} className="w-full h-full object-cover" alt="Img 2" />
-                                                    <img src={adImages[2]} className="w-full h-full object-cover" alt="Img 3" />
-                                                  </div>
-                                                </div>
-                                            );
-
-                                            if (adImages.length >= 4) return (
-                                                <div className="grid grid-cols-2 gap-0.5 w-full h-[300px]">
-                                                  <img src={adImages[0]} className="w-full h-[149px] object-cover" alt="Img 1" />
-                                                  <img src={adImages[1]} className="w-full h-[149px] object-cover" alt="Img 2" />
-                                                  <img src={adImages[2]} className="w-full h-[149px] object-cover" alt="Img 3" />
-                                                  <div className="relative w-full h-[149px]">
-                                                    <img src={adImages[3]} className="w-full h-full object-cover brightness-[0.55]" alt="Img 4" />
-                                                    {adImages.length > 4 && (
-                                                      <div className="absolute inset-0 flex items-center justify-center text-white font-bold text-3xl drop-shadow-lg">
-                                                        +{adImages.length - 3}
-                                                      </div>
-                                                    )}
-                                                  </div>
-                                                </div>
-                                            );
-                                          })()}
-                                        </div>
-
-                                        <div className="px-3.5 py-2.5 flex justify-between items-center bg-[#F0F2F5] dark:bg-[#3A3B3C]">
-                                          <div className="flex flex-col">
-                                            <span className="text-[10px] uppercase font-bold text-[#65676B] dark:text-slate-400">CHAT IN MESSENGER</span>
-                                            <span className="font-bold text-[14px] text-[#050505] dark:text-white">Send message</span>
-                                          </div>
-                                          <button type="button" className="px-4 py-1.5 rounded-xl text-[13px] font-bold bg-[#E4E6EB] text-[#050505] dark:bg-[#4E4F50] dark:text-white shadow-sm">Send</button>
-                                        </div>
-
-                                        <div className="px-3.5 py-2.5 flex justify-between text-[12px] border-t bg-white border-gray-200 text-[#65676B] dark:bg-[#242526] dark:border-slate-700 dark:text-slate-400">
-                                          <div className="flex gap-4 font-semibold">
-                                            <span>👍 Like</span>
-                                            <span>💬 Comment</span>
-                                            <span>⤴️ Share</span>
-                                          </div>
-                                        </div>
-
-                                      </div>
-                                    </div>
-
-                                    <button 
-                                      type="button"
-                                      disabled={auditLoading}
-                                      onClick={() => handleAiAudit(ad)}
-                                      className="px-2.5 py-1 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold rounded-lg text-[11px] flex items-center gap-1.5 shadow-sm hover:opacity-90 cursor-pointer shrink-0 disabled:opacity-50"
-                                    >
-                                      <span>✨</span> <span>AI Audit</span>
-                                    </button>
-                                  </div>
-                                </td>
-
-                                {/* Delivery ADS */}
-                                <td className={`p-3 border-r align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-                                  {(() => {
-                                    // 🌟 ត្រូវប្រើ ad ព្រោះស្ថិតក្នុងតារាង Ads
-                                    const status = (ad.effective_status || ad.status || "").toUpperCase();
-                                    
-                                    // បើ Campaign មេ ឬ Ad ត្រូវបានបិទ (Campaign off)
-                                    if (status.includes('CAMPAIGN_OFF') || status.includes('CAMPAIGN OFF')) {
-                                      return (
-                                        <span className="flex items-center gap-1.5 font-medium text-slate-400 dark:text-slate-400">
-                                          <span className="w-2 h-2 rounded-full bg-slate-400"></span> Campaign off
-                                        </span>
-                                      );
-                                    } 
-                                    // បើស្ថិតក្នុងស្ថានភាពកំពុងពិនិត្យពី Facebook
-                                    else if (status.includes('REVIEW') || status.includes('PENDING') || status === 'PENDING_REVIEW' || status === 'IN_REVIEW') {
-                                      return (
-                                        <span className="flex items-center gap-1.5 font-medium text-amber-500">
-                                          <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span> PENDING_REVIEW
-                                        </span>
-                                      );
-                                    } 
-                                    // បើដំណើរការធម្មតា
-                                    else if (status === 'ACTIVE') {
-                                      return (
-                                        <span className="flex items-center gap-1.5 font-medium text-[#31A24C]">
-                                          <span className="w-2 h-2 rounded-full bg-[#31A24C]"></span> ACTIVE
-                                        </span>
-                                      );
-                                    } 
-                                    // បើបិទ (Paused / Off)
-                                    else if (status === 'PAUSED' || status === 'OFF') {
-                                      return (
-                                        <span className="flex items-center gap-1.5 font-medium text-slate-500">
-                                          <span className="w-2 h-2 rounded-full bg-[#BCC0C4]"></span> Paused
-                                        </span>
-                                      );
-                                    } 
-                                    else {
-                                      return (
-                                        <span className="flex items-center gap-1.5 font-medium text-slate-400">
-                                          <span className="w-2 h-2 rounded-full bg-slate-400"></span> {status}
-                                        </span>
-                                      );
-                                    }
-                                  })()}
-                                </td>
-                                
-                                {/* Results */}
-                                <td className={`p-3 border-r text-right align-middle min-w-[140px] ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-                                  <div className="font-semibold">{results === "-" ? "-" : formatNumber(results)}</div>
-                                  <div className="text-[10px] text-slate-500 uppercase mt-0.5">Results</div>
-                                </td>
-
-                                {/* Cost Per Result */}
-                                <td className={`p-3 border-r text-right align-middle min-w-[120px] ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-                                  <div className="font-semibold">{cpa ? "$" + cpa.toFixed(2) : "-"}</div>
-                                  <div className="text-[10px] text-slate-500 uppercase mt-0.5">Per Result</div>
-                                </td>
-
-                                {/* 🌟 AI CPA Badge & Tooltip ៥ កម្រិត */}
-                                <td className={`p-3 border-r align-middle min-w-[150px] ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-                                  {cpa !== null ? getCpaBadge(cpa) : <span className="text-slate-400 text-xs">-</span>}
-                                </td>
-
-                                {/* 🌟 Budget (ទាញយកទឹកប្រាក់ពិតប្រាកដពី Ad Set ឬ Campaign មេ) */}
-                                <td className={`p-3 border-r text-right align-middle text-slate-500 ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-                                  {(() => {
-                                    // 1. ឆែកមើលថាតើ Ad នេះមាន Ad Set budget ផ្ទាល់ខ្លួនទេ
-                                    if (ad.daily_budget) {
-                                      return <div className="font-semibold">${(Number(ad.daily_budget) / 100).toFixed(2)} Daily</div>;
-                                    } else if (ad.lifetime_budget) {
-                                      return <div className="font-semibold">${(Number(ad.lifetime_budget) / 100).toFixed(2)} Lifetime</div>;
-                                    } 
-                                    // 2. ឆែកមើលថាតើមាន Budget មកពី Ad Set មេ (`adset` object ដែលយើងទើប fetch ចូល API) ដែរឬទេ
-                                    else if (ad.adset?.daily_budget) {
-                                      return <div className="font-semibold">${(Number(ad.adset.daily_budget) / 100).toFixed(2)} Daily</div>;
-                                    } else if (ad.adset?.lifetime_budget) {
-                                      return <div className="font-semibold">${(Number(ad.adset.lifetime_budget) / 100).toFixed(2)} Lifetime</div>;
-                                    } 
-                                    // 3. ឆែកមើល Campaign មេ
-                                    else {
-                                      if (parentCamp?.daily_budget) {
-                                        return <div className="font-semibold">${(Number(parentCamp.daily_budget) / 100).toFixed(2)} Daily</div>;
-                                      } else if (parentCamp?.lifetime_budget) {
-                                        return <div className="font-semibold">${(Number(parentCamp.lifetime_budget) / 100).toFixed(2)} Lifetime</div>;
-                                      }
-                                    }
-                                    
-                                    return <div className="text-[11px] text-slate-500">Using ad set budget</div>;
-                                  })()}
-                                </td>
-                                
-                                {/* Amount Spent */}
-                                <td className={`p-3 border-r text-right font-bold align-middle ${theme === 'dark' ? 'border-slate-700 text-white' : 'border-slate-200 text-slate-900'}`}>
-                                  ${Number(spend).toFixed(2)}
-                                </td>
-                                
-                                {/* Impressions */}
-                                <td className={`p-3 border-r text-right align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>{formatNumber(impressions)}</td>
-                                
-                                {/* Reach */}
-                                <td className={`p-3 border-r text-right align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>{formatNumber(reach)}</td>
-                                
-                                {/* Ends */}
-                                <td className={`p-3 text-[12px] align-middle min-w-[100px] ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Ongoing</td>
-                              </tr>
-                            );
-                          })
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
 
                 </div>
               </div>
@@ -7153,7 +8458,6 @@ const fetchAdsets = async () => {
         </div>
       )}
 
-      {/* 🌟 Modal សម្រាប់កែប្រែព័ត៌មានអតិថិជន (Edit Client Modal) */}
       {/* 🌟 Modal សម្រាប់កែប្រែព័ត៌មានអតិថិជន (Edit Client Modal) */}
       {isEditClientModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[99999] p-4">
@@ -8467,33 +9771,261 @@ const fetchAdsets = async () => {
           </div>
         </div>
       )}
-
-      {/* ========================================================= */}
-      {/* 🌟 ផ្ទាំង Modal សម្រាប់ Ad Set Duplicate Advanced */}
-      {/* ========================================================= */}
-      {isAdSetDupeModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className={`w-full max-w-3xl rounded-xl shadow-2xl p-6 ${theme === 'dark' ? 'bg-slate-900 text-white border border-slate-800' : 'bg-white text-slate-800'}`}>
+      
+      {/* 🌟 Modal សម្រាប់ Duplicate Ads ក្នុង Tab Ads (រចនាប័ទ្មថ្មីស្អាត ដូចទម្រង់ Create Ad) */}
+      {isSingleAdDuplicateModalOpen && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className={`rounded-2xl max-w-xl w-full p-6 shadow-2xl border max-h-[90vh] overflow-y-auto custom-scrollbar ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-900'}`}>
             
             {/* Header */}
-            <div className="flex justify-between items-center pb-4 border-b border-slate-200 dark:border-slate-800 mb-6">
+            <div className="flex justify-between items-center mb-5 border-b pb-3.5 dark:border-slate-700">
+              <h3 className="font-black text-lg flex items-center gap-2">
+                <span>📋</span> Duplicate Ads (ចម្លងការផ្សាយ)
+              </h3>
+              <button onClick={() => setIsSingleAdDuplicateModalOpen(false)} className="text-xl font-bold text-slate-400 hover:text-red-500 cursor-pointer">&times;</button>
+            </div>
+
+            <div className="space-y-5 text-xs">
+              
+              {/* 1. Ad Name (ឈ្មោះការផ្សាយ ស្របតាមរូបទីពីរ) */}
               <div>
-                <h2 className="text-lg font-bold">🧬 Duplicate Ad Set Advanced (Clone Ad Set & Ads)</h2>
-                <p className="text-xs text-slate-400">ចម្លងយក Ad Set និង Ads ដាក់ក្រោម Campaign เดิม ដោយរក្សាការកំណត់ស្តង់ដារ Facebook</p>
+                <label className={`block font-bold mb-1.5 text-[13px] ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`}>
+                  Ad name (ឈ្មោះការផ្សាយ)
+                </label>
+                <input 
+                  type="text" 
+                  value={duplicateAdName} 
+                  onChange={(e) => setDuplicateAdName(e.target.value)} 
+                  className={`w-full p-3.5 rounded-xl border text-sm font-semibold outline-none transition ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white focus:border-blue-500' : 'bg-slate-50 border-slate-300 text-slate-900 focus:border-blue-500'}`} 
+                  placeholder="New Engagement Ads"
+                />
+              </div>
+
+              {/* 2. Facebook Page Selection View (បង្ហាញទម្រង់ Page ស្របតាមរូបទីពីរ) */}
+              <div>
+                <label className={`block font-bold mb-1.5 text-[13px] ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`}>
+                  Facebook Page
+                </label>
+                <div className={`p-3 rounded-xl border flex items-center justify-between ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-slate-50 border-slate-300 text-slate-800'}`}>
+                  <div className="flex items-center gap-2.5 truncate">
+                    {selectedPageData?.picture?.data?.url ? (
+                      <img src={selectedPageData.picture.data.url} className="w-6 h-6 rounded-full object-cover border" alt="Page Logo" />
+                    ) : (
+                      <div className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-[10px]">f</div>
+                    )}
+                    <span className="font-bold text-sm truncate">{selectedPageData?.name || fbPageName || "Wear Luxury Cambodia"}</span>
+                  </div>
+                  <span className="text-xs opacity-60">Connected ✓</span>
+                </div>
+              </div>
+
+              {/* 3. Ad Creative & Post Selection (បង្ហាញប្រអប់ Preview Post ស្របតាមរូបទីពីរ) */}
+              <div>
+                <label className={`block font-bold mb-1.5 text-[13px] ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`}>
+                  Ad creative (ប្រភព Post សម្រាប់ការផ្សាយ)
+                </label>
+                
+                <div className={`border rounded-2xl p-4 transition ${theme === 'dark' ? 'bg-[#18191A] border-slate-700' : 'bg-[#F8F9FA] border-slate-300'}`}>
+                  <div className="flex items-start gap-3">
+                    {(() => {
+                      const matchedPost = posts.find(p => p.id === duplicatePostId);
+                      return matchedPost?.full_picture ? (
+                        <img src={matchedPost.full_picture} className="w-12 h-12 object-cover rounded-xl shrink-0 border border-slate-300 shadow-xs" alt="Post Thumb" />
+                      ) : (
+                        <div className="w-12 h-12 rounded-xl shrink-0 flex items-center justify-center text-[10px] border bg-slate-200 text-slate-500 font-bold">Post</div>
+                      );
+                    })()}
+                    
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <span className={`font-medium text-[13px] line-clamp-2 leading-snug ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`}>
+                        {(() => {
+                          const matchedPost = posts.find(p => p.id === duplicatePostId);
+                          return matchedPost?.message || matchedPost?.story || (duplicatePostId ? `Post ID: ${duplicatePostId}` : "🌟 សូមជ្រើសរើស Post សម្រាប់ការផ្សាយពាណិជ្ជកម្មរបស់អ្នក...");
+                        })()}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="mt-3.5 pt-3 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                    <span className="text-[11px] font-mono text-slate-400 truncate max-w-[200px]">ID: {duplicatePostId || "គ្មាន ID"}</span>
+                    <button 
+                      type="button" 
+                      onClick={() => {
+                        if (duplicatePostId && duplicatePostId.includes('_')) {
+                          const adOriginalPageId = duplicatePostId.split('_')[0];
+                          if (adOriginalPageId && adOriginalPageId !== selectedPage) {
+                            setSelectedPage(adOriginalPageId);
+                            localStorage.setItem("selectedPage", adOriginalPageId);
+                          }
+                        }
+                        setPostSelectionContext('duplicate');
+                        setIsPostMenuOpen(true);
+                      }}
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs transition cursor-pointer shadow-sm flex items-center gap-1.5"
+                    >
+                      <span>📄</span> ជ្រើសរើស Post ថ្មី
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* ចំណាំពណ៌លឿង */}
+              <div className={`p-3.5 rounded-xl border text-[11.5px] leading-relaxed ${theme === 'dark' ? 'bg-blue-950/30 border-blue-900 text-blue-300' : 'bg-blue-50 border-blue-200 text-blue-700'}`}>
+                💡 <strong>ចំណាំ៖</strong> Ads ថ្មីដែលបាន Duplicate នឹងត្រូវដាក់កម្រិតជា Status <span className="font-bold underline">PAUSED</span> ស្វ័យប្រវត្តិ ដើម្បីឱ្យបងអាចពិនិត្យមើលជាមុនសិន មុននឹងចុច Active ដំណើរការឡើងវិញ។
+              </div>
+            </div>
+
+            {/* Footer Buttons */}
+            <div className="flex justify-end gap-3 mt-6 pt-4 border-t dark:border-slate-700 shrink-0">
+              <button 
+                type="button" 
+                onClick={() => setIsSingleAdDuplicateModalOpen(false)} 
+                className={`px-5 py-2.5 rounded-xl font-bold text-xs border transition cursor-pointer ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-slate-300 hover:bg-[#4E4F50]' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100'}`}
+              >
+                បោះបង់
+              </button>
+              <button 
+                type="button" 
+                disabled={isExecutingAdDuplicate}
+                onClick={executeAdDuplicateWithPost} 
+                className="px-7 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs transition shadow-md cursor-pointer flex items-center gap-2 disabled:opacity-50"
+              >
+                {isExecutingAdDuplicate ? (
+                  <><div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div><span>កំពុង Duplicate...</span></>
+                ) : (
+                  <span>✓ បញ្ជាក់ការ Duplicate Ads</span>
+                )}
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      
+
+
+
+
+      {/* 🌟 Custom Modern Delete Modal (ស្អាតបែបទំនើប) */}
+      {isCustomDeleteModalOpen && itemToDeleteData && (
+        <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className={`rounded-3xl max-w-md w-full p-6 shadow-2xl border text-center transform transition-all scale-100 ${
+            theme === 'dark' ? 'bg-[#242526] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-900'
+          }`}>
+            
+            <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-3xl mx-auto mb-4 shadow-inner">
+              🗑️
+            </div>
+
+            <h3 className="text-xl font-black mb-2">តើបងពិតជាចង់លុបមែនទេ?</h3>
+            
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">
+              {itemToDeleteData.type === 'ADSET' ? 'Ad Set' : 'Ad'} ឈ្មោះ <strong className="text-red-500 font-bold">"{itemToDeleteData.name}"</strong> នេះនឹងត្រូវលុបចេញពី Facebook ទាំងស្រុង។ សកម្មភាពនេះមិនអាចទាញយកវិញបានទេ។
+            </p>
+
+            <div className="flex gap-3">
+              <button 
+                type="button" 
+                disabled={isExecutingDelete}
+                onClick={() => {
+                  setIsCustomDeleteModalOpen(false);
+                  setItemToDeleteData(null);
+                }} 
+                className={`flex-1 py-3 rounded-xl font-bold text-xs border transition cursor-pointer ${
+                  theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-slate-300 hover:bg-[#4E4F50]' : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                បោះបង់ (Cancel)
+              </button>
+
+              <button 
+                type="button" 
+                disabled={isExecutingDelete}
+                onClick={handleConfirmCustomDelete}
+                className="flex-1 py-3 rounded-xl font-bold text-xs text-white bg-red-600 hover:bg-red-700 transition shadow-md cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isExecutingDelete ? (
+                  <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div><span>កំពុងលុប...</span></>
+                ) : (
+                  <span>យល់ព្រមលុប (Delete)</span>
+                )}
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* 🌟 ផ្ទាំង 3-in-1 Full Edit Modal (មានគ្រប់ប្រអប់ និង Placements តូចៗដូចរូប 100%) */}
+      {/* ========================================================= */}
+      {isFullEditModalOpen && (
+        <div className="fixed inset-0 z-[99990] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className={`rounded-3xl max-w-4xl w-full p-6 shadow-2xl border flex flex-col max-h-[90vh] overflow-hidden ${
+            theme === 'dark' ? 'bg-[#242526] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-900'
+          }`}>
+            
+            {/* Modal Header */}
+            <div className="flex justify-between items-center mb-4 border-b pb-3.5 dark:border-slate-700 shrink-0">
+              <div>
+                <h3 className="font-black text-lg flex items-center gap-2">
+                  <span className="text-blue-600">✎</span> ផ្ទៀងផ្ទាត់ និង កែសម្រួលទិន្នន័យ (Edit ទាំងមូល 100%)
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">ទិន្នន័យ និងការកំណត់ដើមទាំងអស់ត្រូវបានទាញយកមកដូច UI ដើម លោកអ្នកអាចកែសម្រួលបាន</p>
               </div>
               <button 
-                type="button"
-                onClick={() => setIsAdSetDupeModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xl font-bold cursor-pointer"
+                type="button" 
+                onClick={() => setIsFullEditModalOpen(false)} 
+                className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-bold text-slate-500 hover:text-red-500 cursor-pointer transition"
               >
                 ✕
               </button>
             </div>
 
-            {/* Body Content */}
-            <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-2">
+            {/* Scrollable Form Container */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar space-y-6 pr-2 mb-4 text-xs">
               
-              {/* 2. Ad Set (Targeting & Placements) - ដំណើរការ 100% ដូច UI ដើម */}
+              {/* 1. Campaign Details */}
+              <div className={`p-5 rounded-2xl border space-y-4 ${theme === 'dark' ? 'bg-[#18191A] border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
+                <div className="font-bold text-sm text-blue-600 dark:text-blue-400 flex items-center gap-1.5 border-b pb-2 dark:border-slate-800">
+                  <span>📁</span> 1. Campaign Details
+                </div>
+                <div>
+                  <label className="block text-slate-400 font-bold mb-1.5">Campaign name (ឈ្មោះយុទ្ធនាការ)</label>
+                  <input 
+                    type="text" 
+                    value={campaignName}
+                    onChange={(e) => saveParam("campaignName", e.target.value, setCampaignName)}
+                    className={`w-full font-bold p-3 rounded-xl border outline-none text-sm ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-900'}`}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-slate-400 font-bold mb-1.5">Budget strategy (ទឹកលុយចំណាយ)</label>
+                    <select 
+                      value={budgetType} 
+                      onChange={(e) => saveParam("budgetType", e.target.value, setBudgetType)} 
+                      className={`w-full p-3 rounded-xl border outline-none font-semibold text-xs ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-900'}`}
+                    >
+                      <option value="DAILY">Daily budget</option>
+                      <option value="LIFETIME">Lifetime budget</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-slate-400 font-bold mb-1.5">Budget ($)</label>
+                    <input 
+                      type="number" 
+                      step="0.5"
+                      value={budget}
+                      onChange={(e) => saveParam("budget", e.target.value, setBudget)}
+                      className={`w-full font-bold p-3 rounded-xl border outline-none text-sm text-emerald-500 ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-900'}`}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* 2. Ad Set (Targeting & Placements) - មានប្រអប់ Placements និងប្រអប់តូចៗទាំងអស់ 100% */}
               <div className={`p-5 rounded-2xl border space-y-4 ${theme === 'dark' ? 'bg-[#18191A] border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
                 <div className="font-bold text-sm text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5 border-b pb-2 dark:border-slate-800">
                   <span>🎯</span> 2. Ad Set (Targeting & Placements)
@@ -8557,7 +10089,7 @@ const fetchAdsets = async () => {
                   </div>
                 </div>
 
-                {/* 🌟 ផ្នែក Detailed Targeting ដែលភ្ជាប់ API ពិតប្រាកដ */}
+                {/* Detailed Targeting (Interests) */}
                 <div>
                   <label className="block text-slate-400 font-bold mb-1.5">Detailed Targeting (Interests)</label>
                   <div className="flex gap-2 mb-2 flex-wrap sm:flex-nowrap">
@@ -8608,21 +10140,15 @@ const fetchAdsets = async () => {
                   />
                 </div>
 
-                {/* 🌟 ផ្នែក Placements ពេញលេញ 100% (មាន Toggle លាក់/បង្ហាញ និងប៊ូតុងកំណត់ស្តង់ដារ) */}
+                {/* 🌟 ផ្នែក Placements និងប្រអប់តូចៗទាំងអស់ 100% */}
                 <div className={`border rounded-xl overflow-visible mt-2 flex-1 ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-                      
-                  {/* Placements Dropdown Header ជាមួយនឹង Smart Presets ធំជាងមុន */}
                   <div className={`p-3.5 border-b flex flex-wrap justify-between items-center select-none transition-colors gap-3 ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-700 text-white' : 'bg-slate-100 border-slate-200 text-slate-800'}`}>
-                    
                     <div onClick={() => setShowPlacementsSection(!showPlacementsSection)} className="flex items-center gap-2 cursor-pointer">
                       <label className="block text-[14px] font-extrabold cursor-pointer tracking-wide">
                         📍 Placements
                       </label>
                     </div>
-                    
                     <div className="flex items-center gap-3">
-                      
-                      {/* 🌟 ប៊ូតុង Boost រូបភាព (ទំហំធំ) */}
                       <button 
                         type="button"
                         onClick={(e) => { e.stopPropagation(); setPresetModalOpen('photo'); }}
@@ -8632,7 +10158,6 @@ const fetchAdsets = async () => {
                         <span className="tracking-wide">រូបភាព</span>
                       </button>
 
-                      {/* 🌟 ប៊ូតុង Boost វីដេអូ (ទំហំធំ) */}
                       <button 
                         type="button"
                         onClick={(e) => { e.stopPropagation(); setPresetModalOpen('video'); }}
@@ -8650,7 +10175,6 @@ const fetchAdsets = async () => {
                         {showPlacementsSection ? "▲ លាក់" : "⚙️ បើកមើល"}
                       </button>
                     </div>
-
                   </div>
 
                   {showPlacementsSection && (
@@ -8662,7 +10186,7 @@ const fetchAdsets = async () => {
                       >
                         <option value="ADVANTAGE">✨ Advantage+ placements</option>
                         <option value="MANUAL">⚙️ Manual placements</option>
-                    </select>
+                      </select>
 
                       {placementType === "MANUAL" && (
                         <div className={`flex flex-col gap-4 pt-4 border-t animate-in fade-in text-sm ${theme === 'dark' ? 'border-slate-700' : 'border-slate-100'}`}>
@@ -8670,45 +10194,40 @@ const fetchAdsets = async () => {
                           {/* Devices and OS */}
                           <div className={`rounded-xl border shadow-sm transition-all ${theme === 'dark' ? 'bg-[#18191A] border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
                             <div className="flex justify-between items-center p-3.5 cursor-pointer select-none" onClick={() => setShowDevices(!showDevices)}>
-                                <h4 className={`font-bold ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`}>Devices and operating systems</h4>
-                                <span className="text-slate-500 font-black text-xs">{showDevices ? '▲' : '▼'}</span>
+                              <h4 className={`font-bold ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`}>Devices and operating systems</h4>
+                              <span className="text-slate-500 font-black text-xs">{showDevices ? '▲' : '▼'}</span>
                             </div>
-                            
                             {showDevices && (
-                                <div className="flex flex-col gap-3 px-3.5 pb-4 animate-in fade-in slide-in-from-top-2">
-                                  <select value={deviceType} onChange={(e) => setDeviceType(e.target.value)} className={`w-full border rounded-xl p-2.5 outline-none cursor-pointer shadow-sm ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-700'}`}>
-                                      <option value="ALL">All devices (recommended)</option>
-                                      <option value="MOBILE">Mobile</option>
-                                      <option value="DESKTOP">Desktop</option>
-                                  </select>
-                                  <select value={osType} onChange={(e) => setOsType(e.target.value)} className={`w-full border rounded-xl p-2.5 outline-none cursor-pointer shadow-sm ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-700'}`}>
-                                      <option value="ALL">All mobile devices</option>
-                                      <option value="ANDROID">Android devices only</option>
-                                      <option value="IOS">iOS devices only</option>
-                                      <option value="FEATURE">Feature phones only</option>
-                                  </select>
-                                  <label className={`flex items-center gap-2 mt-1 cursor-pointer font-medium select-none ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
-                                      <input 
-                                        type="checkbox" 
-                                        checked={wifiOnly} 
-                                        onChange={(e) => { 
-                                          setWifiOnly(e.target.checked); 
-                                          localStorage.setItem("wifiOnly", String(e.target.checked)); 
-                                        }} 
-                                        className={`w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer ${theme === 'dark' ? 'border-slate-600 bg-[#3A3B3C]' : 'border-slate-300'}`} 
-                                      /> 
-                                      Only when connected to Wi-Fi
-                                  </label>
-                                </div>
+                              <div className="flex flex-col gap-3 px-3.5 pb-4 animate-in fade-in slide-in-from-top-2">
+                                <select value={deviceType} onChange={(e) => setDeviceType(e.target.value)} className={`w-full border rounded-xl p-2.5 outline-none cursor-pointer shadow-sm ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-700'}`}>
+                                  <option value="ALL">All devices (recommended)</option>
+                                  <option value="MOBILE">Mobile</option>
+                                  <option value="DESKTOP">Desktop</option>
+                                </select>
+                                <select value={osType} onChange={(e) => setOsType(e.target.value)} className={`w-full border rounded-xl p-2.5 outline-none cursor-pointer shadow-sm ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-700'}`}>
+                                  <option value="ALL">All mobile devices</option>
+                                  <option value="ANDROID">Android devices only</option>
+                                  <option value="IOS">iOS devices only</option>
+                                  <option value="FEATURE">Feature phones only</option>
+                                </select>
+                                <label className={`flex items-center gap-2 mt-1 cursor-pointer font-medium select-none ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
+                                  <input 
+                                    type="checkbox" 
+                                    checked={wifiOnly} 
+                                    onChange={(e) => { setWifiOnly(e.target.checked); localStorage.setItem("wifiOnly", String(e.target.checked)); }} 
+                                    className={`w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer ${theme === 'dark' ? 'border-slate-600 bg-[#3A3B3C]' : 'border-slate-300'}`} 
+                                  /> 
+                                  Only when connected to Wi-Fi
+                                </label>
+                              </div>
                             )}
                           </div>
 
                           {/* Platforms */}
                           <div className={`border rounded-xl shadow-sm transition-all ${theme === 'dark' ? 'bg-[#242526] border-slate-700' : 'bg-white border-slate-200'}`}>
                             <div className={`p-3.5 font-bold flex justify-between cursor-pointer select-none ${theme === 'dark' ? 'bg-[#3A3B3C] text-slate-200' : 'bg-slate-50 text-slate-700'}`} onClick={() => setShowPlatforms(!showPlatforms)}>
-                                Platforms <span className="text-slate-500 font-black text-xs">{showPlatforms ? '▲' : '▼'}</span>
+                              Platforms <span className="text-slate-500 font-black text-xs">{showPlatforms ? '▲' : '▼'}</span>
                             </div>
-                            
                             {showPlatforms && (
                               <div className={`p-4 grid grid-cols-2 gap-y-4 gap-x-2 font-medium animate-in fade-in slide-in-from-top-2 ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
                                 <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={platforms.facebook} onChange={() => handlePlatformChange('facebook')} className="w-4 h-4 text-blue-600 rounded border-slate-500" /> Facebook</label>
@@ -8721,126 +10240,126 @@ const fetchAdsets = async () => {
                             )}
                           </div>
 
-                          {/* Placement Controls */}
+                          {/* Placement Controls (ប្រអប់តូចៗទាំងអស់) */}
                           <div className={`border rounded-xl shadow-sm mb-2 transition-all ${theme === 'dark' ? 'bg-[#242526] border-slate-700' : 'bg-white border-slate-200'}`}>
                             <div className={`p-3.5 font-bold flex justify-between items-center cursor-pointer select-none ${theme === 'dark' ? 'bg-[#3A3B3C] text-slate-200' : 'bg-slate-50 text-slate-700'}`} onClick={() => setShowPlacementCtrls(!showPlacementCtrls)}>
-                                <span className="flex items-center gap-1">Placement controls <span className="w-3.5 h-3.5 rounded-full bg-slate-400 text-[9px] flex items-center justify-center font-bold text-white">i</span></span>
-                                <span className="text-slate-500 font-black text-xs">{showPlacementCtrls ? '▲' : '▼'}</span>
+                              <span className="flex items-center gap-1">Placement controls <span className="w-3.5 h-3.5 rounded-full bg-slate-400 text-[9px] flex items-center justify-center font-bold text-white">i</span></span>
+                              <span className="text-slate-500 font-black text-xs">{showPlacementCtrls ? '▲' : '▼'}</span>
                             </div>
-                            
                             {showPlacementCtrls && (
                               <div className={`flex flex-col divide-y animate-in fade-in slide-in-from-top-2 ${theme === 'dark' ? 'divide-slate-700' : 'divide-slate-100'}`}>
                                 
                                 {/* Feeds */}
                                 <div>
-                                    <div className={`p-3.5 flex justify-between items-center transition-colors ${theme === 'dark' ? 'hover:bg-[#3A3B3C]' : 'hover:bg-slate-50'}`}>
-                                      <div className="flex items-center gap-3">
-                                        <input type="checkbox" checked={isGroupChecked('feeds')} onChange={(e) => handleGroupToggle('feeds', e.target.checked)} className="w-4 h-4 text-blue-600 rounded border-slate-500 cursor-pointer" />
-                                        <span className={`font-semibold cursor-pointer select-none ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`} onClick={() => toggleAccordion('feeds')}>🪟 Feeds</span>
-                                      </div>
-                                      <div className="cursor-pointer px-2" onClick={() => toggleAccordion('feeds')}>
-                                        <span className="text-slate-500 font-black text-[10px]">{expandedPlacements.feeds ? '▲' : '▼'}</span>
-                                      </div>
+                                  <div className={`p-3.5 flex justify-between items-center transition-colors ${theme === 'dark' ? 'hover:bg-[#3A3B3C]' : 'hover:bg-slate-50'}`}>
+                                    <div className="flex items-center gap-3">
+                                      <input type="checkbox" checked={isGroupChecked('feeds')} onChange={(e) => handleGroupToggle('feeds', e.target.checked)} className="w-4 h-4 text-blue-600 rounded border-slate-500 cursor-pointer" />
+                                      <span className={`font-semibold cursor-pointer select-none ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`} onClick={() => toggleAccordion('feeds')}>🪟 Feeds</span>
                                     </div>
-                                    {expandedPlacements.feeds && (
-                                      <div className={`px-10 pb-4 pt-2 flex flex-col gap-3.5 text-[13px] font-medium ${theme === 'dark' ? 'bg-[#18191A] text-slate-400' : 'bg-slate-50/50 text-slate-600'}`}>
-                                        <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.fb_feed} onChange={()=>handleDetailedPlacementChange('fb_feed')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Facebook Feed</label>
-                                        <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.fb_profile} onChange={()=>handleDetailedPlacementChange('fb_profile')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Facebook profile feed</label>
-                                        <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.ig_feed} onChange={()=>handleDetailedPlacementChange('ig_feed')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Instagram feed</label>
-                                        <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.ig_profile} onChange={()=>handleDetailedPlacementChange('ig_profile')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Instagram profile feed</label>
-                                        <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.fb_marketplace} onChange={()=>handleDetailedPlacementChange('fb_marketplace')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Facebook Marketplace</label>
-                                        <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.fb_right_col} onChange={()=>handleDetailedPlacementChange('fb_right_col')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Facebook right column</label>
-                                        <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.ig_explore} onChange={()=>handleDetailedPlacementChange('ig_explore')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Instagram Explore home</label>
-                                        <label className="flex items-center gap-3 cursor-pointer opacity-50"><input type="checkbox" disabled checked={detailedPlacements.fb_business} className="w-4 h-4 rounded border-slate-500 bg-slate-500/20" /> Facebook Business Explore</label>
-                                        <label className="flex items-center gap-3 cursor-pointer opacity-50"><input type="checkbox" disabled checked={detailedPlacements.threads_feed} className="w-4 h-4 rounded border-slate-500 bg-slate-500/20" /> Threads feed</label>
-                                        <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.fb_notifications} onChange={()=>handleDetailedPlacementChange('fb_notifications')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Facebook Notifications</label>
-                                      </div>
-                                    )}
+                                    <div className="cursor-pointer px-2" onClick={() => toggleAccordion('feeds')}>
+                                      <span className="text-slate-500 font-black text-[10px]">{expandedPlacements.feeds ? '▲' : '▼'}</span>
+                                    </div>
+                                  </div>
+                                  {expandedPlacements.feeds && (
+                                    <div className={`px-10 pb-4 pt-2 flex flex-col gap-3.5 text-[13px] font-medium ${theme === 'dark' ? 'bg-[#18191A] text-slate-400' : 'bg-slate-50/50 text-slate-600'}`}>
+                                      <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.fb_feed} onChange={()=>handleDetailedPlacementChange('fb_feed')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Facebook Feed</label>
+                                      <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.fb_profile} onChange={()=>handleDetailedPlacementChange('fb_profile')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Facebook profile feed</label>
+                                      <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.ig_feed} onChange={()=>handleDetailedPlacementChange('ig_feed')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Instagram feed</label>
+                                      <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.ig_profile} onChange={()=>handleDetailedPlacementChange('ig_profile')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Instagram profile feed</label>
+                                      <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.fb_marketplace} onChange={()=>handleDetailedPlacementChange('fb_marketplace')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Facebook Marketplace</label>
+                                      <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.fb_right_col} onChange={()=>handleDetailedPlacementChange('fb_right_col')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Facebook right column</label>
+                                      <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.ig_explore} onChange={()=>handleDetailedPlacementChange('ig_explore')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Instagram Explore home</label>
+                                      <label className="flex items-center gap-3 cursor-pointer opacity-50"><input type="checkbox" disabled checked={detailedPlacements.fb_business} className="w-4 h-4 rounded border-slate-500 bg-slate-500/20" /> Facebook Business Explore</label>
+                                      <label className="flex items-center gap-3 cursor-pointer opacity-50"><input type="checkbox" disabled checked={detailedPlacements.threads_feed} className="w-4 h-4 rounded border-slate-500 bg-slate-500/20" /> Threads feed</label>
+                                      <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.fb_notifications} onChange={()=>handleDetailedPlacementChange('fb_notifications')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Facebook Notifications</label>
+                                    </div>
+                                  )}
                                 </div>
 
                                 {/* Stories, Status, Reels */}
                                 <div>
-                                    <div className={`p-3.5 flex justify-between items-center transition-colors ${theme === 'dark' ? 'hover:bg-[#3A3B3C]' : 'hover:bg-slate-50'}`}>
-                                      <div className="flex items-center gap-3">
-                                        <input type="checkbox" checked={isGroupChecked('stories')} onChange={(e) => handleGroupToggle('stories', e.target.checked)} className="w-4 h-4 text-blue-600 rounded border-slate-500 cursor-pointer" />
-                                        <span className={`font-semibold cursor-pointer select-none ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`} onClick={() => toggleAccordion('stories')}>📱 Stories, Status, Reels</span>
-                                      </div>
-                                      <div className="cursor-pointer px-2" onClick={() => toggleAccordion('stories')}>
-                                        <span className="text-slate-500 font-black text-[10px]">{expandedPlacements.stories ? '▲' : '▼'}</span>
-                                      </div>
+                                  <div className={`p-3.5 flex justify-between items-center transition-colors ${theme === 'dark' ? 'hover:bg-[#3A3B3C]' : 'hover:bg-slate-50'}`}>
+                                    <div className="flex items-center gap-3">
+                                      <input type="checkbox" checked={isGroupChecked('stories')} onChange={(e) => handleGroupToggle('stories', e.target.checked)} className="w-4 h-4 text-blue-600 rounded border-slate-500 cursor-pointer" />
+                                      <span className={`font-semibold cursor-pointer select-none ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`} onClick={() => toggleAccordion('stories')}>📱 Stories, Status, Reels</span>
                                     </div>
-                                    {expandedPlacements.stories && (
-                                      <div className={`px-10 pb-4 pt-2 flex flex-col gap-3.5 text-[13px] font-medium ${theme === 'dark' ? 'bg-[#18191A] text-slate-400' : 'bg-slate-50/50 text-slate-600'}`}>
-                                        <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.ig_stories} onChange={()=>handleDetailedPlacementChange('ig_stories')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Instagram Stories</label>
-                                        <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.fb_stories} onChange={()=>handleDetailedPlacementChange('fb_stories')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Facebook Stories</label>
-                                        <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.msg_stories} onChange={()=>handleDetailedPlacementChange('msg_stories')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Messenger Stories</label>
-                                        <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.ig_reels} onChange={()=>handleDetailedPlacementChange('ig_reels')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Instagram Reels</label>
-                                        <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.fb_reels} onChange={()=>handleDetailedPlacementChange('fb_reels')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Facebook Reels</label>
-                                        <label className="flex items-center gap-3 cursor-not-allowed opacity-50"><input type="checkbox" disabled checked={detailedPlacements.wa_status} className="w-4 h-4 rounded border-slate-500 bg-slate-500/20" /> WhatsApp Status</label>
-                                      </div>
-                                    )}
+                                    <div className="cursor-pointer px-2" onClick={() => toggleAccordion('stories')}>
+                                      <span className="text-slate-500 font-black text-[10px]">{expandedPlacements.stories ? '▲' : '▼'}</span>
+                                    </div>
+                                  </div>
+                                  {expandedPlacements.stories && (
+                                    <div className={`px-10 pb-4 pt-2 flex flex-col gap-3.5 text-[13px] font-medium ${theme === 'dark' ? 'bg-[#18191A] text-slate-400' : 'bg-slate-50/50 text-slate-600'}`}>
+                                      <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.ig_stories} onChange={()=>handleDetailedPlacementChange('ig_stories')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Instagram Stories</label>
+                                      <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.fb_stories} onChange={()=>handleDetailedPlacementChange('fb_stories')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Facebook Stories</label>
+                                      <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.msg_stories} onChange={()=>handleDetailedPlacementChange('msg_stories')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Messenger Stories</label>
+                                      <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.ig_reels} onChange={()=>handleDetailedPlacementChange('ig_reels')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Instagram Reels</label>
+                                      <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.fb_reels} onChange={()=>handleDetailedPlacementChange('fb_reels')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Facebook Reels</label>
+                                      <label className="flex items-center gap-3 cursor-not-allowed opacity-50"><input type="checkbox" disabled checked={detailedPlacements.wa_status} className="w-4 h-4 rounded border-slate-500 bg-slate-500/20" /> WhatsApp Status</label>
+                                    </div>
+                                  )}
                                 </div>
 
                                 {/* In-stream ads for reels */}
                                 <div>
-                                    <div className={`p-3.5 flex justify-between items-center transition-colors ${theme === 'dark' ? 'hover:bg-[#3A3B3C]' : 'hover:bg-slate-50'}`}>
-                                      <div className="flex items-center gap-3">
-                                        <input type="checkbox" checked={isGroupChecked('instream')} onChange={(e) => handleGroupToggle('instream', e.target.checked)} className="w-4 h-4 text-blue-600 rounded border-slate-500 cursor-pointer" />
-                                        <span className={`font-semibold cursor-pointer select-none ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`} onClick={() => toggleAccordion('instream')}>▷ In-stream ads for reels</span>
-                                      </div>
-                                      <div className="cursor-pointer px-2" onClick={() => toggleAccordion('instream')}>
-                                        <span className="text-slate-500 font-black text-[10px]">{expandedPlacements.instream ? '▲' : '▼'}</span>
-                                      </div>
+                                  <div className={`p-3.5 flex justify-between items-center transition-colors ${theme === 'dark' ? 'hover:bg-[#3A3B3C]' : 'hover:bg-slate-50'}`}>
+                                    <div className="flex items-center gap-3">
+                                      <input type="checkbox" checked={isGroupChecked('instream')} onChange={(e) => handleGroupToggle('instream', e.target.checked)} className="w-4 h-4 text-blue-600 rounded border-slate-500 cursor-pointer" />
+                                      <span className={`font-semibold cursor-pointer select-none ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`} onClick={() => toggleAccordion('instream')}>▷ In-stream ads for reels</span>
                                     </div>
-                                    {expandedPlacements.instream && (
-                                      <div className={`px-10 pb-4 pt-2 flex flex-col gap-3.5 text-[13px] font-medium ${theme === 'dark' ? 'bg-[#18191A] text-slate-400' : 'bg-slate-50/50 text-slate-600'}`}>
-                                        <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.instream_reels} onChange={()=>handleDetailedPlacementChange('instream_reels')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> In-stream for Reels</label>
-                                        <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.fb_reels_ads} onChange={()=>handleDetailedPlacementChange('fb_reels_ads')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Ads on Facebook Reels</label>
-                                      </div>
-                                    )}
+                                    <div className="cursor-pointer px-2" onClick={() => toggleAccordion('instream')}>
+                                      <span className="text-slate-500 font-black text-[10px]">{expandedPlacements.instream ? '▲' : '▼'}</span>
+                                    </div>
+                                  </div>
+                                  {expandedPlacements.instream && (
+                                    <div className={`px-10 pb-4 pt-2 flex flex-col gap-3.5 text-[13px] font-medium ${theme === 'dark' ? 'bg-[#18191A] text-slate-400' : 'bg-slate-50/50 text-slate-600'}`}>
+                                      <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.instream_reels} onChange={()=>handleDetailedPlacementChange('instream_reels')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> In-stream for Reels</label>
+                                      <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.fb_reels_ads} onChange={()=>handleDetailedPlacementChange('fb_reels_ads')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Ads on Facebook Reels</label>
+                                    </div>
+                                  )}
                                 </div>
 
                                 {/* Search results */}
                                 <div>
-                                    <div className={`p-3.5 flex justify-between items-center transition-colors ${theme === 'dark' ? 'hover:bg-[#3A3B3C]' : 'hover:bg-slate-50'}`}>
-                                      <div className="flex items-center gap-3">
-                                        <input type="checkbox" checked={isGroupChecked('search')} onChange={(e) => handleGroupToggle('search', e.target.checked)} className="w-4 h-4 text-blue-600 rounded border-slate-500 cursor-pointer" />
-                                        <span className={`font-semibold cursor-pointer select-none ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`} onClick={() => toggleAccordion('search')}>🔍 Search results</span>
-                                      </div>
-                                      <div className="cursor-pointer px-2" onClick={() => toggleAccordion('search')}>
-                                        <span className="text-slate-500 font-black text-[10px]">{expandedPlacements.search ? '▲' : '▼'}</span>
-                                      </div>
+                                  <div className={`p-3.5 flex justify-between items-center transition-colors ${theme === 'dark' ? 'hover:bg-[#3A3B3C]' : 'hover:bg-slate-50'}`}>
+                                    <div className="flex items-center gap-3">
+                                      <input type="checkbox" checked={isGroupChecked('search')} onChange={(e) => handleGroupToggle('search', e.target.checked)} className="w-4 h-4 text-blue-600 rounded border-slate-500 cursor-pointer" />
+                                      <span className={`font-semibold cursor-pointer select-none ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`} onClick={() => toggleAccordion('search')}>🔍 Search results</span>
                                     </div>
-                                    {expandedPlacements.search && (
-                                      <div className={`px-10 pb-4 pt-2 flex flex-col gap-3.5 text-[13px] font-medium ${theme === 'dark' ? 'bg-[#18191A] text-slate-400' : 'bg-slate-50/50 text-slate-600'}`}>
-                                        <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.fb_search} onChange={()=>handleDetailedPlacementChange('fb_search')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Facebook search results</label>
-                                        <label className="flex items-center gap-3 cursor-pointer opacity-50"><input type="checkbox" disabled checked={detailedPlacements.ig_search} className="w-4 h-4 rounded border-slate-500 bg-slate-500/20" /> Instagram search results</label>
-                                      </div>
-                                    )}
+                                    <div className="cursor-pointer px-2" onClick={() => toggleAccordion('search')}>
+                                      <span className="text-slate-500 font-black text-[10px]">{expandedPlacements.search ? '▲' : '▼'}</span>
+                                    </div>
+                                  </div>
+                                  {expandedPlacements.search && (
+                                    <div className={`px-10 pb-4 pt-2 flex flex-col gap-3.5 text-[13px] font-medium ${theme === 'dark' ? 'bg-[#18191A] text-slate-400' : 'bg-slate-50/50 text-slate-600'}`}>
+                                      <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.fb_search} onChange={()=>handleDetailedPlacementChange('fb_search')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Facebook search results</label>
+                                      <label className="flex items-center gap-3 cursor-pointer opacity-50"><input type="checkbox" disabled checked={detailedPlacements.ig_search} className="w-4 h-4 rounded border-slate-500 bg-slate-500/20" /> Instagram search results</label>
+                                    </div>
+                                  )}
                                 </div>
 
                                 {/* Apps and sites */}
                                 <div>
-                                    <div className={`p-3.5 flex justify-between items-center transition-colors ${theme === 'dark' ? 'hover:bg-[#3A3B3C]' : 'hover:bg-slate-50'}`}>
-                                      <div className="flex items-center gap-3">
-                                        <input type="checkbox" checked={isGroupChecked('apps')} onChange={(e) => handleGroupToggle('apps', e.target.checked)} className="w-4 h-4 text-blue-600 rounded border-slate-500 cursor-pointer" />
-                                        <span className={`font-semibold cursor-pointer select-none ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`} onClick={() => toggleAccordion('apps')}>💻 Apps and sites</span>
-                                      </div>
-                                      <div className="cursor-pointer px-2" onClick={() => toggleAccordion('apps')}>
-                                        <span className="text-slate-500 font-black text-[10px]">{expandedPlacements.apps ? '▲' : '▼'}</span>
-                                      </div>
+                                  <div className={`p-3.5 flex justify-between items-center transition-colors ${theme === 'dark' ? 'hover:bg-[#3A3B3C]' : 'hover:bg-slate-50'}`}>
+                                    <div className="flex items-center gap-3">
+                                      <input type="checkbox" checked={isGroupChecked('apps')} onChange={(e) => handleGroupToggle('apps', e.target.checked)} className="w-4 h-4 text-blue-600 rounded border-slate-500 cursor-pointer" />
+                                      <span className={`font-semibold cursor-pointer select-none ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`} onClick={() => toggleAccordion('apps')}>💻 Apps and sites</span>
                                     </div>
-                                    {expandedPlacements.apps && (
-                                      <div className={`px-10 pb-4 pt-2 flex flex-col gap-3.5 text-[13px] font-medium ${theme === 'dark' ? 'bg-[#18191A] text-slate-400' : 'bg-slate-50/50 text-slate-600'}`}>
-                                        <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.an_native} onChange={()=>handleDetailedPlacementChange('an_native')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Audience Network native, banner and interstitial</label>
-                                        <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.an_rewarded} onChange={()=>handleDetailedPlacementChange('an_rewarded')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Audience Network rewarded videos</label>
-                                      </div>
-                                    )}
+                                    <div className="cursor-pointer px-2" onClick={() => toggleAccordion('apps')}>
+                                      <span className="text-slate-500 font-black text-[10px]">{expandedPlacements.apps ? '▲' : '▼'}</span>
+                                    </div>
+                                  </div>
+                                  {expandedPlacements.apps && (
+                                    <div className={`px-10 pb-4 pt-2 flex flex-col gap-3.5 text-[13px] font-medium ${theme === 'dark' ? 'bg-[#18191A] text-slate-400' : 'bg-slate-50/50 text-slate-600'}`}>
+                                      <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.an_native} onChange={()=>handleDetailedPlacementChange('an_native')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Audience Network native, banner and interstitial</label>
+                                      <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={detailedPlacements.an_rewarded} onChange={()=>handleDetailedPlacementChange('an_rewarded')} className="w-4 h-4 rounded border-slate-500 text-blue-600 cursor-pointer" /> Audience Network rewarded videos</label>
+                                    </div>
+                                  )}
                                 </div>
 
                               </div>
                             )}
                           </div>
+
                         </div>
                       )}
                     </div>
@@ -8849,7 +10368,7 @@ const fetchAdsets = async () => {
 
               </div>
 
-              {/* --- ៣. Ad Setup & Conversations Card (រួមបញ្ចូលគ្នា) --- */}
+              {/* --- ៣. Ad Setup & Conversations Card --- */}
               <div className={`p-6 rounded-2xl shadow-sm border flex flex-col gap-5 w-full min-w-0 transition-colors ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-800'}`}>
                 <h3 className={`font-bold border-b pb-3 flex items-center gap-2 text-[15px] ${theme === 'dark' ? 'border-slate-700 text-white' : 'border-slate-200 text-slate-800'}`}>
                   <span className={`p-1.5 rounded-xl ${theme === 'dark' ? 'bg-[#3A3B3C]' : 'bg-slate-100'}`}>🖼️</span> ៣. Ad Setup & Conversations
@@ -8866,14 +10385,13 @@ const fetchAdsets = async () => {
                   />
                 </div>
 
-                {/* 🌟 Custom Dropdown ទំនើបបង្ហាញទាំង Logo Page និងឈ្មោះ */}
+                {/* Facebook Page Dropdown */}
                 <div className="relative">
                   <div 
                     onClick={() => setIsPageMenuOpen(!isPageMenuOpen)}
                     className={`p-3 flex justify-between items-center cursor-pointer border rounded-xl transition ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-900'}`}
                   >
                     <div className="flex items-center gap-3 flex-1 min-w-0 pr-2">
-                      {/* ឆែករកមើល Logo ពី pages ឬ facebookPages */}
                       {(() => {
                         const currentSelectedPage = pages.find(p => p.id === selectedPage) || facebookPages.find(p => p.id === selectedPage);
                         return currentSelectedPage?.picture?.data?.url ? (
@@ -8882,69 +10400,43 @@ const fetchAdsets = async () => {
                           <div className="w-7 h-7 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold shrink-0">f</div>
                         );
                       })()}
-                      
                       <span className="font-bold text-sm truncate block flex-1 min-w-0">
-                        {selectedPage ? (pages.find(p => p.id === selectedPage)?.name || facebookPages.find(p => p.id === selectedPage)?.name || "Selected Page") : "Select a Page..."}
+                        {selectedPage ? (pages.find(p => p.id === selectedPage)?.name || facebookPages.find(p => p.id === selectedPage)?.name || fbPageName || "Selected Page") : "Select a Page..."}
                       </span>
                     </div>
                     <span className="text-xs text-blue-500 shrink-0 font-bold">▼</span>
                   </div>
 
-                  {/* Menu List ធ្លាក់ចុះ */}
                   {isPageMenuOpen && (
                     <>
                       <div className="fixed inset-0 z-40" onClick={() => setIsPageMenuOpen(false)}></div>
                       <div className={`absolute top-[110%] left-0 w-full border rounded-xl shadow-2xl z-50 max-h-60 overflow-y-auto p-1.5 flex flex-col gap-1 ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-white' : 'bg-white border-slate-300'}`}>
-                        {pages && pages.length > 0 ? (
-                          pages.map((page: any) => (
-                            <div 
-                              key={page.id} 
-                              onClick={() => {
-                                setSelectedPage(page.id);
-                                localStorage.setItem("selectedPage", page.id);
-                                setFbPageName(page.name);
-                                localStorage.setItem("fbPageName", page.name);
-                                setIsPageMenuOpen(false);
-                              }}
-                              className={`p-2.5 rounded-lg flex items-center gap-3 cursor-pointer transition ${selectedPage === page.id ? 'bg-blue-600 text-white font-bold' : (theme === 'dark' ? 'hover:bg-[#3A3B3C]' : 'hover:bg-slate-100')}`}
-                            >
-                              {page.picture?.data?.url ? (
-                                <img src={page.picture.data.url} className="w-7 h-7 rounded-full object-cover shrink-0 border border-slate-200" alt="Page Logo" />
-                              ) : (
-                                <div className="w-7 h-7 bg-[#1877F2] text-white rounded-full flex items-center justify-center text-xs font-bold shrink-0">f</div>
-                              )}
-                              <span className="text-sm truncate">{page.name}</span>
-                            </div>
-                          ))
-                        ) : facebookPages && facebookPages.length > 0 ? (
-                          facebookPages.map((page: any) => (
-                            <div 
-                              key={page.id} 
-                              onClick={() => {
-                                setSelectedPage(page.id);
-                                localStorage.setItem("selectedPage", page.id);
-                                setFbPageName(page.name);
-                                localStorage.setItem("fbPageName", page.name);
-                                setIsPageMenuOpen(false);
-                              }}
-                              className={`p-2.5 rounded-lg flex items-center gap-3 cursor-pointer transition ${selectedPage === page.id ? 'bg-blue-600 text-white font-bold' : (theme === 'dark' ? 'hover:bg-[#3A3B3C]' : 'hover:bg-slate-100')}`}
-                            >
-                              {page.picture?.data?.url ? (
-                                <img src={page.picture.data.url} className="w-8 h-8 rounded-full object-cover shrink-0 border" alt="Logo" />
-                              ) : (
-                                <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold shrink-0">f</div>
-                              )}
-                              <span className="text-sm truncate">{page.name}</span>
-                            </div>
-                          ))
-                        ) : (
-                          <div className="p-3 text-xs text-slate-400 text-center">គ្មាន Page ត្រូវបង្ហាញទេ (សូម Connect Facebook)</div>
-                        )}
+                        {(pages.length > 0 ? pages : facebookPages).map((page: any) => (
+                          <div 
+                            key={page.id} 
+                            onClick={() => {
+                              setSelectedPage(page.id);
+                              localStorage.setItem("selectedPage", page.id);
+                              setFbPageName(page.name);
+                              localStorage.setItem("fbPageName", page.name);
+                              setIsPageMenuOpen(false);
+                            }}
+                            className={`p-2.5 rounded-lg flex items-center gap-3 cursor-pointer transition ${selectedPage === page.id ? 'bg-blue-600 text-white font-bold' : (theme === 'dark' ? 'hover:bg-[#3A3B3C]' : 'hover:bg-slate-100')}`}
+                          >
+                            {page.picture?.data?.url ? (
+                              <img src={page.picture.data.url} className="w-7 h-7 rounded-full object-cover shrink-0 border border-slate-200" alt="Page Logo" />
+                            ) : (
+                              <div className="w-7 h-7 bg-[#1877F2] text-white rounded-full flex items-center justify-center text-xs font-bold shrink-0">f</div>
+                            )}
+                            <span className="text-sm truncate">{page.name}</span>
+                          </div>
+                        ))}
                       </div>
                     </>
                   )}
                 </div>
 
+                {/* Ad creative */}
                 <div>
                   <label className={`block text-sm font-semibold mb-1.5 ${theme === 'dark' ? 'text-slate-300' : 'text-slate-600'}`}>Ad creative</label>
                   <div className={`border rounded-xl overflow-visible shadow-sm relative ${theme === 'dark' ? 'border-slate-700 bg-[#18191A]' : 'border-slate-200 bg-white'}`}>
@@ -8956,13 +10448,13 @@ const fetchAdsets = async () => {
                           ) : (
                             <>
                               {selectedPostData?.full_picture ? (
-                                <img src={selectedPostData.full_picture} className="w-12 h-12 object-cover rounded-xl shrink-0 border" />
+                                <img src={selectedPostData.full_picture} className="w-12 h-12 object-cover rounded-xl shrink-0 border" alt="Post Thumb" />
                               ) : (
                                 <div className="w-12 h-12 rounded-xl shrink-0 flex items-center justify-center text-[10px] border bg-slate-100 text-slate-400">No Img</div>
                               )}
                               <div className="flex flex-col min-w-0 flex-1">
                                 <span className={`font-medium text-[13px] line-clamp-2 leading-snug ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`}>
-                                  {selectedPostData?.message || (duplicatePostId || selectedPost ? `Post ID: ${duplicatePostId || selectedPost}` : "[សូមចុច Select post ជាមុនសិន]")}
+                                  {selectedPostData?.message || (selectedPost || duplicatePostId ? `Post ID: ${selectedPost || duplicatePostId}` : "[សូមចុច Select post ជាមុនសិន]")}
                                 </span>
                               </div>
                             </>
@@ -8971,7 +10463,7 @@ const fetchAdsets = async () => {
                       </div>
 
                       <div className="flex flex-wrap items-center gap-3 mb-2">
-                        <button type="button" onClick={() => { setPostSelectionContext('create'); setIsPostMenuOpen(true); }} className={`flex-1 border rounded-xl py-2.5 text-sm font-bold flex items-center justify-center gap-2 shadow-sm transition ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-slate-200 hover:bg-[#4E4F50]' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'}`}>
+                        <button type="button" onClick={() => { setPostSelectionContext('create'); setIsPostMenuOpen(true); }} className={`flex-1 border rounded-xl py-2.5 text-sm font-bold flex items-center justify-center gap-2 shadow-sm transition cursor-pointer ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-slate-200 hover:bg-[#4E4F50]' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'}`}>
                           <span className="text-lg leading-none mb-0.5">📄</span> Select post
                         </button>
                         <button type="button" onClick={() => setIsCreatePostOpen(true)} className={`flex-1 border rounded-xl py-2.5 text-sm font-bold flex items-center justify-center gap-2 shadow-sm transition cursor-pointer ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-slate-200 hover:bg-[#4E4F50]' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'}`}>
@@ -8994,334 +10486,15 @@ const fetchAdsets = async () => {
                   </select>
                 </div>
 
-                {/* ============================================== */}
-                {/* 🌟 ផ្នែក Conversation (ស្ថិតក្នុងទម្រង់ Dropdown ទំនើប) */}
-                {/* ============================================== */}
-                <div className={`rounded-2xl border shadow-sm overflow-hidden mb-6 transition-colors ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'}`}>
-                  
-                  {/* Header សម្រាប់ចុចបើក/បិទ */}
-                  <div 
-                    onClick={() => setShowConversationSection(!showConversationSection)}
-                    className={`p-4 flex justify-between items-center cursor-pointer select-none transition-colors ${theme === 'dark' ? 'bg-[#3A3B3C] hover:bg-[#4E4F50]' : 'bg-slate-100 hover:bg-slate-200'}`}
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <span className="text-xl">💬</span>
-                      <div>
-                        <h3 className="font-bold text-[14px]">Conversations</h3>
-                        <p className="text-xs text-slate-400">Create the messaging experience people see after they tap on your ad.</p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-blue-600">
-                        {showConversationSection ? "▲ លាក់ការកំណត់" : "▼ បើកទម្លាក់មើល"}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* មាតិកាខាងក្នុង (លាក់/បង្ហាញ អាស្រ័យលើ State) */}
-                  {showConversationSection && (
-                    <div className="p-5 border-t border-slate-200 dark:border-slate-700 animate-in fade-in duration-200 space-y-4">
-                      
-                      <div className="flex gap-2 mb-4">
-                        <button type="button" onClick={() => setTemplateTab("suggested")} className={`px-4 py-2 rounded-xl text-[13px] font-bold transition ${templateTab === "suggested" ? (theme === 'dark' ? 'bg-blue-900/50 text-blue-400' : 'bg-blue-50 text-[#1877F2]') : (theme === 'dark' ? 'text-slate-400 hover:bg-[#3A3B3C]' : 'text-slate-600 hover:bg-slate-100')}`}>Suggested template</button>
-                        <button type="button" onClick={() => setTemplateTab("saved")} className={`px-4 py-2 rounded-xl text-[13px] font-bold transition ${templateTab === "saved" ? (theme === 'dark' ? 'bg-blue-900/50 text-blue-400' : 'bg-blue-50 text-[#1877F2]') : (theme === 'dark' ? 'text-slate-400 hover:bg-[#3A3B3C]' : 'text-slate-600 hover:bg-slate-100')}`}>Saved templates</button>
-                      </div>
-
-                      <div className={`border rounded-xl p-5 mb-4 shadow-sm min-w-0 ${theme === 'dark' ? 'bg-[#18191A] border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
-                        <div className={`font-bold text-sm mb-1.5 ${theme === 'dark' ? 'text-slate-200' : 'text-slate-800'}`}>Greeting</div>
-                        <div className={`text-[13px] mb-4 break-words whitespace-normal ${theme === 'dark' ? 'text-slate-400' : 'text-slate-700'}`}>{msgGreeting}</div>
-
-                        <div className={`font-bold text-sm mb-1.5 ${theme === 'dark' ? 'text-slate-200' : 'text-slate-800'}`}>Questions and responses</div>
-                        <div className={`text-[13px] flex flex-col gap-1.5 mb-4 break-words whitespace-normal ${theme === 'dark' ? 'text-slate-400' : 'text-slate-700'}`}>
-                          {msgQuestions.filter(q => q.q.trim() !== "").map((item, idx) => (
-                            <div key={idx}>{idx + 1}. {item.q}</div>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="flex gap-3">
-                        <button type="button" onClick={() => setIsEditingConversations(true)} className={`border rounded-xl px-5 py-2.5 text-sm font-semibold shadow-sm flex items-center gap-2 transition cursor-pointer ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-slate-200 hover:bg-[#4E4F50]' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'}`}>
-                          <span>✎</span> Edit
-                        </button>
-                        <button type="button" className={`border rounded-xl px-5 py-2.5 text-sm font-semibold shadow-sm flex items-center gap-2 transition cursor-pointer ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-slate-200 hover:bg-[#4E4F50]' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'}`}>
-                          <span>+</span> Create template
-                        </button>
-                      </div>
-
-                    </div>
-                  )}
-
-                </div>
               </div>
 
             </div>
 
             {/* Footer Buttons */}
-            <div className="flex justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-800 mt-6">
-              <button 
-                type="button"
-                onClick={() => setIsAdSetDupeModalOpen(false)}
-                className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-700 text-sm font-medium hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
-              >
-                លុបចោល (Cancel)
-              </button>
-              <button 
-                type="button"
-                onClick={handleExecuteAdSetDuplicateAdvanced}
-                disabled={isExecutingAdSetDupe}
-                className="px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold flex items-center gap-2 disabled:opacity-50 cursor-pointer"
-              >
-                {isExecutingAdSetDupe ? "កំពុងដំណើរការ..." : "✓ បញ្ជាក់ Duplicate (OK)"}
-              </button>
-            </div>
-
-          </div>
-        </div>
-      )}
-
-      {/* ============================================== */}
-      {/* 🌟 ផ្ទាំង Modal Duplicate Ad ដាច់ដោយឡែក (សម្រាប់ Tab ADS) */}
-      {/* ============================================== */}
-      {isSingleAdDuplicateModalOpen && (
-        <div className="fixed inset-0 z-[99990] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className={`rounded-3xl max-w-xl w-full p-6 shadow-2xl border flex flex-col max-h-[90vh] overflow-hidden ${
-            theme === 'dark' ? 'bg-[#242526] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-900'
-          }`}>
-            
-            {/* Modal Header */}
-            <div className="flex justify-between items-center mb-4 border-b pb-3.5 dark:border-slate-700 shrink-0">
-              <div>
-                <h3 className="font-black text-lg flex items-center gap-2">
-                  <span>📄</span> Duplicate Ad (ចម្លងយកតែ Ad ថ្មីក្រោម Ad Set ដើម)
-                </h3>
-                <p className="text-xs text-slate-400 mt-0.5">បង្កើត Ad ថ្មីដោយប្រើប្រាស់ Post ផ្សេង ក្រោម Ad Set និង Campaign ដែលមានស្រាប់</p>
-              </div>
+            <div className="flex justify-end gap-3 mt-2 pt-3 border-t dark:border-slate-700 shrink-0">
               <button 
                 type="button" 
-                onClick={() => setIsSingleAdDuplicateModalOpen(false)} 
-                className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-bold text-slate-500 hover:text-red-500 cursor-pointer transition"
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Scrollable Form Container */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar space-y-5 pr-2 mb-4 text-xs">
-              
-              {/* 1. Ad Name */}
-              <div className={`p-6 rounded-2xl shadow-sm border flex flex-col gap-5 w-full min-w-0 transition-colors ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-800'}`}>
-                <h3 className={`font-bold border-b pb-3 flex items-center gap-2 text-[15px] ${theme === 'dark' ? 'border-slate-700 text-white' : 'border-slate-200 text-slate-800'}`}>
-                  <span className={`p-1.5 rounded-xl ${theme === 'dark' ? 'bg-[#3A3B3C]' : 'bg-slate-100'}`}>🖼️</span> ៣. Ad Setup & Conversations
-                </h3>
-
-                <div>
-                  <label className={`block text-sm font-semibold mb-1.5 ${theme === 'dark' ? 'text-slate-300' : 'text-slate-600'}`}>Ad name (ឈ្មោះការផ្សាយ)</label>
-                  <input 
-                    type="text" 
-                    value={adName} 
-                    onChange={(e) => saveParam("adName", e.target.value, setAdName)} 
-                    className={`w-full border rounded-xl p-3 outline-none focus:border-blue-500 font-semibold ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'}`} 
-                    placeholder="New Engagement Ad" 
-                  />
-                </div>
-
-                {/* 🌟 Custom Dropdown ទំនើបបង្ហាញទាំង Logo Page និងឈ្មោះ */}
-                <div className="relative">
-                  <div 
-                    onClick={() => setIsPageMenuOpen(!isPageMenuOpen)}
-                    className={`p-3 flex justify-between items-center cursor-pointer border rounded-xl transition ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-900'}`}
-                  >
-                    <div className="flex items-center gap-3 flex-1 min-w-0 pr-2">
-                      {/* ឆែករកមើល Logo ពី pages ឬ facebookPages */}
-                      {(() => {
-                        const currentSelectedPage = pages.find(p => p.id === selectedPage) || facebookPages.find(p => p.id === selectedPage);
-                        return currentSelectedPage?.picture?.data?.url ? (
-                          <img src={currentSelectedPage.picture.data.url} className="w-7 h-7 rounded-full object-cover shrink-0 border" alt="Page Logo" />
-                        ) : (
-                          <div className="w-7 h-7 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold shrink-0">f</div>
-                        );
-                      })()}
-                      
-                      <span className="font-bold text-sm truncate block flex-1 min-w-0">
-                        {selectedPage ? (pages.find(p => p.id === selectedPage)?.name || facebookPages.find(p => p.id === selectedPage)?.name || "Selected Page") : "Select a Page..."}
-                      </span>
-                    </div>
-                    <span className="text-xs text-blue-500 shrink-0 font-bold">▼</span>
-                  </div>
-
-                  {/* Menu List ធ្លាក់ចុះ */}
-                  {isPageMenuOpen && (
-                    <>
-                      <div className="fixed inset-0 z-40" onClick={() => setIsPageMenuOpen(false)}></div>
-                      <div className={`absolute top-[110%] left-0 w-full border rounded-xl shadow-2xl z-50 max-h-60 overflow-y-auto p-1.5 flex flex-col gap-1 ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-white' : 'bg-white border-slate-300'}`}>
-                        {pages && pages.length > 0 ? (
-                          pages.map((page: any) => (
-                            <div 
-                              key={page.id} 
-                              onClick={() => {
-                                setSelectedPage(page.id);
-                                localStorage.setItem("selectedPage", page.id);
-                                setFbPageName(page.name);
-                                localStorage.setItem("fbPageName", page.name);
-                                setIsPageMenuOpen(false);
-                              }}
-                              className={`p-2.5 rounded-lg flex items-center gap-3 cursor-pointer transition ${selectedPage === page.id ? 'bg-blue-600 text-white font-bold' : (theme === 'dark' ? 'hover:bg-[#3A3B3C]' : 'hover:bg-slate-100')}`}
-                            >
-                              {page.picture?.data?.url ? (
-                                <img src={page.picture.data.url} className="w-7 h-7 rounded-full object-cover shrink-0 border border-slate-200" alt="Page Logo" />
-                              ) : (
-                                <div className="w-7 h-7 bg-[#1877F2] text-white rounded-full flex items-center justify-center text-xs font-bold shrink-0">f</div>
-                              )}
-                              <span className="text-sm truncate">{page.name}</span>
-                            </div>
-                          ))
-                        ) : facebookPages && facebookPages.length > 0 ? (
-                          facebookPages.map((page: any) => (
-                            <div 
-                              key={page.id} 
-                              onClick={() => {
-                                setSelectedPage(page.id);
-                                localStorage.setItem("selectedPage", page.id);
-                                setFbPageName(page.name);
-                                localStorage.setItem("fbPageName", page.name);
-                                setIsPageMenuOpen(false);
-                              }}
-                              className={`p-2.5 rounded-lg flex items-center gap-3 cursor-pointer transition ${selectedPage === page.id ? 'bg-blue-600 text-white font-bold' : (theme === 'dark' ? 'hover:bg-[#3A3B3C]' : 'hover:bg-slate-100')}`}
-                            >
-                              {page.picture?.data?.url ? (
-                                <img src={page.picture.data.url} className="w-8 h-8 rounded-full object-cover shrink-0 border" alt="Logo" />
-                              ) : (
-                                <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold shrink-0">f</div>
-                              )}
-                              <span className="text-sm truncate">{page.name}</span>
-                            </div>
-                          ))
-                        ) : (
-                          <div className="p-3 text-xs text-slate-400 text-center">គ្មាន Page ត្រូវបង្ហាញទេ (សូម Connect Facebook)</div>
-                        )}
-                      </div>
-                    </>
-                  )}
-                </div>
-
-                <div>
-                  <label className={`block text-sm font-semibold mb-1.5 ${theme === 'dark' ? 'text-slate-300' : 'text-slate-600'}`}>Ad creative</label>
-                  <div className={`border rounded-xl overflow-visible shadow-sm relative ${theme === 'dark' ? 'border-slate-700 bg-[#18191A]' : 'border-slate-200 bg-white'}`}>
-                    <div className="p-4">
-                      <div className={`w-full border rounded-xl p-3 flex items-center justify-between mb-4 shadow-sm relative overflow-hidden group ${theme === 'dark' ? 'bg-[#242526] border-slate-600' : 'bg-white border-slate-300'}`}>
-                        <div className="flex items-center gap-3 flex-1 min-w-0 pr-2">
-                          {fetchingPosts ? (
-                            <span className="text-slate-500 font-medium text-sm">⏳ កំពុងទាញយក...</span>
-                          ) : (
-                            <>
-                              {selectedPostData?.full_picture ? (
-                                <img src={selectedPostData.full_picture} className="w-12 h-12 object-cover rounded-xl shrink-0 border" />
-                              ) : (
-                                <div className="w-12 h-12 rounded-xl shrink-0 flex items-center justify-center text-[10px] border bg-slate-100 text-slate-400">No Img</div>
-                              )}
-                              <div className="flex flex-col min-w-0 flex-1">
-                                <span className={`font-medium text-[13px] line-clamp-2 leading-snug ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`}>
-                                  {selectedPostData?.message || (duplicatePostId || selectedPost ? `Post ID: ${duplicatePostId || selectedPost}` : "[សូមចុច Select post ជាមុនសិន]")}
-                                </span>
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-3 mb-2">
-                        <button type="button" onClick={() => { setPostSelectionContext('create'); setIsPostMenuOpen(true); }} className={`flex-1 border rounded-xl py-2.5 text-sm font-bold flex items-center justify-center gap-2 shadow-sm transition ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-slate-200 hover:bg-[#4E4F50]' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'}`}>
-                          <span className="text-lg leading-none mb-0.5">📄</span> Select post
-                        </button>
-                        <button type="button" onClick={() => setIsCreatePostOpen(true)} className={`flex-1 border rounded-xl py-2.5 text-sm font-bold flex items-center justify-center gap-2 shadow-sm transition cursor-pointer ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-slate-200 hover:bg-[#4E4F50]' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'}`}>
-                          + Create post
-                        </button>
-                      </div>
-                      <span onClick={() => setIsEnterPostIdModalOpen(true)} className="text-[#1877F2] text-[13px] font-semibold cursor-pointer hover:underline inline-block mt-2">Enter post ID</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Call to Action */}
-                <div>
-                  <label className={`block text-[13px] font-bold mb-1.5 flex items-center gap-1 ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>Call to action</label>
-                  <select value={callToAction} onChange={(e) => saveParam("callToAction", e.target.value, setCallToAction)} className={`w-full border rounded-xl p-3 text-[14px] font-medium outline-none focus:border-[#1877F2] focus:ring-1 focus:ring-[#1877F2] shadow-sm cursor-pointer ${theme === 'dark' ? 'bg-[#242526] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-800'}`}>
-                    <option value="SEND_MESSAGE">Send message</option>
-                    <option value="LEARN_MORE">Learn more</option>
-                    <option value="SHOP_NOW">Shop now</option>
-                    <option value="NO_BUTTON">No button</option>
-                  </select>
-                </div>
-
-                {/* ============================================== */}
-                {/* 🌟 ផ្នែក Conversation (ស្ថិតក្នុងទម្រង់ Dropdown ទំនើប) */}
-                {/* ============================================== */}
-                <div className={`rounded-2xl border shadow-sm overflow-hidden mb-6 transition-colors ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'}`}>
-                  
-                  {/* Header សម្រាប់ចុចបើក/បិទ */}
-                  <div 
-                    onClick={() => setShowConversationSection(!showConversationSection)}
-                    className={`p-4 flex justify-between items-center cursor-pointer select-none transition-colors ${theme === 'dark' ? 'bg-[#3A3B3C] hover:bg-[#4E4F50]' : 'bg-slate-100 hover:bg-slate-200'}`}
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <span className="text-xl">💬</span>
-                      <div>
-                        <h3 className="font-bold text-[14px]">Conversations</h3>
-                        <p className="text-xs text-slate-400">Create the messaging experience people see after they tap on your ad.</p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-blue-600">
-                        {showConversationSection ? "▲ លាក់ការកំណត់" : "▼ បើកទម្លាក់មើល"}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* មាតិកាខាងក្នុង (លាក់/បង្ហាញ អាស្រ័យលើ State) */}
-                  {showConversationSection && (
-                    <div className="p-5 border-t border-slate-200 dark:border-slate-700 animate-in fade-in duration-200 space-y-4">
-                      
-                      <div className="flex gap-2 mb-4">
-                        <button type="button" onClick={() => setTemplateTab("suggested")} className={`px-4 py-2 rounded-xl text-[13px] font-bold transition ${templateTab === "suggested" ? (theme === 'dark' ? 'bg-blue-900/50 text-blue-400' : 'bg-blue-50 text-[#1877F2]') : (theme === 'dark' ? 'text-slate-400 hover:bg-[#3A3B3C]' : 'text-slate-600 hover:bg-slate-100')}`}>Suggested template</button>
-                        <button type="button" onClick={() => setTemplateTab("saved")} className={`px-4 py-2 rounded-xl text-[13px] font-bold transition ${templateTab === "saved" ? (theme === 'dark' ? 'bg-blue-900/50 text-blue-400' : 'bg-blue-50 text-[#1877F2]') : (theme === 'dark' ? 'text-slate-400 hover:bg-[#3A3B3C]' : 'text-slate-600 hover:bg-slate-100')}`}>Saved templates</button>
-                      </div>
-
-                      <div className={`border rounded-xl p-5 mb-4 shadow-sm min-w-0 ${theme === 'dark' ? 'bg-[#18191A] border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
-                        <div className={`font-bold text-sm mb-1.5 ${theme === 'dark' ? 'text-slate-200' : 'text-slate-800'}`}>Greeting</div>
-                        <div className={`text-[13px] mb-4 break-words whitespace-normal ${theme === 'dark' ? 'text-slate-400' : 'text-slate-700'}`}>{msgGreeting}</div>
-
-                        <div className={`font-bold text-sm mb-1.5 ${theme === 'dark' ? 'text-slate-200' : 'text-slate-800'}`}>Questions and responses</div>
-                        <div className={`text-[13px] flex flex-col gap-1.5 mb-4 break-words whitespace-normal ${theme === 'dark' ? 'text-slate-400' : 'text-slate-700'}`}>
-                          {msgQuestions.filter(q => q.q.trim() !== "").map((item, idx) => (
-                            <div key={idx}>{idx + 1}. {item.q}</div>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="flex gap-3">
-                        <button type="button" onClick={() => setIsEditingConversations(true)} className={`border rounded-xl px-5 py-2.5 text-sm font-semibold shadow-sm flex items-center gap-2 transition cursor-pointer ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-slate-200 hover:bg-[#4E4F50]' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'}`}>
-                          <span>✎</span> Edit
-                        </button>
-                        <button type="button" className={`border rounded-xl px-5 py-2.5 text-sm font-semibold shadow-sm flex items-center gap-2 transition cursor-pointer ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-slate-200 hover:bg-[#4E4F50]' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'}`}>
-                          <span>+</span> Create template
-                        </button>
-                      </div>
-
-                    </div>
-                  )}
-
-                </div>
-              </div>
-
-            </div>
-
-            {/* Footer Buttons */}
-            <div className="flex justify-end gap-3 pt-3 border-t dark:border-slate-700 shrink-0">
-              <button 
-                type="button"
-                onClick={() => setIsSingleAdDuplicateModalOpen(false)} 
+                onClick={() => setIsFullEditModalOpen(false)} 
                 className={`px-5 py-2.5 rounded-xl text-xs font-bold border transition cursor-pointer ${
                   theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-slate-300 hover:bg-[#4E4F50]' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100'
                 }`}
@@ -9331,17 +10504,14 @@ const fetchAdsets = async () => {
 
               <button 
                 type="button" 
-                disabled={isExecutingAdDuplicate}
-                onClick={async () => {
-                  await executeAdDuplicateWithPost();
-                  setIsSingleAdDuplicateModalOpen(false);
-                }} 
+                disabled={isSavingFullEdit}
+                onClick={handleExecuteFullEdit} 
                 className="px-6 py-2.5 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-md transition cursor-pointer flex items-center gap-2 disabled:opacity-50"
               >
-                {isExecutingAdDuplicate ? (
-                  <><div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div><span>កំពុង Duplicate...</span></>
+                {isSavingFullEdit ? (
+                  <><div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div><span>កំពុងរក្សាទុក...</span></>
                 ) : (
-                  <span>✓ យល់ព្រម Duplicate Ad (OK)</span>
+                  <span>✓ យល់ព្រមរក្សាទុក (Save Changes)</span>
                 )}
               </button>
             </div>
@@ -9349,6 +10519,7 @@ const fetchAdsets = async () => {
           </div>
         </div>
       )}
+
     </div>
   );
 }

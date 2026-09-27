@@ -3,141 +3,81 @@ import { NextResponse } from 'next/server';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { 
-      originalId, 
-      access_token, 
-      newCampaignName, 
-      budget, 
-      budgetType, 
-      adsetName, 
-      location, 
-      gender, 
-      ageMin, 
-      ageMax, 
-      targeting, 
-      adName, 
-      pageId, 
-      newPostId, 
-      callToAction 
-    } = body;
+    const { originalAdId, newName, newPostId, pageId, access_token, adAccountId } = body;
 
-    const clientToken = access_token || process.env.FACEBOOK_ACCESS_TOKEN;
-    if (!clientToken) {
-      return NextResponse.json({ success: false, error: "🔒 រកមិនឃើញ Access Token ទេ!" }, { status: 401 });
+    if (!access_token || !originalAdId) {
+      return NextResponse.json({ success: false, error: "ខ្វះ Token ឬ Ad ID" }, { status: 400 });
     }
 
-    if (!originalId) {
-      return NextResponse.json({ success: false, error: "Missing Original Campaign ID" }, { status: 400 });
+    const cleanToken = access_token.replace(/['"]+/g, '').trim();
+    const cleanAdAccountId = (adAccountId || '').replace('act_', '').trim();
+
+    // ១. ទាញយក adset_id ពី Ad ដើម
+    const adRes = await fetch(`https://graph.facebook.com/v18.0/${originalAdId}?fields=adset_id,name&access_token=${cleanToken}`);
+    const adData = await adRes.json();
+    if (adData.error) throw new Error(adData.error.message);
+
+    const targetAdsetId = adData.adset_id;
+    let creativeIdToUse = "";
+
+    // ២. បំប្លែង Post ID (ឧ. 1102_1175) ទៅជាលេខ Creative ID សុទ្ធ 100% តាមរយៈ Facebook API
+    if (newPostId) {
+      const rawPostId = String(newPostId).trim();
+      let objectStoryId = rawPostId;
+
+      // បើគ្មានសញ្ញា _ ទេ ហើយ Page ID មាន គឺផ្គុំចូលគ្នា
+      if (!rawPostId.includes('_') && pageId) {
+        objectStoryId = `${pageId}_${rawPostId}`;
+      } else if (rawPostId.includes('_')) {
+        objectStoryId = rawPostId;
+      }
+
+      // បង្កើត Ad Creative ថ្មី ដើម្បីទាញយកលេខ ID ជាតួលេខសុទ្ធ
+      const creativeRes = await fetch(`https://graph.facebook.com/v18.0/act_${cleanAdAccountId}/adcreatives`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: `${newName || 'Duplicated Ad'} - Creative`,
+          object_story_id: objectStoryId,
+          access_token: cleanToken
+        })
+      });
+      const creativeData = await creativeRes.json();
+
+      if (creativeData.error) {
+        throw new Error("មិនអាចបង្កើត Creative ពី Post នេះបានទេ: " + creativeData.error.message);
+      }
+
+      creativeIdToUse = String(creativeData.id);
     }
 
-    // 1. យក account_id និង objective ពី Campaign ដើម
-    const campRes = await fetch(`https://graph.facebook.com/v18.0/${originalId}?fields=account_id,objective&access_token=${clientToken}`);
-    const campData = await campRes.json();
-    if (campData.error) throw new Error(campData.error.message);
+    // ពិនិត្យបញ្ជាក់ថា creativeIdToUse ពិតជាលេខសុទ្ធ
+    if (!creativeIdToUse || !/^\d+$/.test(creativeIdToUse)) {
+      throw new Error("Creative ID មិនមែនជាតួលេខសុទ្ធ: " + creativeIdToUse);
+    }
 
-    const actId = campData.account_id.replace('act_', '');
-    const objective = campData.objective || 'OUTCOME_ENGAGEMENT';
-
-    // 2. បង្កើត Campaign ថ្មី (Active ស្រាប់)
-    const createCampRes = await fetch(`https://graph.facebook.com/v18.0/act_${actId}/campaigns`, {
+    // ៣. បង្កើត Ad ថ្មី (Duplicate Ad) ក្រោម Ad Set ដើមដោយជោគជ័យ
+    const createAdRes = await fetch(`https://graph.facebook.com/v18.0/act_${cleanAdAccountId}/ads`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        name: newCampaignName || 'Duplicated Campaign',
-        objective: objective,
-        status: 'ACTIVE',
-        special_ad_categories: [],
-        access_token: clientToken
+        name: newName || `${adData.name} - Copy`,
+        adset_id: targetAdsetId,
+        creative: { creative_id: creativeIdToUse },
+        status: 'PAUSED',
+        access_token: cleanToken
       })
     });
-    const newCampJson = await createCampRes.json();
-    if (newCampJson.error) throw new Error("Campaign Error: " + newCampJson.error.message);
-    const newCampaignId = newCampJson.id;
+    const newAdData = await createAdRes.json();
 
-    // 3. បង្កើត Ad Set ថ្មី
-    const budgetCents = Math.round(Number(budget || 5) * 100);
-    const adsetPayload: any = {
-      name: adsetName || 'Duplicated Ad Set',
-      campaign_id: newCampaignId,
-      optimization_goal: objective === 'OUTCOME_ENGAGEMENT' ? 'CONVERSATIONS' : 'LINK_CLICKS',
-      billing_event: 'IMPRESSIONS',
-      bid_amount: 100,
-      status: 'ACTIVE',
-      destination_type: 'MESSENGER',
-      targeting: {
-        geo_locations: { countries: [location === 'CAMBODIA' ? 'KH' : 'KH'] },
-        age_min: Number(ageMin) || 18,
-        age_max: Number(ageMax) || 65,
-        genders: gender === 'MALE' ? [1] : gender === 'FEMALE' ? [2] : [1, 2]
-      },
-      access_token: clientToken
-    };
-
-    if (budgetType === 'DAILY') {
-      adsetPayload.daily_budget = budgetCents;
-    } else {
-      adsetPayload.lifetime_budget = budgetCents;
+    if (newAdData.error) {
+      throw new Error(newAdData.error.message);
     }
 
-    if (targeting && targeting.trim() !== "") {
-      const keywords = targeting.split(',').map((k: string) => k.trim()).filter(Boolean);
-      adsetPayload.targeting.flexible_spec = [{ interests: keywords.map((kw: string) => ({ name: kw })) }];
-    }
+    return NextResponse.json({ success: true, adId: newAdData.id });
 
-    const createAdsetRes = await fetch(`https://graph.facebook.com/v18.0/act_${actId}/adsets`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(adsetPayload)
-    });
-    const newAdsetJson = await createAdsetRes.json();
-    if (newAdsetJson.error) throw new Error("AdSet Error: " + newAdsetJson.error.message);
-    const newAdsetId = newAdsetJson.id;
-
-    // 4. បង្កើត Ad Creative (ភ្ជាប់ជាមួយ Post ID ថ្មី ឬ Post ដើម)
-    const creativePayload: any = {
-      name: `${adName} Creative`,
-      object_story_spec: {
-        page_id: pageId,
-        link_data: {
-          call_to_action: { type: callToAction || 'SEND_MESSAGE' },
-          link: `https://www.facebook.com/${pageId}`
-        },
-        ...(newPostId && !newPostId.includes('draft') ? { object_story_id: newPostId } : {})
-      },
-      access_token: clientToken
-    };
-
-    const creativeRes = await fetch(`https://graph.facebook.com/v18.0/act_${actId}/adcreatives`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(creativePayload)
-    });
-    const creativeJson = await creativeRes.json();
-    if (creativeJson.error) throw new Error("Creative Error: " + creativeJson.error.message);
-    const creativeId = creativeJson.id;
-
-    // 5. បង្កើត Ad ក្នុង Ad Set យ៉ាងប្រាកដប្រជា
-    const createAdRes = await fetch(`https://graph.facebook.com/v18.0/act_${actId}/ads`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: adName || 'Duplicated Ad',
-        adset_id: newAdsetId,
-        creative: { creative_id: creativeId },
-        status: 'ACTIVE',
-        access_token: clientToken
-      })
-    });
-    const newAdJson = await createAdRes.json();
-    if (newAdJson.error) throw new Error("Ad Error: " + newAdJson.error.message);
-
-    return NextResponse.json({
-      success: true,
-      message: "✅ Duplicate Campaign, Ad Set និង Ads បានជោគជ័យទាំងស្រុង (Active ស្រាប់)!",
-      copiedCampaignId: newCampaignId
-    });
-
-  } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 400 });
+  } catch (err: any) {
+    console.error("API Error:", err);
+    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
 }

@@ -9,28 +9,50 @@ export async function POST(request: Request) {
       const body = await request.json();
       const { pageId, pageToken, access_token } = body;
       
-      const token = pageToken || access_token || process.env.FACEBOOK_ACCESS_TOKEN;
+      const token = (pageToken || access_token || process.env.FACEBOOK_ACCESS_TOKEN || '').replace(/['"]+/g, '').trim();
 
       if (!pageId || !token) {
-        return NextResponse.json({ success: false, error: "Missing pageId or pageToken" }, { status: 400 });
+        return NextResponse.json({ success: false, error: "ខ្វះ Page ID ឬ Token" }, { status: 400 });
       }
 
-      // 🌟 កំណត់ limit=100 (ព្រោះ Facebook API មិនអនុញ្ញាតឱ្យលើសពី 100 ទេ)
-      const url = `https://graph.facebook.com/v18.0/${pageId}/posts?fields=id,message,created_time,full_picture,status_type,attachments,shares&limit=70&access_token=${token}`;
-      
-      const res = await fetch(url, { cache: 'no-store' });
-      const data = await res.json();
+      // ១. ទាញយក Page Access Token ផ្ទាល់របស់ Page សិន (ប្រសិនបើមាន)
+      let validPageToken = token;
+      try {
+        const pageRes = await fetch(`https://graph.facebook.com/v18.0/${pageId}?fields=access_token&access_token=${token}`);
+        const pageData = await pageRes.json();
+        if (pageData.access_token) {
+          validPageToken = pageData.access_token;
+        }
+      } catch (e) {}
+
+      // ២. ទាញយក Posts ត្រឹម 25 ផុសម្ដង (limit=25) ដើម្បីការពារកុំឱ្យ Facebook Error "Please reduce the amount of data"
+      const fieldsFull = "id,message,story,created_time,full_picture,status_type,attachments,shares,likes.summary(true),comments.summary(true)";
+      let res = await fetch(
+        `https://graph.facebook.com/v18.0/${pageId}/posts?fields=${fieldsFull}&limit=25&access_token=${validPageToken}`,
+        { cache: 'no-store' }
+      );
+      let data = await res.json();
+
+      // 🌟 ៣. ប្រសិនបើ Facebook នៅតែថាទិន្នន័យធ្ងន់ពេក ឱ្យវាទាញយកទម្រង់ស្រាលភ្លាមៗដោយស្វ័យប្រវត្តិ (Fallback)
+      if (data.error) {
+        const fieldsLight = "id,message,story,created_time,full_picture,status_type,attachments,shares";
+        res = await fetch(
+          `https://graph.facebook.com/v18.0/${pageId}/posts?fields=${fieldsLight}&limit=25&access_token=${validPageToken}`,
+          { cache: 'no-store' }
+        );
+        data = await res.json();
+      }
 
       if (data.error) {
-         console.error("Facebook API Error:", data.error);
-         return NextResponse.json({ success: false, error: data.error.message }, { status: 400 });
+        console.error("Facebook API Error:", data.error);
+        return NextResponse.json({ success: false, error: data.error.message }, { status: 400 });
       }
 
       // ចម្រាញ់ទិន្នន័យឱ្យស្រួលប្រើប្រាស់លើ Frontend
       const formattedPosts = (data.data || []).map((p: any) => ({
         ...p,
-        likesCount: 0,     // ជៀសវាងការគាំងរឿង summary
-        commentsCount: 0,  // ជៀសវាងការគាំងរឿង summary
+        likesCount: p.likes?.summary?.total_count || 0,
+        commentsCount: p.comments?.summary?.total_count || 0,
         sharesCount: p.shares?.count || 0
       }));
 
