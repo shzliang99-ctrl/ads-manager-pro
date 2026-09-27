@@ -6266,56 +6266,149 @@ const handleOpenDuplicateModal = () => {
 
                 </div>
 
-                {/* 🌟 ផ្ទាំង Tabs ៣, ប៊ូតុង AI Audit និង Columns/Breakdown ក្នុងកម្រិតស្តង់ដារ ១០០% គ្មាន Error */}
-                <div className={`px-3 pt-2 border-b flex flex-col sm:flex-row justify-between items-start sm:items-end text-[13px] select-none gap-2 transition-colors ${theme === 'dark' ? 'bg-[#18191A] border-slate-700 text-slate-300' : 'bg-[#F5F6F8] border-slate-200 text-slate-700'}`}>
-                  
-                  {/* ផ្នែកខាងឆ្វេង៖ Tabs និងប៊ូតុង AI Audit */}
-                  <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto pb-1 custom-scrollbar">
-                    
-                    {/* 1. Tab: Campaigns */}
-                    <div className={`flex items-center gap-1.5 px-3 py-2 border-t border-l border-r rounded-t-md transition cursor-pointer shrink-0 ${activeManageTab === 'CAMPAIGNS' ? (theme === 'dark' ? 'bg-[#242526] border-slate-700 border-b-[#242526] font-bold text-white -mb-[1px] shadow-sm' : 'bg-white border-slate-300 border-b-white font-bold text-slate-900 -mb-[1px] shadow-sm') : (theme === 'dark' ? 'border-transparent hover:bg-[#3A3B3C]' : 'border-transparent hover:bg-slate-200/60')}`}>
-                      <button onClick={() => { setActiveManageTab('CAMPAIGNS'); localStorage.setItem('activeManageTab', 'CAMPAIGNS'); }} className="flex items-center gap-1.5 cursor-pointer">
-                        <span className="text-blue-500 font-bold">📁</span> Campaigns
-                      </button>
-                      {selectedCampaigns.length > 0 && (
-                        <span className="ml-1 px-2 py-0.5 bg-[#1877F2] text-white rounded-full text-[11px] font-bold flex items-center gap-1 shadow-xs">
-                          {selectedCampaigns.length} selected
-                          <span onClick={(e) => { e.stopPropagation(); handleEditCampaign(); }} className="hover:text-blue-200 cursor-pointer underline">Edit</span>
-                        </span>
-                      )}
-                    </div>
+                {/* ========================================================= */}
+{/* 🌟 ផ្ទាំង Tab ទាំង ៣៖ បែងចែកដាច់ពីគ្នារវាង Website និង Mobile App ១០០% */}
+{/* ========================================================= */}
 
-                    {/* 2. Tab: Ad sets */}
-                    <div className={`flex items-center gap-1.5 px-3 py-2 border-t border-l border-r rounded-t-md transition cursor-pointer shrink-0 ${activeManageTab === 'ADSETS' ? (theme === 'dark' ? 'bg-[#242526] border-slate-700 border-b-[#242526] font-bold text-white -mb-[1px] shadow-sm' : 'bg-white border-slate-300 border-b-white font-bold text-slate-900 -mb-[1px] shadow-sm') : (theme === 'dark' ? 'border-transparent hover:bg-[#3A3B3C]' : 'border-transparent hover:bg-slate-200/60')}`}>
-                      <button onClick={() => { setActiveManageTab('ADSETS'); localStorage.setItem('activeManageTab', 'ADSETS'); }} className="flex items-center gap-1.5 cursor-pointer">
-                        <span className="text-indigo-500 font-bold">⊞</span> {selectedCampaigns.length > 0 ? `Ad sets (${selectedCampaigns.length})` : 'Ad sets'}
-                      </button>
-                    </div>
+{/* 1. សម្រាប់ WEBSITE (បង្ហាញចំនួន Selected ត្រឹមត្រូវតាម Tab នីមួយៗ និងបញ្ចូល AI Audit ទៅក្នុង Tab Ads) */}
+<div className={`sticky top-[64px] z-30 px-3 pt-2 border-b hidden md:flex flex-col sm:flex-row justify-between items-start sm:items-end text-[13px] select-none gap-2 transition-colors shadow-sm ${
+  theme === 'dark' ? 'bg-[#18191A] border-slate-700 text-slate-300' : 'bg-[#F5F6F8] border-slate-200 text-slate-700'
+}`}>
+  
+  {/* ផ្នែកខាងឆ្វេង៖ Tabs ទាំង ៣ */}
+  <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto pb-1 custom-scrollbar">
+    
+    {/* Tab: Campaigns */}
+    <div className={`flex items-center gap-1.5 px-3 py-2 border-t border-l border-r rounded-t-md transition cursor-pointer shrink-0 ${
+      activeManageTab === 'CAMPAIGNS' 
+        ? (theme === 'dark' ? 'bg-[#242526] border-slate-700 border-b-[#242526] font-bold text-white -mb-[1px] shadow-sm' : 'bg-white border-slate-300 border-b-white font-bold text-slate-900 -mb-[1px] shadow-sm') 
+        : (theme === 'dark' ? 'border-transparent hover:bg-[#3A3B3C]' : 'border-transparent hover:bg-slate-200/60')
+    }`}>
+      <button onClick={() => { setActiveManageTab('CAMPAIGNS'); localStorage.setItem('activeManageTab', 'CAMPAIGNS'); }} className="flex items-center gap-1.5 cursor-pointer">
+        <span className="text-blue-500 font-bold">📁</span> 
+        <span>
+          Campaigns
+          {selectedCampaigns.filter(id => campaignsList.some(c => c.id === id)).length === 0 && campaignsList.length > 0 && ` (${campaignsList.length})`}
+        </span>
+      </button>
+      {selectedCampaigns.filter(id => campaignsList.some(c => c.id === id)).length > 0 && (
+        <span className="ml-1 px-2 py-0.5 bg-[#1877F2] text-white rounded-full text-[11px] font-bold flex items-center gap-1 shadow-xs">
+          {selectedCampaigns.filter(id => campaignsList.some(c => c.id === id)).length} selected
+          <span onClick={(e) => { e.stopPropagation(); handleEditCampaign(); }} className="hover:text-blue-200 cursor-pointer underline">Edit</span>
+        </span>
+      )}
+    </div>
 
-                    {/* 3. Tab: Ads */}
-                    <div className={`flex items-center gap-1.5 px-3 py-2 border-t border-l border-r rounded-t-md transition cursor-pointer shrink-0 ${activeManageTab === 'ADS' ? (theme === 'dark' ? 'bg-[#242526] border-slate-700 border-b-[#242526] font-bold text-white -mb-[1px] shadow-sm' : 'bg-white border-slate-300 border-b-white font-bold text-slate-900 -mb-[1px] shadow-sm') : (theme === 'dark' ? 'border-transparent hover:bg-[#3A3B3C]' : 'border-transparent hover:bg-slate-200/60')}`}>
-                      <button onClick={() => { setActiveManageTab('ADS'); localStorage.setItem('activeManageTab', 'ADS'); }} className="flex items-center gap-1.5 cursor-pointer">
-                        <span className="text-sky-500 font-bold">📄</span> {selectedCampaigns.length > 0 ? `Ads (${selectedCampaigns.length})` : 'Ads'}
-                      </button>
-                    </div>
+    {/* Tab: Ad sets (បង្ហាញចំនួន Selected តែពេលមានមែនទែន) */}
+    <div className={`flex items-center gap-1.5 px-3 py-2 border-t border-l border-r rounded-t-md transition cursor-pointer shrink-0 ${
+      activeManageTab === 'ADSETS' 
+        ? (theme === 'dark' ? 'bg-[#242526] border-slate-700 border-b-[#242526] font-bold text-white -mb-[1px] shadow-sm' : 'bg-white border-slate-300 border-b-white font-bold text-slate-900 -mb-[1px] shadow-sm') 
+        : (theme === 'dark' ? 'border-transparent hover:bg-[#3A3B3C]' : 'border-transparent hover:bg-slate-200/60')
+    }`}>
+      <button onClick={() => { setActiveManageTab('ADSETS'); localStorage.setItem('activeManageTab', 'ADSETS'); }} className="flex items-center gap-1.5 cursor-pointer">
+        <span className="text-indigo-500 font-bold">⊞</span> 
+        <span>
+          Ad sets
+          {selectedAdSets.filter(id => adsetsList.some(a => a.id === id)).length === 0 && adsetsList.length > 0 && ` (${adsetsList.length})`}
+        </span>
+      </button>
+      {selectedAdSets.filter(id => adsetsList.some(a => a.id === id)).length > 0 && (
+        <span className="ml-1 px-2 py-0.5 bg-indigo-600 text-white rounded-full text-[11px] font-bold">
+          {selectedAdSets.filter(id => adsetsList.some(a => a.id === id)).length} selected
+        </span>
+      )}
+    </div>
 
-                    {/* 🌟 ប៊ូតុង AI Audit ដាក់ជាប់ Tab Ads ពេលចុចនឹងនាំមក Tab Ads ភ្លាម */}
-                    <button 
-                      onClick={() => { setActiveManageTab('ADS'); localStorage.setItem('activeManageTab', 'ADS'); }}
-                      className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold rounded-lg text-[11px] shadow-sm animate-pulse shrink-0 cursor-pointer transition mb-1"
-                    >
-                      <span>✨</span> <span>AI Audit</span>
-                    </button>
+    {/* Tab: Ads (បញ្ចូល AI Audit ទៅក្នុងនេះតែមួយ) */}
+    <div className={`flex items-center gap-2 px-3 py-2 border-t border-l border-r rounded-t-md transition cursor-pointer shrink-0 ${
+      activeManageTab === 'ADS' 
+        ? (theme === 'dark' ? 'bg-[#242526] border-slate-700 border-b-[#242526] font-bold text-white -mb-[1px] shadow-sm' : 'bg-white border-slate-300 border-b-white font-bold text-slate-900 -mb-[1px] shadow-sm') 
+        : (theme === 'dark' ? 'border-transparent hover:bg-[#3A3B3C]' : 'border-transparent hover:bg-slate-200/60')
+    }`}>
+      <button onClick={() => { setActiveManageTab('ADS'); localStorage.setItem('activeManageTab', 'ADS'); }} className="flex items-center gap-1.5 cursor-pointer">
+        <span className="text-sky-500 font-bold">📄</span> 
+        <span>
+          Ads
+          {selectedAds.filter(id => adsList.some(a => a.id === id)).length === 0 && adsList.length > 0 && ` (${adsList.length})`}
+        </span>
+      </button>
 
-                  </div>
+      {selectedAds.filter(id => adsList.some(a => a.id === id)).length > 0 && (
+        <span className="px-2 py-0.5 bg-sky-600 text-white rounded-full text-[11px] font-bold">
+          {selectedAds.filter(id => adsList.some(a => a.id === id)).length} selected
+        </span>
+      )}
 
-                  {/* ផ្នែកខាងស្តាំ៖ ប៊ូតុង Columns និង Breakdown (បង្ហាញលើកុំព្យូទ័រ) */}
-                  <div className="hidden sm:flex gap-2 pb-1.5 w-full sm:w-auto justify-end">
-                    <button className={`flex items-center gap-1.5 border px-2.5 py-1 rounded text-[12px] font-semibold shadow-xs cursor-pointer ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-slate-200 hover:bg-[#4E4F50]' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'}`}>Columns: Performance ▼</button>
-                    <button className={`flex items-center gap-1.5 border px-2.5 py-1 rounded text-[12px] font-semibold shadow-xs cursor-pointer ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-slate-200 hover:bg-[#4E4F50]' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'}`}>Breakdown ▼</button>
-                  </div>
+      {/* ខណ្ឌបន្ទាត់បញ្ឈរតូចមួយ ដើម្បីឱ្យមើលទៅស្អាត */}
+      <div className="w-px h-4 bg-slate-300 dark:bg-slate-600 mx-0.5"></div>
 
-                </div>
+      {/* ប៊ូតុង AI Audit ស្ថិតក្នុងប្រអប់ Tab Ads តែមួយ */}
+      <button 
+        type="button"
+        onClick={(e) => { 
+          e.stopPropagation(); 
+          setActiveManageTab('ADS'); 
+          localStorage.setItem('activeManageTab', 'ADS'); 
+        }}
+        className="inline-flex items-center gap-1 px-2.5 py-1 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold rounded-md text-[11px] shadow-sm animate-pulse cursor-pointer transition"
+      >
+        <span>✨</span> <span>AI Audit</span>
+      </button>
+    </div>
+
+  </div>
+
+  {/* ផ្នែកខាងស្តាំ៖ Columns និង Breakdown */}
+  <div className="hidden sm:flex gap-2 pb-1.5 w-full sm:w-auto justify-end">
+    <button className={`flex items-center gap-1.5 border px-2.5 py-1 rounded text-[12px] font-semibold shadow-xs cursor-pointer ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-slate-200 hover:bg-[#4E4F50]' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'}`}>Columns: Performance ▼</button>
+    <button className={`flex items-center gap-1.5 border px-2.5 py-1 rounded text-[12px] font-semibold shadow-xs cursor-pointer ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-slate-200 hover:bg-[#4E4F50]' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'}`}>Breakdown ▼</button>
+  </div>
+
+</div>
+
+
+{/* 2. សម្រាប់ MOBILE APP (ទម្រង់ Grid ៣ ស្មើគ្នា ដាច់ដោយឡែកពី Website) */}
+<div className={`sticky top-[64px] z-30 px-3 pt-2 border-b grid md:hidden grid-cols-3 gap-2 text-[13px] select-none transition-colors shadow-sm ${
+  theme === 'dark' ? 'bg-[#18191A] border-slate-700 text-slate-300' : 'bg-[#F5F6F8] border-slate-200 text-slate-700'
+}`}>
+  
+  {/* Mobile Tab: Campaigns */}
+  <div className={`flex items-center justify-center gap-1 px-1 py-2 border-t border-l border-r rounded-t-md transition cursor-pointer text-center ${
+    activeManageTab === 'CAMPAIGNS' 
+      ? (theme === 'dark' ? 'bg-[#242526] border-slate-700 border-b-[#242526] font-bold text-white -mb-[1px] shadow-sm' : 'bg-white border-slate-300 border-b-white font-bold text-slate-900 -mb-[1px] shadow-sm') 
+      : (theme === 'dark' ? 'border-transparent hover:bg-[#3A3B3C]' : 'border-transparent hover:bg-slate-200/60')
+  }`}>
+    <button onClick={() => { setActiveManageTab('CAMPAIGNS'); localStorage.setItem('activeManageTab', 'CAMPAIGNS'); }} className="flex items-center justify-center gap-1 cursor-pointer truncate w-full text-[12px]">
+      <span className="text-blue-500 font-bold shrink-0">📁</span> 
+      <span className="truncate">Campaigns</span>
+    </button>
+  </div>
+
+  {/* Mobile Tab: Ad sets */}
+  <div className={`flex items-center justify-center gap-1 px-1 py-2 border-t border-l border-r rounded-t-md transition cursor-pointer text-center ${
+    activeManageTab === 'ADSETS' 
+      ? (theme === 'dark' ? 'bg-[#242526] border-slate-700 border-b-[#242526] font-bold text-white -mb-[1px] shadow-sm' : 'bg-white border-slate-300 border-b-white font-bold text-slate-900 -mb-[1px] shadow-sm') 
+      : (theme === 'dark' ? 'border-transparent hover:bg-[#3A3B3C]' : 'border-transparent hover:bg-slate-200/60')
+  }`}>
+    <button onClick={() => { setActiveManageTab('ADSETS'); localStorage.setItem('activeManageTab', 'ADSETS'); }} className="flex items-center justify-center gap-1 cursor-pointer truncate w-full text-[12px]">
+      <span className="text-indigo-500 font-bold shrink-0">⊞</span> 
+      <span className="truncate">Ad sets</span>
+    </button>
+  </div>
+
+  {/* Mobile Tab: Ads AI */}
+  <div className={`flex items-center justify-center gap-1 px-1 py-2 border-t border-l border-r rounded-t-md transition cursor-pointer text-center ${
+    activeManageTab === 'ADS' 
+      ? (theme === 'dark' ? 'bg-[#242526] border-slate-700 border-b-[#242526] font-bold text-white -mb-[1px] shadow-sm' : 'bg-white border-slate-300 border-b-white font-bold text-slate-900 -mb-[1px] shadow-sm') 
+      : (theme === 'dark' ? 'border-transparent hover:bg-[#3A3B3C]' : 'border-transparent hover:bg-slate-200/60')
+  }`}>
+    <button onClick={() => { setActiveManageTab('ADS'); localStorage.setItem('activeManageTab', 'ADS'); }} className="flex items-center justify-center gap-1 cursor-pointer truncate w-full text-[12px]">
+      <span className="text-purple-600 font-bold shrink-0">✨</span> 
+      <span className="truncate">Ads <span className="text-purple-600 font-extrabold text-[11px]">AI</span></span>
+    </button>
+  </div>
+
+</div>
 
                 {/* 🌟 តារាងទិន្នន័យ (មានរុំដោយ overflow-x-auto ធានាមិនបែកប្លង់ទូរសព្ទ) */}
                 <div className={`flex-1 overflow-x-auto relative transition-colors h-[500px] lg:h-[calc(100vh-230px)] custom-scrollbar ${theme === 'dark' ? 'bg-[#242526]' : 'bg-white'}`}>
