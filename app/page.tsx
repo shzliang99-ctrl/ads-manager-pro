@@ -7387,8 +7387,15 @@ const handleOpenDuplicateModal = () => {
                                     ) : (
                                       <div className="flex items-center justify-between gap-3">
                                         
-                                        <div className="relative group/preview flex items-center gap-2.5 min-w-0">
-                                          <div className="w-10 h-10 rounded bg-slate-800 flex items-center justify-center text-white text-xs overflow-hidden shrink-0 shadow-xs cursor-pointer border border-slate-300 dark:border-slate-600">
+                                        {/* 🌟 បន្ថែម onClick ទីនេះដើម្បីអោយ Mobile ចុចបាន */}
+                                        <div 
+                                          className="relative group/preview flex items-center gap-2.5 min-w-0 cursor-pointer"
+                                          onClick={(e) => { 
+                                            e.stopPropagation(); 
+                                            setActivePreviewAdId(activePreviewAdId === ad.id ? null : ad.id); 
+                                          }}
+                                        >
+                                          <div className="w-10 h-10 rounded bg-slate-800 flex items-center justify-center text-white text-xs overflow-hidden shrink-0 shadow-xs border border-slate-300 dark:border-slate-600">
                                             {ad.creative?.thumbnail_url || ad.creative?.image_url ? (
                                               <img src={ad.creative.thumbnail_url || ad.creative.image_url} className="w-full h-full object-cover" alt="Ad thumb" />
                                             ) : (
@@ -7397,51 +7404,65 @@ const handleOpenDuplicateModal = () => {
                                           </div>
 
                                           <div className="flex flex-col min-w-0">
-                                            <span className="font-semibold text-[#1877F2] hover:underline cursor-pointer truncate max-w-[180px]">
+                                            <span className="font-semibold text-[#1877F2] hover:underline truncate max-w-[180px]">
                                               {ad.name}
                                             </span>
                                             
-                                            {/* 🌟 ប៊ូតុងទាំង ៣ ដាក់បង្ហាញជាប់ជានិច្ចនៅទីនេះ */}
                                             <div className="flex items-center gap-1.5 text-[12px] font-medium mt-1">
-                                              <span onClick={() => setEditingAdNameId(ad.id)} className="text-[#1877F2] hover:underline cursor-pointer">Edit</span>
+                                              <span onClick={(e) => { e.stopPropagation(); setEditingAdNameId(ad.id); }} className="text-[#1877F2] hover:underline">Edit</span>
                                               <span className="text-slate-400">|</span>
                                               
-                                              {/* 🌟 ពេលចុច Duplicate ត្រង់នេះ វាចម្លង Ad ហ្នឹងផ្ទាល់តែម្ដងដោយស្វ័យប្រវត្តិ */}
                                               <span 
-                                                onClick={() => {
-                                                  // 🌟 កំណត់យក Ad ID នេះទុកជាគោល ហើយបើកផ្ទាំង Modal ជ្រើសរើស Post
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
                                                   setOriginalAdId(ad.id);
                                                   setDuplicateAdName(`${ad.name || 'Ad'} - Copy`);
-                                                  
-                                                  // ទាញយកប្រភព Post ដើមមកដាក់ទុកជាស្រេច
                                                   const creativeId = ad.creative?.effective_object_story_id || ad.creative?.object_story_id;
                                                   if (creativeId) {
                                                     setDuplicatePostId(creativeId);
                                                   }
-                                                  
-                                                  // បើកផ្ទាំង Modal ជ្រើសរើស Post ឡើងមក
                                                   setIsSingleAdDuplicateModalOpen(true);
                                                 }} 
-                                                className="text-[#1877F2] hover:underline cursor-pointer"
+                                                className="text-[#1877F2] hover:underline"
                                               >
                                                 Duplicate
                                               </span>
 
                                               <span className="text-slate-400">|</span>
                                               <span 
-                                                onClick={() => {
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
                                                   setItemToDeleteData({ id: ad.id, name: ad.name, type: 'AD' });
                                                   setIsCustomDeleteModalOpen(true);
                                                 }} 
-                                                className="text-[#1877F2] hover:underline cursor-pointer font-medium"
+                                                className="text-[#1877F2] hover:underline font-medium"
                                               >
                                                 Delete
                                               </span>
                                             </div>
                                           </div>
 
-                                          {/* 🚀 ផ្ទាំង Popover ធំលោតមកខាងស្តាំដៃ */}
-                                          <div className="fixed top-1/2 right-[5%] transform -translate-y-1/2 hidden group-hover/preview:flex flex-col w-[340px] rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.4)] border overflow-hidden z-[999999] bg-white dark:bg-[#242526] border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white animate-in fade-in zoom-in-95 duration-200 pointer-events-none">
+                                          {/* 🚀 Mobile Backdrop Overlay (បង្ហាញពណ៌ខ្មៅព្រិលៗពីក្រោយពេលចុចលើទូរសព្ទ) */}
+                                          {activePreviewAdId === ad.id && (
+                                            <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[99999] lg:hidden" onClick={(e) => { e.stopPropagation(); setActivePreviewAdId(null); }}></div>
+                                          )}
+
+                                          {/* 🚀 ផ្ទាំង Popover សម្រាប់ Desktop (Hover) និង Mobile (Click) */}
+                                          <div 
+                                            className={`flex-col w-[340px] rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] border overflow-hidden z-[999999] bg-white dark:bg-[#242526] border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white animate-in fade-in zoom-in-95 duration-200 
+                                            ${activePreviewAdId === ad.id 
+                                              ? 'flex fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 lg:hidden' 
+                                              : 'hidden lg:group-hover/preview:flex fixed top-1/2 right-[5%] transform -translate-y-1/2 pointer-events-none'
+                                            }`}
+                                            onClick={(e) => e.stopPropagation()}
+                                          >
+                                            
+                                            {/* ប៊ូតុងបិទ សម្រាប់ Mobile */}
+                                            {activePreviewAdId === ad.id && (
+                                              <button onClick={() => setActivePreviewAdId(null)} className="absolute top-2 right-2 w-8 h-8 bg-black/50 hover:bg-red-500 text-white rounded-full flex items-center justify-center font-bold z-[100] lg:hidden transition-colors shadow">
+                                                ✕
+                                              </button>
+                                            )}
                                             
                                             <div className="p-3.5 flex justify-between items-start bg-white dark:bg-[#242526]">
                                               <div className="flex items-center gap-2.5">
@@ -7576,7 +7597,7 @@ const handleOpenDuplicateModal = () => {
                                         <button 
                                           type="button"
                                           disabled={auditLoading}
-                                          onClick={() => handleAiAudit(ad)}
+                                          onClick={(e) => { e.stopPropagation(); handleAiAudit(ad); }}
                                           className="px-2.5 py-1 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold rounded-lg text-[11px] flex items-center gap-1.5 shadow-sm hover:opacity-90 cursor-pointer shrink-0 disabled:opacity-50"
                                         >
                                           <span>✨</span> <span>AI Audit</span>
