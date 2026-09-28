@@ -1835,12 +1835,14 @@ export default function Home() {
     setCampaignsList(sorted);
   };
 
-  const fetchCampaigns = async () => {
-    // ១. ទាញយក Token និង Ad Account ID ឱ្យបានច្បាស់លាស់
+  const fetchCampaigns = async (customPreset?: string) => {
+    // ១. ទាញយក Token, Ad Account ID និង ថ្ងៃខែ (Date Preset) ឱ្យបានច្បាស់លាស់
     const clientToken = localStorage.getItem('fb_user_token');
     const adAccountId = selectedAdAccount || localStorage.getItem('selectedAdAccount');
+    const rawPreset = customPreset || selectedDatePreset || localStorage.getItem('selectedDatePreset') || 'maximum';
+    const apiDatePreset = rawPreset.toLowerCase() === 'lifetime' ? 'maximum' : rawPreset.toLowerCase();
 
-    // ២. ឆែកមើល៖ បើអត់ទាន់មាន Token ទាំងពីរ ទើបផ្អាកដំណើរការ
+    // ២. ឆែកមើល៖ បើអត់ទាន់មាន Token ឬ Ad Account ID ទើបផ្អាកដំណើរការ
     if (!clientToken) {
       console.warn("រកមិនឃើញ Token របស់អតិថិជនទេ សូម Login ម្តងទៀត!");
       return;
@@ -1851,18 +1853,32 @@ export default function Home() {
       return;
     }
 
+    setLoadingCampaigns(true);
     try {
-      // ៣. បោះ access_token និង adAccountId ទៅកាន់ API ខាងក្រោយតាម URL ຢ່າງត្រឹមត្រូវ
-      const response = await fetch(`/api/campaigns?adAccountId=${adAccountId}&access_token=${clientToken}`);
-      const data = await response.json();
+      const cleanAccountId = String(adAccountId).replace('act_', '');
 
-      if (data.success) {
-        setCampaignsList(data.campaigns);
+      // ៣. ទាញទិន្នន័យ Campaigns និង Insights ទៅតាមថ្ងៃខែ (date_preset) ផ្ទាល់ពី Facebook Graph API
+      const fbUrl = `https://graph.facebook.com/v18.0/act_${cleanAccountId}/campaigns?fields=id,name,status,effective_status,objective,daily_budget,lifetime_budget,start_time,stop_time,insights.date_preset(${apiDatePreset}){spend,impressions,reach,actions}&limit=100&access_token=${clientToken}`;
+      
+      const fbRes = await fetch(fbUrl);
+      const fbData = await fbRes.json();
+
+      if (fbData && Array.isArray(fbData.data)) {
+        setCampaignsList(fbData.data);
       } else {
-        console.error("API Error message:", data.error);
+        // Fallback ទៅកាន់ API ខាងក្រោយបើចាំបាច់
+        const response = await fetch(`/api/campaigns?adAccountId=${cleanAccountId}&datePreset=${apiDatePreset}&access_token=${clientToken}`);
+        const data = await response.json();
+        if (data.success) {
+          setCampaignsList(data.campaigns);
+        } else {
+          console.error("API Error message:", data.error);
+        }
       }
     } catch (error) {
       console.error("Fetch Campaigns Error:", error);
+    } finally {
+      setLoadingCampaigns(false);
     }
   };
 
@@ -3730,22 +3746,31 @@ const handleOpenDuplicateModal = () => {
           </div>
 
           {/* Date Preset Dropdown */}
+          {/* Date Preset Dropdown */}
           <div className="relative flex-1 md:flex-none">
             <div 
               onClick={() => setIsDateMenuOpen(!isDateMenuOpen)}
-              className={`${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-white hover:bg-[#3A3B3C]' : 'bg-white border-slate-300 text-slate-800 hover:bg-slate-50'} border rounded-xl px-2.5 py-1.5 flex items-center justify-between cursor-pointer shadow-sm transition h-[44px] w-full md:w-[140px]`}
+              className={`border rounded-xl px-2.5 py-1.5 flex items-center justify-between cursor-pointer shadow-sm transition h-[44px] w-full md:w-[140px] select-none ${
+                theme === 'dark' 
+                  ? 'bg-[#242526] border-slate-700 text-white hover:bg-[#3A3B3C]' 
+                  : 'bg-white border-slate-300 text-slate-800 hover:bg-slate-50'
+              }`}
             >
               <div className="flex flex-col truncate min-w-0">
-                 <span className="text-[9px] font-bold text-slate-400 uppercase leading-none mb-0.5">Reporting</span>
-                 <span className={`text-[12px] font-bold truncate leading-tight ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>{getSelectedDateLabel()}</span>
+                 <span className="text-[9px] font-bold text-slate-400 uppercase leading-none mb-0.5">REPORTING</span>
+                 <span className={`text-[12px] font-bold truncate leading-tight ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>
+                   {getSelectedDateLabel()}
+                 </span>
               </div>
-              <span className="text-[10px] text-slate-400 ml-1 shrink-0">▼</span>
+              <span className={`text-[10px] text-slate-400 ml-1 shrink-0 transform transition-transform duration-200 ${isDateMenuOpen ? 'rotate-180' : ''}`}>▼</span>
             </div>
 
             {isDateMenuOpen && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setIsDateMenuOpen(false)}></div>
-                <div className={`absolute top-[115%] right-0 w-[180px] border rounded-xl shadow-2xl z-50 p-1.5 flex flex-col ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-white' : 'bg-white border-slate-300'}`}>
+                <div className={`absolute top-[115%] right-0 w-[180px] border rounded-xl shadow-2xl z-50 p-1.5 flex flex-col animate-in fade-in slide-in-from-top-2 duration-150 ${
+                  theme === 'dark' ? 'bg-[#242526] border-slate-700 text-white' : 'bg-white border-slate-300'
+                }`}>
                   {datePresetOptions.map((option) => (
                     <div 
                       key={option.value}
@@ -3753,10 +3778,19 @@ const handleOpenDuplicateModal = () => {
                         setSelectedDatePreset(option.value);
                         setIsDateMenuOpen(false);
                         localStorage.setItem("selectedDatePreset", option.value);
+                        
+                        // 🌟 ហៅទិន្នន័យ Campaign មកវិញភ្លាមៗតាមថ្ងៃខែថ្មី
+                        if (typeof fetchCampaigns === 'function') {
+                          fetchCampaigns();
+                        }
                       }}
-                      className={`p-2 rounded-lg text-xs cursor-pointer transition flex items-center justify-between ${selectedDatePreset === option.value ? 'bg-blue-600 text-white font-bold' : (theme === 'dark' ? 'text-slate-200 hover:bg-[#3A3B3C]' : 'text-slate-700 hover:bg-slate-100 font-medium')}`}
+                      className={`p-2 rounded-lg text-xs cursor-pointer transition flex items-center justify-between ${
+                        selectedDatePreset === option.value 
+                          ? 'bg-blue-600 text-white font-bold shadow-xs' 
+                          : (theme === 'dark' ? 'text-slate-200 hover:bg-[#3A3B3C]' : 'text-slate-700 hover:bg-slate-100 font-medium')
+                      }`}
                     >
-                      {option.label}
+                      <span>{option.label}</span>
                       {selectedDatePreset === option.value && <span className="text-xs">✓</span>}
                     </div>
                   ))}
@@ -6239,7 +6273,125 @@ const handleOpenDuplicateModal = () => {
             {/* ========================================================= */}
             {activeTab === "MANAGE" && (
               <div className={`shadow-sm border animate-in fade-in duration-300 h-full flex flex-col min-h-[750px] mb-8 font-sans transition-colors ${theme === 'dark' ? 'bg-[#18191A] border-slate-700 text-slate-100' : 'bg-white border-slate-200 text-slate-900'}`}>
-                
+                {/* ========================================================= */}
+                {/* 🌟 ផ្នែកប្រអប់សង្ខេបស្ថិតិទាំង ៥ (Modern & Lively 5 Analytics Cards) */}
+                {/* ========================================================= */}
+                <div className={`grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 p-3.5 border-b transition-colors ${
+                  theme === 'dark' ? 'bg-[#18191A] border-slate-700' : 'bg-slate-50/90 border-slate-200'
+                }`}>
+                  
+                  {/* 1. យុទ្ធនាការសរុប (Campaigns) */}
+                  <div className={`relative overflow-hidden h-[96px] p-3.5 rounded-2xl border shadow-sm flex items-center justify-between gap-2 group transition-all duration-300 hover:-translate-y-1 hover:shadow-md ${
+                    theme === 'dark' ? 'bg-[#242526] border-slate-700/80 hover:border-blue-500/50' : 'bg-white border-slate-200/90 hover:border-blue-300'
+                  }`}>
+                    <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-blue-500 to-indigo-600"></div>
+                    <div className="flex flex-col justify-between h-full min-w-0 pl-1.5">
+                      <span className="text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider truncate">
+                        យុទ្ធនាការសរុប
+                      </span>
+                      <div className="text-2xl font-black text-blue-600 dark:text-blue-400 tracking-tight truncate">
+                        {campaignsList.length}
+                      </div>
+                      <span className="text-[10px] font-semibold text-blue-500/80 flex items-center gap-1 truncate">
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span> Campaigns
+                      </span>
+                    </div>
+                    <div className="w-11 h-11 rounded-2xl bg-blue-50 dark:bg-blue-950/50 border border-blue-100 dark:border-blue-900/50 flex items-center justify-center text-xl shrink-0 shadow-xs transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
+                      📁
+                    </div>
+                  </div>
+
+                  {/* 2. លទ្ធផលសរុប (Results) */}
+                  <div className={`relative overflow-hidden h-[96px] p-3.5 rounded-2xl border shadow-sm flex items-center justify-between gap-2 group transition-all duration-300 hover:-translate-y-1 hover:shadow-md ${
+                    theme === 'dark' ? 'bg-[#242526] border-slate-700/80 hover:border-emerald-500/50' : 'bg-white border-slate-200/90 hover:border-emerald-300'
+                  }`}>
+                    <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-emerald-400 to-teal-600"></div>
+                    <div className="flex flex-col justify-between h-full min-w-0 pl-1.5">
+                      <span className="text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider truncate">
+                        លទ្ធផលសរុប (RESULTS)
+                      </span>
+                      <div className="text-2xl font-black text-emerald-500 tracking-tight truncate">
+                        {formatNumber(campaignsList.reduce((acc, c) => {
+                          const res = getResults(getInsights(c), c.objective);
+                          return acc + (res !== "-" ? Number(res) : 0);
+                        }, 0))}
+                      </div>
+                      <span className="text-[10px] font-semibold text-emerald-500/80 flex items-center gap-1 truncate">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Messages / Clicks
+                      </span>
+                    </div>
+                    <div className="w-11 h-11 rounded-2xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-100 dark:border-emerald-900/50 flex items-center justify-center text-xl shrink-0 shadow-xs transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
+                      💬
+                    </div>
+                  </div>
+
+                  {/* 3. ចំណាយសរុប (Amount Spent) */}
+                  <div className={`relative overflow-hidden h-[96px] p-3.5 rounded-2xl border shadow-sm flex items-center justify-between gap-2 group transition-all duration-300 hover:-translate-y-1 hover:shadow-md ${
+                    theme === 'dark' ? 'bg-[#242526] border-slate-700/80 hover:border-rose-500/50' : 'bg-white border-slate-200/90 hover:border-rose-300'
+                  }`}>
+                    <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-rose-500 to-red-600"></div>
+                    <div className="flex flex-col justify-between h-full min-w-0 pl-1.5">
+                      <span className="text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider truncate">
+                        ចំណាយសរុប (SPENT)
+                      </span>
+                      <div className="text-2xl font-black text-rose-500 tracking-tight truncate">
+                        {formatCurrency(campaignsList.reduce((acc, c) => {
+                          const ins = getInsights(c);
+                          return acc + (ins?.spend ? Number(ins.spend) : 0);
+                        }, 0) * 100)}
+                      </div>
+                      <span className="text-[10px] font-semibold text-rose-500/80 flex items-center gap-1 truncate">
+                        <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span> {getSelectedDateLabel()}
+                      </span>
+                    </div>
+                    <div className="w-11 h-11 rounded-2xl bg-rose-50 dark:bg-rose-950/50 border border-rose-100 dark:border-rose-900/50 flex items-center justify-center text-xl shrink-0 shadow-xs transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
+                      💳
+                    </div>
+                  </div>
+
+                  {/* 4. ចំនួនបង្ហាញ (Impressions) */}
+                  <div className={`relative overflow-hidden h-[96px] p-3.5 rounded-2xl border shadow-sm flex items-center justify-between gap-2 group transition-all duration-300 hover:-translate-y-1 hover:shadow-md ${
+                    theme === 'dark' ? 'bg-[#242526] border-slate-700/80 hover:border-purple-500/50' : 'bg-white border-slate-200/90 hover:border-purple-300'
+                  }`}>
+                    <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-purple-500 to-indigo-600"></div>
+                    <div className="flex flex-col justify-between h-full min-w-0 pl-1.5">
+                      <span className="text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider truncate">
+                        ចំនួនបង្ហាញ (IMPR.)
+                      </span>
+                      <div className="text-2xl font-black text-purple-600 dark:text-purple-400 tracking-tight truncate">
+                        {formatNumber(campaignsList.reduce((acc, c) => acc + Number(getInsights(c)?.impressions || 0), 0))}
+                      </div>
+                      <span className="text-[10px] font-semibold text-purple-500/80 flex items-center gap-1 truncate">
+                        <span className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse"></span> Total Views
+                      </span>
+                    </div>
+                    <div className="w-11 h-11 rounded-2xl bg-purple-50 dark:bg-purple-950/50 border border-purple-100 dark:border-purple-900/50 flex items-center justify-center text-xl shrink-0 shadow-xs transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
+                      👁️
+                    </div>
+                  </div>
+
+                  {/* 5. អ្នកបានឃើញ (Reach) */}
+                  <div className={`relative overflow-hidden h-[96px] p-3.5 rounded-2xl border shadow-sm flex items-center justify-between gap-2 group transition-all duration-300 hover:-translate-y-1 hover:shadow-md ${
+                    theme === 'dark' ? 'bg-[#242526] border-slate-700/80 hover:border-teal-500/50' : 'bg-white border-slate-200/90 hover:border-teal-300'
+                  }`}>
+                    <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-teal-400 to-cyan-600"></div>
+                    <div className="flex flex-col justify-between h-full min-w-0 pl-1.5">
+                      <span className="text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider truncate">
+                        អ្នកបានឃើញ (REACH)
+                      </span>
+                      <div className="text-2xl font-black text-teal-600 dark:text-teal-400 tracking-tight truncate">
+                        {formatNumber(campaignsList.reduce((acc, c) => acc + Number(getInsights(c)?.reach || 0), 0))}
+                      </div>
+                      <span className="text-[10px] font-semibold text-teal-500/80 flex items-center gap-1 truncate">
+                        <span className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse"></span> Unique People
+                      </span>
+                    </div>
+                    <div className="w-11 h-11 rounded-2xl bg-teal-50 dark:bg-teal-950/50 border border-teal-100 dark:border-teal-900/50 flex items-center justify-center text-xl shrink-0 shadow-xs transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
+                      🌐
+                    </div>
+                  </div>
+
+                </div>
                 {/* របារឧបករណ៍ខាងលើ (Toolbar) */}
                 <div className={`flex flex-col gap-3 p-3 border-b sticky top-[64px] z-10 transition-colors ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'}`}>
                   
@@ -6306,6 +6458,7 @@ const handleOpenDuplicateModal = () => {
                   </div>
 
                 </div>
+                
 
                 {/* ========================================================= */}
                 {/* 🌟 ផ្ទាំង Tab ទាំង ៣៖ បែងចែកដាច់ពីគ្នារវាង Website និង Mobile App ១០០% */}
