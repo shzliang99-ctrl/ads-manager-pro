@@ -2968,7 +2968,7 @@ const executeAdDuplicateWithPost = async () => {
       targetAdSetId = newAdSetData.id;
     }
 
-    // 🌟 មុខងារបង្កើត Ad Creative និងបង្កើត Ad ថ្មីចូលទៅក្នុង Tab Ads ផ្ទាល់
+    // 🌟 មុខងារបង្កើត Ad Creative និងបង្កើត Ad ថ្មីចូលទៅក្នុង Tab Ads ផ្ទាល់ (បើក ACTIVE ស្វ័យប្រវត្តិ)
     const tryCreateAdOnly = async (creativePayload: any) => {
       const cRes = await fetch(`https://graph.facebook.com/v18.0/act_${adAccountIdClean}/adcreatives`, {
         method: 'POST',
@@ -2983,7 +2983,7 @@ const executeAdDuplicateWithPost = async () => {
         return { ok: false, error: cData?.error };
       }
 
-      // បាញ់ទៅបង្កើតតែ Ad ថ្មីប៉ុណ្ណោះ (/ads) ក្រោម targetAdSetId ចាស់ដដែល
+      // បាញ់ទៅបង្កើតតែ Ad ថ្មីប៉ុណ្ណោះ (/ads) ក្រោម targetAdSetId ចាស់ដដែល ដោយបើក ACTIVE ភ្លាមៗ
       const aRes = await fetch(`https://graph.facebook.com/v18.0/act_${adAccountIdClean}/ads`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -2991,7 +2991,7 @@ const executeAdDuplicateWithPost = async () => {
           name: duplicateAdName || 'Duplicated Ad',
           adset_id: targetAdSetId,
           creative: { creative_id: cData.id },
-          status: 'PAUSED',
+          status: 'ACTIVE', // 👈 កែមកជា ACTIVE ដើម្បីឱ្យប៊ូតុង On បើកពណ៌ខៀវភ្លាមៗពេល Submit
           access_token: clientToken
         })
       });
