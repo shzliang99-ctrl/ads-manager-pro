@@ -730,7 +730,7 @@ export default function Home() {
   const [isAuditCoolingDown, setIsAuditCoolingDown] = useState(false);
 
   const handleAiAudit = async (adItem: any) => {
-    // បើកំពុងติด Lock មិនទាន់គ្រប់ពេល ឱ្យវាប្រាប់សិនដើម្បីការពារ Error 429
+    // បើកំពុងជាប់ Lock មិនទាន់គ្រប់ពេល ឱ្យវាប្រាប់សិនដើម្បីការពារ Error 429
     if (isAuditCoolingDown) {
       alert("⏳ សូមស្ងប់ចិត្តបន្តិច! ប្រព័ន្ធកំពុងសម្រាករំពេចដើម្បីការពារការកកស្ទះ AI (Rate Limit)។ សូមរង់ចាំប្រហែល ១០ វិនាទីសិន។");
       return;
@@ -739,44 +739,87 @@ export default function Home() {
     setIsAuditModalOpen(true);
     setAuditLoading(true);
     setAuditResult(null);
-    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+    if (typeof stopKhmerSpeech === 'function') stopKhmerSpeech();
 
+    // 🌟 ១. ទាញយកទិន្នន័យពី Facebook ឱ្យដូចគ្នាបេះបិទ ១០០% ជាមួយតារាង Ads
     const ins = adItem.insights && adItem.insights.data && adItem.insights.data.length > 0 ? adItem.insights.data[0] : null;
-    const spend = ins?.spend || 0;
-    const impressions = ins?.impressions || 0;
-    
-    let results = 0;
-    if (ins && ins.actions) {
-      const actionObj = ins.actions.find((a: any) => 
-        a.action_type === 'onsite_conversion.messaging_conversation_started_7d' || 
-        a.action_type === 'messaging_conversation_started_7d' ||
-        a.action_type === 'link_click'
-      );
-      if (actionObj) results = Number(actionObj.value);
-    }
+    const spendNum = Number(ins?.spend || 0);
+    const spend = spendNum.toFixed(2);
+    const impressions = Number(ins?.impressions || 0);
+    const reach = Number(ins?.reach || 0);
 
-    const ctr = impressions > 0 ? ((results / impressions) * 100).toFixed(2) : "0";
-    const cpa = results > 0 ? (Number(spend) / results).toFixed(2) : "0";
+    // ប្រើប្រាស់អនុគមន៍ getResults ដូចក្នុងតារាង ដើម្បីចាប់យកចំនួនឆាតពិតប្រាកដ (មិនច្រឡំជាមួយ Link Click)
+    const parentCamp = campaignsList.find(c => c.id === (adItem.campaign_id || selectedCampaigns[0])) || campaignsList[0];
+    const objective = parentCamp?.objective || 'OUTCOME_ENGAGEMENT';
+    const rawResults = getResults(ins, objective);
+    const results = rawResults !== "-" ? Number(rawResults) : 0;
+
+    // គណនា CTR ពីចំនួន Click ឬ Results និងគណនា CPA ពិតប្រាកដដូចក្នុងតារាង
+    const linkClickObj = ins?.actions?.find((a: any) => a.action_type === 'link_click');
+    const clicksForCtr = linkClickObj ? Number(linkClickObj.value) : results;
+    const ctr = impressions > 0 ? ((clicksForCtr / impressions) * 100).toFixed(2) : "0.00";
+    const cpaNum = results > 0 ? (spendNum / results) : 0;
+    const cpa = results > 0 ? cpaNum.toFixed(2) : "0.00";
+
+    // 🌟 ២. កំណត់ចំណាត់ថ្នាក់ស្តង់ដារឱ្យត្រូវគ្នា ១០០% ជាមួយជួរឈរ "ការវាយតម្លៃ AI (CPA)" ក្នុងតារាង
+    let standardStatusColor: 'green' | 'yellow' | 'red' = 'green';
+    let standardTitle = '';
+    let standardTierLabel = '';
+
+    if (results === 0 && spendNum > 0) {
+      standardStatusColor = 'red';
+      standardTierLabel = 'អត់ល្អ (Critical - ចំណាយប្រាក់តែមិនទាន់មានលទ្ធផល)';
+      standardTitle = `ចំណាយអស់ $${spend} តែមិនទាន់ទទួលបានឆាត (កម្រិតអត់ល្អ / Critical)`;
+    } else if (results === 0 && spendNum === 0) {
+      standardStatusColor = 'yellow';
+      standardTierLabel = 'មិនទាន់មានទិន្នន័យគ្រប់គ្រាន់';
+      standardTitle = `ប៉ុស្តិ៍នេះមិនទាន់មានការចំណាយ និងលទ្ធផលនៅឡើយទេ`;
+    } else if (cpaNum <= 0.50) {
+      standardStatusColor = 'green';
+      standardTierLabel = 'ល្អខ្លាំង (Excellent - CPA ≤ $0.50)';
+      standardTitle = `ថ្លៃដើមក្នុងមួយឆាត ($${cpa}) ស្ថិតក្នុងកម្រិតល្អខ្លាំង (Excellent)`;
+    } else if (cpaNum <= 1.00) {
+      standardStatusColor = 'green';
+      standardTierLabel = 'ល្អ (Good - CPA $0.51 - $1.00)';
+      standardTitle = `ថ្លៃដើមក្នុងមួយឆាត ($${cpa}) ស្ថិតក្នុងកម្រិតល្អ (Good)`;
+    } else if (cpaNum <= 2.00) {
+      standardStatusColor = 'yellow';
+      standardTierLabel = 'មធ្យម (Average - CPA $1.01 - $2.00)';
+      standardTitle = `ថ្លៃដើមក្នុងមួយឆាត ($${cpa}) ស្ថិតក្នុងកម្រិតមធ្យម (Average) គួរកែលម្អបន្ថែម`;
+    } else if (cpaNum <= 5.00) {
+      standardStatusColor = 'red';
+      standardTierLabel = 'ខ្សោយ (Poor - CPA $2.01 - $5.00)';
+      standardTitle = `ថ្លៃដើមក្នុងមួយឆាត ($${cpa}) ខ្ពស់ពេក ស្ថិតក្នុងកម្រិតខ្សោយ (Poor)`;
+    } else {
+      standardStatusColor = 'red';
+      standardTierLabel = 'អត់ល្អ (Critical - CPA > $5.00)';
+      standardTitle = `ថ្លៃដើមក្នុងមួយឆាត ($${cpa}) ថ្លៃខ្លាំង ស្ថិតក្នុងកម្រិតអត់ល្អ (Critical)`;
+    }
 
     try {
       const res = await fetch('/api/ai-audit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          adName: adItem.name,
+          adName: `${adItem.name} [ការវាយតម្លៃស្តង់ដារតារាង៖ ${standardTierLabel}, ចំនួនឆាតពិតប្រាកដ៖ ${results}, ថ្លៃក្នុងមួយឆាត CPA៖ $${cpa}, ចំនួនអ្នកឃើញ Reach៖ ${reach}]`,
           spend,
           results,
           impressions,
+          reach,
           ctr,
           cpa
         })
       });
       const data = await res.json();
       
-      if (data.success) {
-        setAuditResult(data.audit);
+      if (data.success && data.audit) {
+        // 🌟 ៣. បង្ខំឱ្យពណ៌ (statusColor) និងចំណាត់ថ្នាក់ (title) ត្រូវគ្នា ១០០% ជាមួយតារាង Facebook
+        setAuditResult({
+          ...data.audit,
+          statusColor: standardStatusColor,
+          title: standardTitle
+        });
       } else {
-        // បើជួប Error 429 ឱ្យវាដាស់តឿនប្រាប់ថាកំណត់ពេលរួចរាល់
         if (data.error && data.error.includes("429")) {
           alert("⚠️ AI ជាប់ដែនកំណត់ Free Tier មួយភ្លែត (Rate Limit)! សូមរង់ចាំ ១០ វិនាទីរួចចុចមើលម្ដងទៀត។");
         } else {
@@ -795,59 +838,154 @@ export default function Home() {
     setIsAuditCoolingDown(true);
     setTimeout(() => {
       setIsAuditCoolingDown(false);
-    }, 10000); // 10 វិនាទី
+    }, 10000);
   };
   
 
-  // 🔊 មុខងារ AI Voice និយាយភាសាខ្មែរពិតប្រាកដ (ប្រើ Google TTS Cloud Engine)
+  // 🔊 មុខងារ AI Voice និយាយភាសាខ្មែរពិតប្រាកដ (បំបែកប្រយោគខ្លីៗ + អានតគ្នារលូន ១០០%)
+  const ttsAudioRef = useRef<HTMLAudioElement | null>(null);
+  const isSpeakingRef = useRef<boolean>(false);
+
+  const stopKhmerSpeech = () => {
+    isSpeakingRef.current = false;
+    setIsSpeaking(false);
+    if (ttsAudioRef.current) {
+      ttsAudioRef.current.pause();
+      ttsAudioRef.current.currentTime = 0;
+      ttsAudioRef.current = null;
+    }
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
+  };
+
   const speakKhmerText = (text: string) => {
     if (!text) return;
-    
-    // បើកំពុងនិយាយ ឱ្យវា stop សិន
-    if (isSpeaking) {
-      setIsSpeaking(false);
+
+    // បើកំពុងនិយាយ ឱ្យវាឈប់ភ្លាមពេលចុចម្ដងទៀត
+    if (isSpeakingRef.current || isSpeaking) {
+      stopKhmerSpeech();
       return;
     }
 
     try {
+      // ១. បន្ថែម meta no-referrer ដើម្បីកុំឱ្យ Google ប្លុកសំឡេងពេលហៅពី Browser
+      if (typeof document !== "undefined" && !document.querySelector('meta[name="referrer"]')) {
+        const meta = document.createElement("meta");
+        meta.name = "referrer";
+        meta.content = "no-referrer";
+        document.head.appendChild(meta);
+      }
+
+      // ២. សម្អាតសញ្ញា Emoji និងតួអក្សរពិសេស ដើម្បីឱ្យអានភាសាខ្មែរបានរលូន
+      const cleanText = text
+        .replace(/[🤖📊💡🟢🟡🔴📌🔊✓✕*#_~`>]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+
+      // ៣. បំបែកអត្ថបទវែងៗឱ្យទៅជាប្រយោគខ្លីៗ (ក្រោម ១៤០ តួអក្សរ) ដើម្បីអានតគ្នាไม่ដាច់
+      const rawParts = cleanText.split(/(?<=[។!?.\n])\s*/);
+      const chunks: string[] = [];
+      let current = "";
+
+      for (const part of rawParts) {
+        if ((current + " " + part).trim().length <= 140) {
+          current = (current + " " + part).trim();
+        } else {
+          if (current) chunks.push(current);
+          if (part.length <= 140) {
+            current = part.trim();
+          } else {
+            const words = part.split(" ");
+            let sub = "";
+            for (const w of words) {
+              if ((sub + " " + w).trim().length <= 140) {
+                sub = (sub + " " + w).trim();
+              } else {
+                if (sub) chunks.push(sub);
+                sub = w;
+              }
+            }
+            current = sub;
+          }
+        }
+      }
+      if (current) chunks.push(current);
+
+      if (chunks.length === 0) return;
+
+      isSpeakingRef.current = true;
       setIsSpeaking(true);
-      // ប្រើប្រាស់ Google Translate TTS Engine សម្រាប់แปลงអត្ថបទខ្មែរទៅជាសំឡេងនិយាយខ្មែរពិតៗ
-      const encodedText = encodeURIComponent(text);
-      const audioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodedText}&tl=km&client=tw-ob`;
-      
-      const audio = new Audio(audioUrl);
-      
-      audio.onended = () => setIsSpeaking(false);
-      audio.onerror = () => {
-        setIsSpeaking(false);
-        console.error("Audio playback error");
+
+      // ៤. ចាក់សំឡេងភាសាខ្មែរតាមលំដាប់ប្រយោគនីមួយៗរហូតដល់ចប់
+      let index = 0;
+      const playNextChunk = () => {
+        if (!isSpeakingRef.current || index >= chunks.length) {
+          isSpeakingRef.current = false;
+          setIsSpeaking(false);
+          return;
+        }
+
+        const q = encodeURIComponent(chunks[index]);
+        const audioUrl = `https://translate.googleapis.com/translate_tts?client=gtx&ie=UTF-8&tl=km&dt=t&q=${q}`;
+        const audio = new Audio(audioUrl);
+        ttsAudioRef.current = audio;
+
+        audio.onended = () => {
+          index++;
+          playNextChunk();
+        };
+
+        audio.onerror = () => {
+          const fallbackUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${q}&tl=km&client=tw-ob`;
+          const fallbackAudio = new Audio(fallbackUrl);
+          ttsAudioRef.current = fallbackAudio;
+
+          fallbackAudio.onended = () => {
+            index++;
+            playNextChunk();
+          };
+          fallbackAudio.onerror = () => {
+            index++;
+            playNextChunk();
+          };
+          fallbackAudio.play().catch(() => {
+            isSpeakingRef.current = false;
+            setIsSpeaking(false);
+          });
+        };
+
+        audio.play().catch(() => {
+          isSpeakingRef.current = false;
+          setIsSpeaking(false);
+        });
       };
 
-      audio.play().catch(err => {
-        setIsSpeaking(false);
-        console.log("Auto-play blocked by browser, user interaction needed.");
-      });
+      playNextChunk();
     } catch (e) {
+      isSpeakingRef.current = false;
       setIsSpeaking(false);
     }
   };
 
-  // 🔊 មុខងារ Auto-Play ពេល Pop-up ផ្ទាំងលោតមកដល់និយាយភ្លាមៗជាខ្មែរ
+  // 🔊 មុខងារ Auto-Play ពេល Pop-up ផ្ទាំងលោតមកដល់និយាយភ្លាមៗជាខ្មែរ និងបិទសំឡេងពេលបិទផ្ទាំង
   useEffect(() => {
     if (auditResult && isAuditModalOpen) {
       const fullText = `ចំណាត់ថ្នាក់ពាណិជ្ជកម្ម៖ ${auditResult.title}។ ការវិភាគស៊ីជម្រៅ៖ ${auditResult.analysis}។ យោបល់ណែនាំ៖ ${auditResult.recommendation}`;
       
-      setTimeout(() => {
-         speakKhmerText(fullText);
+      const timer = setTimeout(() => {
+        speakKhmerText(fullText);
       }, 400);
+
+      return () => {
+        clearTimeout(timer);
+        stopKhmerSpeech();
+      };
+    } else {
+      stopKhmerSpeech();
     }
-    
-    return () => {
-      // Clean up ពេលបិទ
-    };
   }, [auditResult, isAuditModalOpen]);
 
- // 🔗 មុខងារសម្រាប់ពេលចុច Connect Facebook
   // 🔗 មុខងារ Connect Facebook ដែលบังคับបើកលើ Browser ខាងក្រៅ (Safari / Chrome) សម្រាប់ទូរសព្ទដៃ
   const handleFacebookConnect = async () => {
     const { data: { user } } = await supabase.auth.getUser();
