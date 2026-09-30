@@ -1,4 +1,5 @@
 "use client";
+"use client";
 
 import { useState, useEffect, useRef } from "react"; // 👈 ថែម useRef ត្រង់នេះ
 import { supabase } from "@/lib/supabase";
@@ -1113,6 +1114,7 @@ export default function Home() {
       await supabase.auth.signOut();
       localStorage.removeItem('fb_user_token');
       localStorage.removeItem('selectedPage');
+      localStorage.removeItem('fbPageName');
       localStorage.removeItem('selectedAdAccount');
       localStorage.removeItem('activeTab');
       window.location.href = '/login';
@@ -1206,15 +1208,30 @@ export default function Home() {
     return "";
   });
 
-  // 🌟 2. មុខងារពេលចុចប្ដូរ Page ក្នុង Dropdown (ចងចាំទុកអចិន្ត្រៃយ៍)
-  const handlePageSelect = (pageId: string) => {
+  // 🌟 2. មុខងារពេលចុចប្ដូរ Page ក្នុង Dropdown (ចងចាំទុកអចិន្ត្រៃយ៍ និងរក្សាទុកចូល Supabase តាមអ៊ីមែលអតិថិជន)
+  const handlePageSelect = async (pageId: string) => {
     setSelectedPage(pageId);
     localStorage.setItem("selectedPage", pageId);
     
-    const selectedObj = pages.find(p => p.id === pageId);
+    const selectedObj = pages.find(p => p.id === pageId) || facebookPages.find(p => p.id === pageId);
     if (selectedObj) {
       setFbPageName(selectedObj.name);
       localStorage.setItem("fbPageName", selectedObj.name);
+
+      const { data: { user } } = await supabase.auth.getUser();
+      const token = localStorage.getItem("fb_user_token");
+      if (user?.email) {
+        await supabase
+          .from("customer_subscriptions")
+          .update({
+            page_id: selectedObj.id,
+            page_name: selectedObj.name,
+            linked_fb_page: selectedObj.name,
+            ...(token ? { access_token: token } : {})
+          })
+          .eq("email", user.email);
+        fetchClients();
+      }
     }
     setIsPageMenuOpen(false);
   };
@@ -2170,9 +2187,34 @@ export default function Home() {
     setLoadingClients(false);
   };
 
+  // 🌟 Auto-Sync ឈ្មោះផេក និង Token ពី Browser ចូលទៅក្នុង Supabase តាមអ៊ីមែលគណនីដែលកំពុង Login (១ ទល់ ១)
   useEffect(() => {
-    fetchClients();
-  }, []);
+    const syncCurrentClientFbToSupabase = async () => {
+      const token = localStorage.getItem('fb_user_token');
+      const pageId = selectedPage || localStorage.getItem('selectedPage');
+      const pageName = fbPageName || localStorage.getItem('fbPageName');
+      const adAccId = selectedAdAccount || localStorage.getItem('selectedAdAccount');
+
+      if (token && (pageName || pageId)) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user?.email) {
+          await supabase
+            .from('customer_subscriptions')
+            .update({
+              access_token: token,
+              page_id: pageId || null,
+              page_name: pageName || null,
+              linked_fb_page: pageName || pageId || null,
+              ad_account_id: adAccId ? `act_${String(adAccId).replace('act_', '')}` : null
+            })
+            .eq('email', user.email);
+        }
+      }
+      fetchClients();
+    };
+
+    syncCurrentClientFbToSupabase();
+  }, [isFbConnected, fbPageName, selectedPage, selectedAdAccount]);
 
   const pendingSlipsCount = clients.filter(c => c.slip_status === 'pending').length;
   // 🌟 States បន្ថែមសម្រាប់កែប្រែ (Edit Client)
@@ -3835,6 +3877,26 @@ const handleOpenDuplicateModal = () => {
         {/* ជួរទី២ សម្រាប់ Mobile (Ad Account, Date, Lang, Theme - រៀបចំឱ្យស្អាតស្មើគ្នា) */}
         <div className="flex items-center w-full md:w-auto gap-2.5">
           
+          {/* 🌟 ដាក់កូដ Badge ថ្ងៃផុតកំណត់នៅទីនេះ (ទើបវានៅជាប់ប្រអប់ Ad Account ខាងឆ្វេងដៃ) */}
+          {clientExpiryDaysLeft !== null && (
+            <div className={`hidden lg:flex px-3.5 h-[44px] items-center gap-1.5 rounded-xl text-[12px] font-bold border shadow-sm transition-colors ${
+              clientExpiryDaysLeft < 0 
+                ? 'bg-red-500/10 border-red-500/30 text-red-500' 
+                : clientExpiryDaysLeft <= 3 
+                ? 'bg-amber-500/10 border-amber-500/30 text-amber-600 animate-pulse' 
+                : (theme === 'dark' ? 'bg-emerald-900/20 border-emerald-800 text-emerald-400' : 'bg-emerald-50 border-emerald-200 text-emerald-600')
+            }`}>
+              <span className="text-sm">⏳</span>
+              <span className="whitespace-nowrap">
+                {clientExpiryDaysLeft < 0 
+                  ? `ផុតកំណត់សេវា (${Math.abs(clientExpiryDaysLeft)} ថ្ងៃមុន)` 
+                  : clientExpiryDaysLeft === 0 
+                  ? 'ផុតកំណត់ថ្ងៃនេះ!' 
+                  : `សេវាកម្មនៅសល់៖ ${clientExpiryDaysLeft} ថ្ងៃ`}
+              </span>
+            </div>
+          )}
+          
           {/* Ad Account Dropdown */}
           <div className="relative flex-1 md:flex-none">
             <div 
@@ -4593,26 +4655,53 @@ const handleOpenDuplicateModal = () => {
                                     </div>
                                   </td>
                                   
-                                  {/* 2. គណនី Login (Email & Password) */}
+                                  {/* 2. គណនី Login (Email តែប៉ុណ្ណោះ - លាក់ Password ដើម្បីសុវត្ថិភាព) */}
                                   <td className="py-3.5 px-4">
-                                    <div className={`text-[12px] flex items-center gap-1.5 ${theme === 'dark' ? 'text-slate-300' : 'text-gray-700'} font-medium`}>
+                                    <div className={`text-[12.5px] flex items-center gap-1.5 ${theme === 'dark' ? 'text-slate-300' : 'text-gray-700'} font-medium`}>
                                       <span>✉️</span> {item.email || '-'}
                                     </div>
-                                    <div className="text-[12px] flex items-center gap-1.5 mt-1 font-mono font-bold text-blue-500 bg-blue-50 dark:bg-blue-900/30 w-fit px-2 py-0.5 rounded cursor-pointer hover:bg-blue-100" title="លេខសម្ងាត់" onClick={() => { navigator.clipboard.writeText(item.password); alert("បាន Copy លេខសម្ងាត់!"); }}>
-                                      <span>🔑</span> {item.password || 'គ្មានលេខសម្ងាត់'}
-                                    </div>
+                                    
+                                    {/* ប៊ូតុងផ្ញើអ៊ីមែល Reset Password ជំនួសឱ្យការបង្ហាញ Password ផ្ទាល់ */}
+                                    <button
+                                      type="button"
+                                      onClick={async () => {
+                                        if (!confirm(`តើបងចង់ផ្ញើលិង្កកំណត់លេខសម្ងាត់ថ្មីទៅកាន់អ៊ីមែល ${item.email} មែនទេ?`)) return;
+                                        try {
+                                          const { error } = await supabase.auth.resetPasswordForEmail(item.email, {
+                                            redirectTo: `${window.location.origin}/settings`,
+                                          });
+                                          if (error) throw error;
+                                          showToast(`✅ បានផ្ញើលិង្កប្ដូរលេខសម្ងាត់ទៅកាន់ ${item.email} រួចរាល់!`, "success");
+                                        } catch (err: any) {
+                                          alert("❌ បរាជ័យ: " + err.message);
+                                        }
+                                      }}
+                                      className="mt-1.5 text-[11px] font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 px-2.5 py-1 rounded-lg hover:bg-blue-100 transition cursor-pointer flex items-center gap-1 w-fit shadow-xs"
+                                      title="ផ្ញើអ៊ីមែលឱ្យអតិថិជនប្ដូរលេខសម្ងាត់ដោយខ្លួនឯង"
+                                    >
+                                      <span>🔑</span> <span>ផ្ញើលិង្ក Reset Password</span>
+                                    </button>
                                   </td>
 
                                   {/* 3. Linked Facebook */}
                                   <td className="py-3.5 px-4">
-                                    {item.linked_fb_page ? (
-                                      <div className="flex items-center gap-2">
-                                        <div className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0 shadow-sm">
-                                          ាប់
+                                    {(item.page_name || item.linked_fb_page || item.access_token) ? (
+                                      <div className="flex flex-col gap-1">
+                                        <div className="flex items-center gap-2">
+                                          <div className="w-6 h-6 rounded-full bg-[#1877F2] text-white flex items-center justify-center text-[11px] font-bold shrink-0 shadow-sm">
+                                            f
+                                          </div>
+                                          <span
+                                            className={`text-[12.5px] font-bold truncate max-w-[170px] ${theme === 'dark' ? 'text-blue-400' : 'text-[#1877F2]'}`}
+                                          >
+                                            {item.page_name || item.linked_fb_page || 'បានភ្ជាប់ Facebook'}
+                                          </span>
                                         </div>
-                                        <span className={`text-[12.5px] font-bold truncate max-w-[160px] ${theme === 'dark' ? 'text-blue-400' : 'text-[#1877F2]'}`} title={item.linked_fb_page}>
-                                          {pages.find(p => p.id === item.linked_fb_page)?.name || `Page ID: ${item.linked_fb_page}`}
-                                        </span>
+                                        {item.ad_account_id && (
+                                          <span className="text-[10.5px] text-slate-400 font-mono pl-8">
+                                            Ad ID: {item.ad_account_id}
+                                          </span>
+                                        )}
                                       </div>
                                     ) : (
                                       <span className="text-[12px] text-slate-400 italic">មិនបានភ្ជាប់</span>

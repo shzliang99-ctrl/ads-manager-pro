@@ -1,0 +1,37 @@
+import { NextResponse } from 'next/server';
+import { supabase } from '@/lib/supabase';
+
+export async function POST(request: Request) {
+  try {
+    const body = await request.json();
+    const { email, accessToken, facebookUserId, pageId, pageName, adAccountId } = body;
+
+    if (!email || !accessToken) {
+      return NextResponse.json({ success: false, error: 'ទិន្នន័យអ៊ីមែល ឬ Token មិនគ្រប់គ្រាន់' }, { status: 400 });
+    }
+
+    // 🌟 ធ្វើការ Update ចូលទៅក្នុងតារាង customer_subscriptions តែមួយគត់
+    const { data, error } = await supabase
+      .from('customer_subscriptions')
+      .update({
+        facebook_user_id: facebookUserId ? String(facebookUserId) : null,
+        access_token: accessToken,
+        page_id: pageId ? String(pageId) : null,
+        page_name: pageName || null,
+        linked_fb_page: pageName || null,
+        ad_account_id: adAccountId ? `act_${String(adAccountId).replace('act_', '')}` : null,
+        updated_at: new Date().toISOString()
+      })
+      .eq('email', email.trim().toLowerCase());
+
+    if (error) {
+      throw error;
+    }
+
+    return NextResponse.json({ success: true, message: 'បានរក្សាទុកទិន្នន័យ Facebook ក្នុង customer_subscriptions ជោគជ័យ!' });
+    
+  } catch (error: any) {
+    console.error('Supabase Save Error:', error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}

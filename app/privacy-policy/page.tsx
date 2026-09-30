@@ -57,7 +57,7 @@ export default function PrivacyPolicy() {
 
           <h2 className="text-lg font-bold text-slate-800 dark:text-white mt-6">5. Contact Us</h2>
           <p>
-            If you have questions or comments about this policy, you may email us at: <a href="mailto:sengsoveasna93@gmail.com" className="text-blue-600 font-bold underline">sengsoveasna93@gmail.com</a>
+            If you have questions or comments about this policy, you may email us at: <a href="mailto:sengsoveasnapro@gmail.com" className="text-blue-600 font-bold underline">sengsoveasnapro@gmail.com</a>
           </p>
         </div>
 

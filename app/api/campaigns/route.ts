@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 
 // 🌟 Helper function សម្រាប់ទាញយក Token (គាំទ្រទាំង Query Parameters និង Request Body)
 function getAccessToken(request: Request, body?: any) {
@@ -64,6 +66,14 @@ export async function GET(request: Request) {
 
 // 🌟 មុខងារ POST វៃឆ្លាត៖ គាំទ្រទាំង CBO និង ABO (កែប្រែថវិកា និងម៉ោងនៅ Ad Set ផ្ទាល់បើ Campaign គ្មាន Budget)
 export async function POST(request: Request) {
+  // 🌟 ឆែកសុវត្ថិភាព (Security Check): ផ្ទៀងផ្ទាត់ថា User បាន Login ចូលប្រព័ន្ធពិតប្រាកដមែនទេ?
+  const supabase = createRouteHandlerClient({ cookies });
+  const { data: { session } } = await supabase.auth.getSession();
+  
+  if (!session) {
+    return NextResponse.json({ success: false, error: 'Unauthorized: សូម Login ជាមុនសិន!' }, { status: 401 });
+  }
+
   try {
     const body = await request.json();
     const { campaignId, name, budget, stopTime } = body;
@@ -139,8 +149,7 @@ export async function POST(request: Request) {
             updateAdset = true;
           }
 
-          // 🌟 ពិនិត្យយ៉ាងតឹងរ៉ឹង៖ បញ្ជូន end_time ទៅបានុ កាលណា Ad Set នោះមាន lifetime_budget ស្រាប់ប៉ុណ្ណោះ!
-          // បើជា Daily Budget (recurring) គឺដាច់ខាតហាមផ្ញើ end_time ទៅជាមួយ ដើម្បីការពារ Error នេះ
+          // 🌟 ពិនិត្យយ៉ាងតឹងរ៉ឹង៖ បញ្ជូន end_time ទៅបាន កាលណា Ad Set នោះមាន lifetime_budget ស្រាប់ប៉ុណ្ណោះ!
           if (stopTime && targetAdSet.lifetime_budget) {
             const dateObj = new Date(stopTime);
             if (!isNaN(dateObj.getTime())) {
@@ -172,7 +181,7 @@ export async function POST(request: Request) {
 
     // 🌟 បម្លែងសារ Error របស់ Facebook ឱ្យទៅជាភាសាខ្មែរងាយយល់
     if (errorMessage.includes("too far in the future") || errorMessage.includes("one year")) {
-      errorMessage = "⚠️ កាលបរិច្ឆេទបញ្ចប់ (End Date) មិនអាចកំណត់លើសពី ១ ឆ្នាំ ាប់ពីថ្ងៃនេះបានទេ។ សូមជ្រើសរើសថ្ងៃខែឆ្នាំក្រោម ១ ឆ្នាំ។";
+      errorMessage = "⚠️ កាលបរិច្ឆេទបញ្ចប់ (End Date) មិនអាចកំណត់លើសពី ១ ឆ្នាំ ចាប់ពីថ្ងៃនេះបានទេ។ សូមជ្រើសរើសថ្ងៃខែឆ្នាំក្រោម ១ ឆ្នាំ។";
     }
 
     console.error("Update API Error:", errorMessage);
@@ -182,6 +191,14 @@ export async function POST(request: Request) {
 
 // មុខងារសម្រាប់ Update Status (On/Off) Campaign
 export async function PUT(request: Request) {
+  // 🌟 ឆែកសុវត្ថិភាព (Security Check) សម្រាប់ PUT
+  const supabase = createRouteHandlerClient({ cookies });
+  const { data: { session } } = await supabase.auth.getSession();
+  
+  if (!session) {
+    return NextResponse.json({ success: false, error: 'Unauthorized: សូម Login ជាមុនសិន!' }, { status: 401 });
+  }
+
   try {
     const body = await request.json();
     const { id, status } = body;
@@ -206,6 +223,14 @@ export async function PUT(request: Request) {
 
 // មុខងារសម្រាប់លុប Campaign
 export async function DELETE(request: Request) {
+  // 🌟 ឆែកសុវត្ថិភាព (Security Check) សម្រាប់ DELETE
+  const supabase = createRouteHandlerClient({ cookies });
+  const { data: { session } } = await supabase.auth.getSession();
+  
+  if (!session) {
+    return NextResponse.json({ success: false, error: 'Unauthorized: សូម Login ជាមុនសិន!' }, { status: 401 });
+  }
+
   try {
     const accessToken = getAccessToken(request);
     const { searchParams } = new URL(request.url);

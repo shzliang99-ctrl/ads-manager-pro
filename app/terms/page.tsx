@@ -42,7 +42,7 @@ export default function TermsOfService() {
 
           <h2 className="text-lg font-bold text-slate-800 dark:text-white mt-6">4. Contact Information</h2>
           <p>
-            For any questions about these Terms, please contact us at: <a href="mailto:sengsoveasna93@gmail.com" className="text-blue-600 font-bold underline">sengsoveasna93@gmail.com</a>
+            For any questions about these Terms, please contact us at: <a href="mailto:sengsoveasnapro@gmail.com" className="text-blue-600 font-bold underline">sengsoveasnapro@gmail.com</a>
           </p>
         </div>
 
