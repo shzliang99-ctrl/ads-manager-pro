@@ -28,7 +28,7 @@ export async function POST(request: Request) {
       // ២. ទាញយក Posts ត្រឹម 25 ផុសម្ដង (limit=25) ដើម្បីការពារកុំឱ្យ Facebook Error "Please reduce the amount of data"
       const fieldsFull = "id,message,story,created_time,full_picture,status_type,attachments,shares,likes.summary(true),comments.summary(true)";
       let res = await fetch(
-        `https://graph.facebook.com/v18.0/${pageId}/posts?fields=${fieldsFull}&limit=60&access_token=${validPageToken}`,
+        `https://graph.facebook.com/v18.0/${pageId}/posts?fields=${fieldsFull}&limit=50&access_token=${validPageToken}`,
         { cache: 'no-store' }
       );
       let data = await res.json();
@@ -37,7 +37,7 @@ export async function POST(request: Request) {
       if (data.error) {
         const fieldsLight = "id,message,story,created_time,full_picture,status_type,attachments,shares";
         res = await fetch(
-          `https://graph.facebook.com/v18.0/${pageId}/posts?fields=${fieldsLight}&limit=60&access_token=${validPageToken}`,
+          `https://graph.facebook.com/v18.0/${pageId}/posts?fields=${fieldsLight}&limit=50&access_token=${validPageToken}`,
           { cache: 'no-store' }
         );
         data = await res.json();
