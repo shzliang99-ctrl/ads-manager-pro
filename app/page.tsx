@@ -7394,8 +7394,39 @@ const handleOpenDuplicateModal = () => {
                                   />
                                 </td>
                                 <td className={`p-3 border-r text-center align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-                                  <div className={`w-8 h-4 rounded-full mx-auto relative cursor-pointer ${adset.status === 'ACTIVE' ? 'bg-[#1877F2]' : 'bg-[#BCC0C4]'}`}>
-                                    <div className={`w-3.5 h-3.5 bg-white rounded-full absolute top-[1px] ${adset.status === 'ACTIVE' ? 'right-[2px]' : 'left-[2px]'}`}></div>
+                                  <div 
+                                    onClick={async () => {
+                                      const newStatus = adset.status === 'ACTIVE' ? 'PAUSED' : 'ACTIVE';
+                                      
+                                      // 1. Update មុខងារបង្ហាញលើ UI ទុកមុនភ្លាមៗឱ្យរហ័ស
+                                      setAdsetsList(prev => prev.map(a => a.id === adset.id ? { ...a, status: newStatus, effective_status: newStatus } : a));
+
+                                      try {
+                                        const token = localStorage.getItem('fb_user_token');
+                                        const res = await fetch('/api/adsets', {
+                                          method: 'PUT',
+                                          headers: { 'Content-Type': 'application/json' },
+                                          body: JSON.stringify({ 
+                                            id: adset.id, 
+                                            status: newStatus,
+                                            access_token: token 
+                                          })
+                                        });
+                                        const data = await res.json();
+                                        if (data.success) {
+                                          showToast(`✅ បាន${newStatus === 'ACTIVE' ? 'បើក (Active)' : 'បិទ (Paused)'} Ad Set ដោយជោគជ័យ!`, "success");
+                                        } else {
+                                          alert("❌ បរាជ័យក្នុងការប្ដូរ Status របស់ Ad Set: " + data.error);
+                                          fetchAdsets(); // ទាញយកទិន្នន័យដើមមកវិញបើមាន Error
+                                        }
+                                      } catch (error: any) {
+                                        alert("❌ Error: " + error.message);
+                                        fetchAdsets();
+                                      }
+                                    }}
+                                    className={`w-8 h-4 rounded-full mx-auto relative cursor-pointer transition-colors ${adset.status === 'ACTIVE' ? 'bg-[#1877F2]' : 'bg-[#BCC0C4]'}`}
+                                  >
+                                    <div className={`w-3.5 h-3.5 bg-white rounded-full absolute top-[1px] transition-all ${adset.status === 'ACTIVE' ? 'right-[2px]' : 'left-[2px]'}`}></div>
                                   </div>
                                 </td>
 

@@ -1,22 +1,4 @@
 import { NextResponse } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
-
-// 🌟 Helper function សម្រាប់បង្កើត Supabase Client សម្រាប់ Route Handler (Next.js App Router)
-async function createClient() {
-  const cookieStore = await cookies();
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-      },
-    }
-  );
-}
 
 // 🌟 Helper function សម្រាប់ទាញយក Token (គាំទ្រទាំង Query Parameters និង Request Body)
 function getAccessToken(request: Request, body?: any) {
@@ -45,7 +27,7 @@ export async function GET(request: Request) {
       throw new Error("Missing Token or Ad Account ID");
     }
 
-    // 🌟 ជំហានទី ១៖ ទាញយក Campaigns ព្រមទាំង Ads ខាង內 (ads{status,effective_status}) មកជាមួយ
+    // 🌟 ជំហានទី ១៖ ទាញយក Campaigns ព្រមទាំង Ads ខាងក្នុង (ads{status,effective_status}) មកជាមួយ
     const endpoint = `https://graph.facebook.com/v18.0/${targetAdAccountId}/campaigns?fields=id,name,status,effective_status,daily_budget,lifetime_budget,objective,start_time,stop_time,ads{status,effective_status},insights.date_preset(${datePreset}){spend,impressions,reach,actions}&limit=500&access_token=${accessToken}`;
 
     const response = await fetch(endpoint, { cache: 'no-store' });
@@ -56,7 +38,7 @@ export async function GET(request: Request) {
     }
 
     // 🌟 ជំហានទី ២៖ ពិនិត្យផ្ទៀងផ្ទាត់ (Map)៖ បើ Ads ខាងក្នុងមានស្ថានភាព In Review (PENDING_REVIEW ឬ IN_PROCESS) 
-    // គឺបង្ខំឱ្យ Campaign មេបង្ហាញ Status តាម Ads នោះភ្លាម
+    // គឺบังคับឱ្យ Campaign មេបង្ហាញ Status តាម Ads នោះភ្លាម
     const processedCampaigns = (data.data || []).map((camp: any) => {
       const adsList = camp.ads?.data || [];
       
@@ -82,14 +64,6 @@ export async function GET(request: Request) {
 
 // 🌟 មុខងារ POST វៃឆ្លាត៖ គាំទ្រទាំង CBO និង ABO (កែប្រែថវិកា និងម៉ោងនៅ Ad Set ផ្ទាល់បើ Campaign គ្មាន Budget)
 export async function POST(request: Request) {
-  // 🌟 ឆែកសុវត្ថិភាព (Security Check): ផ្ទៀងផ្ទាត់ថា User បាន Login ចូលប្រព័ន្ធពិតប្រាកដមែនទេ?
-  const supabase = await createClient();
-  const { data: { session } } = await supabase.auth.getSession();
-  
-  if (!session) {
-    return NextResponse.json({ success: false, error: 'Unauthorized: សូម Login ជាមុនសិន!' }, { status: 401 });
-  }
-
   try {
     const body = await request.json();
     const { campaignId, name, budget, stopTime } = body;
@@ -165,7 +139,8 @@ export async function POST(request: Request) {
             updateAdset = true;
           }
 
-          // 🌟 ពិនិត្យយ៉ាងតឹងរ៉ឹង៖ បញ្ជូន end_time ទៅได้ កាលណា Ad Set នោះមាន lifetime_budget ស្រាប់ប៉ុណ្ណោះ!
+          // 🌟 ពិនិត្យយ៉ាងតឹងរ៉ឹង៖ បញ្ជូន end_time ទៅបានុ កាលណា Ad Set នោះមាន lifetime_budget ស្រាប់ប៉ុណ្ណោះ!
+          // បើជា Daily Budget (recurring) គឺដាច់ខាតហាមផ្ញើ end_time ទៅជាមួយ ដើម្បីការពារ Error នេះ
           if (stopTime && targetAdSet.lifetime_budget) {
             const dateObj = new Date(stopTime);
             if (!isNaN(dateObj.getTime())) {
@@ -197,7 +172,7 @@ export async function POST(request: Request) {
 
     // 🌟 បម្លែងសារ Error របស់ Facebook ឱ្យទៅជាភាសាខ្មែរងាយយល់
     if (errorMessage.includes("too far in the future") || errorMessage.includes("one year")) {
-      errorMessage = "⚠️ កាលបរិច្ឆេទបញ្ចប់ (End Date) មិនអាចកំណត់លើសពី ១ ឆ្នាំ ចាប់ពីថ្ងៃនេះបានទេ។ សូមជ្រើសរើសថ្ងៃខែឆ្នាំក្រោម ១ ឆ្នាំ។";
+      errorMessage = "⚠️ កាលបរិច្ឆេទបញ្ចប់ (End Date) មិនអាចកំណត់លើសពី ១ ឆ្នាំ ាប់ពីថ្ងៃនេះបានទេ។ សូមជ្រើសរើសថ្ងៃខែឆ្នាំក្រោម ១ ឆ្នាំ។";
     }
 
     console.error("Update API Error:", errorMessage);
@@ -212,9 +187,8 @@ export async function PUT(request: Request) {
     const { id, status } = body;
     const accessToken = getAccessToken(request, body);
 
-    if (!id || !status) throw new Error("Missing ID or Status");
+    if (!id || !status) throw new Error("Missing Campaign ID or Status");
 
-    // បាញ់សំណើទៅកាន់ Facebook Graph API ដោយផ្ទាល់តែម្ដង (មិនបាច់ទាមទារ Supabase Session ទេ)
     const response = await fetch(`https://graph.facebook.com/v18.0/${id}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -232,14 +206,6 @@ export async function PUT(request: Request) {
 
 // មុខងារសម្រាប់លុប Campaign
 export async function DELETE(request: Request) {
-  // 🌟 ឆែកសុវត្ថិភាព (Security Check) សម្រាប់ DELETE
-  const supabase = await createClient();
-  const { data: { session } } = await supabase.auth.getSession();
-  
-  if (!session) {
-    return NextResponse.json({ success: false, error: 'Unauthorized: សូម Login ជាមុនសិន!' }, { status: 401 });
-  }
-
   try {
     const accessToken = getAccessToken(request);
     const { searchParams } = new URL(request.url);
