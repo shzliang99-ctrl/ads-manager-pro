@@ -14,7 +14,7 @@ export default function SignUpPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
-  const [isSuccessModal, setIsSuccessModal] = useState(false); // 🌟 State សម្រាប់បង្ហាញ Pop-up ជោគជ័យទំនើប
+  const [isSuccessModal, setIsSuccessModal] = useState(false);
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,19 +30,25 @@ export default function SignUpPage() {
 
       if (authError) throw authError;
 
-      // ២. បន្ថែមទិន្នន័យអតិថិជនចូលទៅក្នុងតារាង customer_subscriptions
+      // ២. 🌟 បន្ថែមទិន្នន័យអតិថិជនចូលទៅក្នុងតារាង customer_subscriptions ជាមួយស្ថានភាព Pending (ដើម្បីឱ្យលោតមក Admin CRM ភ្លាម)
+      const today = new Date();
+      const expiryDate = new Date();
+      expiryDate.setDate(today.getDate() - 1); // ដាក់ហួសថ្ងៃបន្តិច ដើម្បីចាក់សោរមិនទាន់ឱ្យប្រើប្រាស់រហូតទាល់តែ Admin Approve
+
       const { error: dbError } = await supabase
         .from('customer_subscriptions')
         .insert([
           {
             client_name: clientName,
-            email: email,
+            email: email.trim().toLowerCase(),
             password: password,
             phone: phone,
             package_name: '១ ខែ (Standard)',
-            amount: '0.00',
-            start_date: new Date().toISOString(),
-            expiry_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+            amount: 5.00,
+            start_date: today.toISOString(),
+            expiry_date: expiryDate.toISOString(), // 🔒 ហួសថ្ងៃសិន ដើម្បីឱ្យរុញទៅទំព័រទូទាត់ប្រាក់/រង់ចាំ Approve
+            status: 'pending',
+            slip_status: 'pending' // ⏳ រង់ចាំ Admin ពិនិត្យ និង Approve
           }
         ]);
 
@@ -51,7 +57,7 @@ export default function SignUpPage() {
       }
 
       setLoading(false);
-      setIsSuccessModal(true); // 🌟 បើកផ្ទាំង Pop-up ជោគជ័យជំនួសឱ្យ alert()
+      setIsSuccessModal(true);
 
     } catch (err: any) {
       setLoading(false);
@@ -129,7 +135,6 @@ export default function SignUpPage() {
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3 top-3 text-slate-500 hover:text-slate-700 text-sm font-bold cursor-pointer"
-                title={showPassword ? "លាក់ពាក្យសម្ងាត់" : "បង្ហាញពាក្យសម្ងាត់"}
               >
                 {showPassword ? "🙈" : "👁️"}
               </button>
@@ -161,46 +166,24 @@ export default function SignUpPage() {
 
       </div>
 
-      {/* ========================================================= */}
-      {/* 🌟 LOADING & SUCCESS MODAL POPUP (ទំនើប និងស្អាត១០០%) */}
-      {/* ========================================================= */}
-      {(loading || isSuccessModal) && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm transition-opacity duration-300 p-4">
-          <div className="bg-white p-8 rounded-2xl shadow-2xl flex flex-col items-center max-w-sm w-full mx-4 transform transition-transform scale-100 animate-in fade-in zoom-in-95 duration-200 border border-slate-100">
-            
-            {loading ? (
-              <>
-                <div className="relative w-16 h-16 mb-6">
-                  <div className="absolute inset-0 rounded-full border-4 border-slate-100"></div>
-                  <div className="absolute inset-0 rounded-full border-4 border-[#1877F2] border-t-transparent animate-spin"></div>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-[#1877F2] text-xl">⚡</span>
-                  </div>
-                </div>
-                <h3 className="text-[17px] font-bold text-slate-800 mb-1">កំពុងបង្កើតគណនី...</h3>
-                <p className="text-[12.5px] text-slate-500 text-center leading-relaxed">
-                  ប្រព័ន្ធកំពុងរៀបចំ Profile និង Database ជូនលោកអ្នក សូមមេត្តារង់ចាំបន្តិច...
-                </p>
-              </>
-            ) : (
-              <>
-                <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-3xl font-bold mb-4 shadow-inner">
-                  ✓
-                </div>
-                <h3 className="text-[18px] font-bold text-slate-800 mb-2">ចុះឈ្មោះជោគជ័យ!</h3>
-                <p className="text-[13px] text-slate-500 text-center leading-relaxed mb-6">
-                  គណនីរបស់អ្នកត្រូវបានបង្កើតរួចរាល់ហើយ។ ឥឡូវនេះលោកអ្នកអាចចូលប្រើប្រាស់ប្រព័ន្ធបាន។
-                </p>
-                <button
-                  type="button"
-                  onClick={() => router.push('/login')}
-                  className="w-full py-3 rounded-xl bg-[#1877F2] hover:bg-blue-600 text-white font-bold text-[14px] transition shadow-md cursor-pointer"
-                >
-                  ចូលគណនី (Login)
-                </button>
-              </>
-            )}
-
+      {/* Success Modal */}
+      {isSuccessModal && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+          <div className="bg-white p-8 rounded-2xl shadow-2xl flex flex-col items-center max-w-sm w-full mx-4 border border-slate-100 text-center">
+            <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-3xl font-bold mb-4 shadow-inner">
+              ✓
+            </div>
+            <h3 className="text-[18px] font-bold text-slate-800 mb-2">ចុះឈ្មោះជោគជ័យ!</h3>
+            <p className="text-[13px] text-slate-500 leading-relaxed mb-6">
+              គណនីរបស់អ្នកត្រូវបានបង្កើតរួចរាល់ហើយ។ សូមចូលទៅកាន់ប្រព័ន្ធដើម្បីធ្វើការទូទាត់ប្រាក់ និងរង់ចាំការអនុម័តពី Admin។
+            </p>
+            <button
+              type="button"
+              onClick={() => router.push('/login')}
+              className="w-full py-3 rounded-xl bg-[#1877F2] hover:bg-blue-600 text-white font-bold text-[14px] transition shadow-md cursor-pointer"
+            >
+              ចូលគណនី (Login)
+            </button>
           </div>
         </div>
       )}
