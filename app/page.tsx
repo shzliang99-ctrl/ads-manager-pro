@@ -600,6 +600,18 @@ export default function Home() {
 
   const [clientExpiryDaysLeft, setClientExpiryDaysLeft] = useState<number | null>(null);
 
+  // 🌟 មុខងារ Auto-Redirect ទៅកាន់ផ្ទាំង Payments ភ្លាមៗបើគណនីផុតកំណត់
+  useEffect(() => {
+    if (!isAdmin && clientExpiryDaysLeft !== null && clientExpiryDaysLeft < 0) {
+      if (activeTab !== "PAYMENTS" && activeTab !== "SETTINGS") {
+        setActiveTab("PAYMENTS");
+        if (typeof window !== "undefined") {
+          localStorage.setItem("activeTab", "PAYMENTS");
+        }
+      }
+    }
+  }, [clientExpiryDaysLeft, isAdmin]); // 👈 ដក activeTab ចចេញពីទីនេះ
+
   // 🌟 កូដចាប់យក Token ពី URL មកផ្ទុកក្នុង LocalStorage ស្វ័យប្រវត្តិ (គាំទ្រទាំងកុំព្យូទ័រ និងទូរសព្ទដៃ)
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1334,8 +1346,18 @@ export default function Home() {
   const [adsetsList, setAdsetsList] = useState<any[]>([]);
   const [loadingAdsets, setLoadingAdsets] = useState(false);
 
-  // 🌟 [មុខងារ handleTabChange ត្រឹមត្រូវ]
+  // 🌟 [មុខងារ handleTabChange ភ្ជាប់ប្រព័ន្ធ Lock ស្វ័យប្រវត្តិ]
   const handleTabChange = (tabName: string) => {
+    // 🔒 ប្រព័ន្ធទប់ស្កាត់អតិថិជនដែលផុតកំណត់ មិនឱ្យចូល Tab ផ្សេងក្រៅពី Payment និង Settings
+    if (!isAdmin && clientExpiryDaysLeft !== null && clientExpiryDaysLeft < 0) {
+      if (tabName !== "PAYMENTS" && tabName !== "SETTINGS") {
+         showToast("⚠️ គណនីផុតកំណត់! សូមធ្វើការទូទាត់ប្រាក់ដើម្បីបន្តប្រើប្រាស់។", "error");
+         setActiveTab("PAYMENTS");
+         if (typeof window !== "undefined") localStorage.setItem("activeTab", "PAYMENTS");
+         return; // បញ្ឈប់មិនឱ្យទៅ Tab ដែលគេចុច
+      }
+    }
+
     setActiveTab(tabName);
     if (typeof window !== "undefined") {
       localStorage.setItem("activeTab", tabName);
@@ -9625,7 +9647,7 @@ const handleOpenDuplicateModal = () => {
         </div>
       )}
       
-      {/* 🌟 Popup ជូនដំណឹងដល់ Client ពេលគណនីជិតផុតកំណត់ (≤ 7 ថ្ងៃ) */}
+      {/* 🌟 Popup ជូនដំណឹងដល់ Client ពេលគណនីជិតផុតកំណត់ ឬផុតកំណត់ */}
       {showExpiryAlertModal && clientExpiryDaysLeftModal !== null && !isAdmin && (
         <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/70 backdrop-blur-md p-4 animate-in fade-in duration-300">
           <div className={`rounded-3xl max-w-md w-full p-6 shadow-2xl border text-center transform transition-all scale-100 ${
@@ -9636,10 +9658,14 @@ const handleOpenDuplicateModal = () => {
               ⚠️
             </div>
 
-            <h3 className="text-xl font-black mb-2">សេចក្តីជូនដំណឹងផុតកំណត់សេវា!</h3>
+            <h3 className="text-xl font-black mb-2">
+              {clientExpiryDaysLeftModal < 0 ? "គណនីរបស់អ្នកបានផុតកំណត់សេវាហើយ!" : "សេចក្តីជូនដំណឹងផុតកំណត់សេវា!"}
+            </h3>
             
             <p className="text-sm text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">
-              គណនីប្រើប្រាស់ប្រព័ន្ធ Ads Manager Pro របស់អ្នកនឹងត្រូវផុតកំណត់ក្នុងរយៈពេល <strong className="text-orange-500 font-bold">{clientExpiryDaysLeftModal} ថ្ងៃទៀត</strong>។ សូមធ្វើការទូទាត់ប្រាក់បន្តសេវាកម្មជាបន្ទាន់ ដើម្បីជៀសវាងការផ្អាកដំណើរការគណនី។
+              {clientExpiryDaysLeftModal < 0 
+                ? `គណនីប្រើប្រាស់ប្រព័ន្ធរបស់អ្នកបានផុតកំណត់ចំនួន ${Math.abs(clientExpiryDaysLeftModal)} ថ្ងៃមុនហើយ។ សូមធ្វើការទូទាត់ប្រាក់បន្តសេវាកម្មជាបន្ទាន់ដើម្បីបន្តប្រើប្រាស់។`
+                : `គណនីប្រើប្រាស់ប្រព័ន្ធ Ads Manager Pro របស់អ្នកនឹងត្រូវផុតកំណត់ក្នុងរយៈពេល ${clientExpiryDaysLeftModal} ថ្ងៃទៀត។ សូមធ្វើការទូទាត់ប្រាក់បន្តសេវាកម្មជាបន្ទាន់ ដើម្បីជៀសវាងការផ្អាកដំណើរការគណនី។`}
             </p>
 
             <div className="flex flex-col gap-2.5">
@@ -9657,15 +9683,18 @@ const handleOpenDuplicateModal = () => {
                 <span>💳</span> <span>ទៅកាន់ទំព័រទូទាត់ប្រាក់ (Payments)</span>
               </button>
 
-              <button
-                type="button"
-                onClick={() => setShowExpiryAlertModal(false)}
-                className={`w-full py-2.5 rounded-xl font-bold text-xs border transition cursor-pointer ${
-                  theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-slate-300 hover:bg-[#4E4F50]' : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200'
-                }`}
-              >
-                បិទជាបណ្ដោះអាសន្ន (Close)
-              </button>
+              {/* 🌟 ប៊ូតុង Close នេះនឹងលាក់បាត់អត់ឱ្យឃើញទេ បើសិនជាថ្ងៃផុតកំណត់តិចជាង ០ (ផុតកំណត់បាត់ហើយ) */}
+              {clientExpiryDaysLeftModal >= 0 && (
+                <button
+                  type="button"
+                  onClick={() => setShowExpiryAlertModal(false)}
+                  className={`w-full py-2.5 rounded-xl font-bold text-xs border transition cursor-pointer ${
+                    theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-slate-300 hover:bg-[#4E4F50]' : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200'
+                  }`}
+                >
+                  បិទជាបណ្ដោះអាសន្ន (Close)
+                </button>
+              )}
             </div>
 
           </div>
