@@ -207,21 +207,14 @@ export async function POST(request: Request) {
 
 // មុខងារសម្រាប់ Update Status (On/Off) Campaign
 export async function PUT(request: Request) {
-  // 🌟 ឆែកសុវត្ថិភាព (Security Check) សម្រាប់ PUT
-  const supabase = await createClient();
-  const { data: { session } } = await supabase.auth.getSession();
-  
-  if (!session) {
-    return NextResponse.json({ success: false, error: 'Unauthorized: សូម Login ជាមុនសិន!' }, { status: 401 });
-  }
-
   try {
     const body = await request.json();
     const { id, status } = body;
     const accessToken = getAccessToken(request, body);
 
-    if (!id || !status) throw new Error("Missing Campaign ID or Status");
+    if (!id || !status) throw new Error("Missing ID or Status");
 
+    // បាញ់សំណើទៅកាន់ Facebook Graph API ដោយផ្ទាល់តែម្ដង (មិនបាច់ទាមទារ Supabase Session ទេ)
     const response = await fetch(`https://graph.facebook.com/v18.0/${id}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

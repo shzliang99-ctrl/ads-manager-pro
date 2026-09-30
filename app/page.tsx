@@ -2269,24 +2269,26 @@ export default function Home() {
     if (!editingClient) return;
 
     try {
+      // 🌟 រៀបចំទិន្នន័យសម្រាប់ Update (ដក Password ចោល ដើម្បីកុំឱ្យវា overwriting លេខសម្ងាត់ចាស់ខុស)
+      const updatePayload: any = {
+        client_name: editClientName,
+        email: editClientEmail,
+        phone: editClientPhone,
+        linked_fb_page: editLinkedFbPage,
+        package_name: editPackageName,
+        amount: editAmountPaid ? Number(editAmountPaid) : 0,
+        start_date: editStartDate ? new Date(editStartDate).toISOString() : editingClient.start_date,
+        expiry_date: editExpiryDate ? new Date(editExpiryDate).toISOString() : editingClient.expiry_date
+      };
+
       const { error } = await supabase
         .from('customer_subscriptions')
-        .update({
-          client_name: editClientName,
-          email: editClientEmail,
-          password: editClientPassword,
-          phone: editClientPhone,
-          linked_fb_page: editLinkedFbPage,
-          package_name: editPackageName,
-          amount: editAmountPaid ? Number(editAmountPaid) : 0,
-          start_date: editStartDate ? new Date(editStartDate).toISOString() : editingClient.start_date,
-          expiry_date: editExpiryDate ? new Date(editExpiryDate).toISOString() : editingClient.expiry_date
-        })
+        .update(updatePayload)
         .eq('id', editingClient.id);
 
       if (error) throw error;
 
-      showToast("✅ បានកែប្រែព័ត៌មាន និងថ្ងៃខែសុពលភាពដោយជោគជ័យ!", "success");
+      showToast("✅ បានកែប្រែព័ត៌មានអតិថិជនដោយជោគជ័យ!", "success");
       setIsEditClientModalOpen(false);
       fetchClients(); 
     } catch (err: any) {
@@ -2750,34 +2752,70 @@ export default function Home() {
   }, [selectedAdSets]);
 
   // 🌟 ១. Function ប្ដូរ Status (Off/On) របស់ Campaign
-  const handleToggleStatus = async (id: string, currentStatus: string) => {
-    const newStatus = currentStatus === 'ACTIVE' ? 'PAUSED' : 'ACTIVE';
-    
-    setCampaignsList(prev => prev.map(c => c.id === id ? { ...c, status: newStatus, effective_status: newStatus } : c));
+  // 🌟 1. មុខងារប្ដូរ Status របស់ Campaign ព្រមទាំងមាន Toast ដំណឹងជោគជ័យ
+const handleToggleStatus = async (id: string, currentStatus: string) => {
+  const newStatus = currentStatus === 'ACTIVE' ? 'PAUSED' : 'ACTIVE';
+  
+  // ធ្វើការ Update លើ UI ទុកមុនភ្លាមៗឱ្យរហ័ស
+  setCampaignsList(prev => prev.map(c => c.id === id ? { ...c, status: newStatus, effective_status: newStatus } : c));
 
-    try {
-      const clientToken = localStorage.getItem('fb_user_token');
-      const res = await fetch('/api/campaigns', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          id, 
-          status: newStatus,
-          access_token: clientToken 
-        })
-      });
-      
-      const data = await res.json();
-      if (!data.success) {
-        alert("❌ Facebook បដិសេធការប្ដូរ Status:\n\n" + (data.error || "Unknown error"));
-        fetchCampaigns();
-      }
-    } catch (error) {
-      console.error("Error toggling status:", error);
-      alert("❌ មានបញ្ហាតភ្ជាប់ទៅកាន់ Server!");
+  try {
+    const clientToken = localStorage.getItem('fb_user_token');
+    const res = await fetch('/api/campaigns', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        id, 
+        status: newStatus,
+        access_token: clientToken 
+      })
+    });
+    
+    const data = await res.json();
+    if (data.success) {
+      showToast(`✅ បាន${newStatus === 'ACTIVE' ? 'បើក (Active)' : 'បិទ (Paused)'} Campaign ដោយជោគជ័យ!`, "success");
+    } else {
+      alert("❌ Facebook បដិសេធការប្ដូរ Status:\n\n" + (data.error || "Unknown error"));
       fetchCampaigns();
     }
-  };
+  } catch (error) {
+    console.error("Error toggling status:", error);
+    alert("❌ មានបញ្ហាតភ្ជាប់ទៅកាន់ Server!");
+    fetchCampaigns();
+  }
+};
+
+// 🌟 2. មុខងារប្ដូរ Status របស់ Ad ព្រមទាំងមាន Toast ដំណឹងជោគជ័យ
+const handleToggleAdStatus = async (adId: string, currentStatus: string) => {
+  const newStatus = currentStatus === 'ACTIVE' ? 'PAUSED' : 'ACTIVE';
+  
+  // ធ្វើការ Update លើ UI ទុកមុនភ្លាមៗឱ្យរហ័ស
+  setAdsList(prev => prev.map(ad => ad.id === adId ? { ...ad, status: newStatus, effective_status: newStatus } : ad));
+
+  try {
+    const token = localStorage.getItem('fb_user_token');
+
+    const res = await fetch('/api/ads', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        id: adId, 
+        status: newStatus,
+        access_token: token 
+      })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(`✅ បាន${newStatus === 'ACTIVE' ? 'បើក (Active)' : 'បិទ (Paused)'} Ad ដោយជោគជ័យ!`, "success");
+    } else {
+      alert("❌ បរាជ័យក្នុងការប្ដូរ Status របស់ Ad: " + data.error);
+      fetchAds();
+    }
+  } catch (error) {
+    console.error("Error toggling ad status:", error);
+    fetchAds();
+  }
+};
 
 const handleDeleteItem = async (targetId: string, itemName: string) => {
   if (!confirm(`តើបងពិតជាចង់លុប "${itemName || 'ធាតុនេះ'}" នេះមែនទេ?`)) return;
@@ -3368,36 +3406,6 @@ const idOrMatch = (item: any, id: string) => {
 
     } catch (err: any) {
       alert("❌ មានបញ្ហាក្នុងការលុប: " + err.message);
-    }
-  };
-
-  const handleToggleAdStatus = async (adId: string, currentStatus: string) => {
-    const newStatus = currentStatus === 'ACTIVE' ? 'PAUSED' : 'ACTIVE';
-    
-    // ធ្វើការ Update UI ទុកជាមុន (Optimistic Update) ឱ្យវាដូរពណ៌ភ្លាមៗរហ័ស
-    setAdsList(prev => prev.map(ad => ad.id === adId ? { ...ad, status: newStatus, effective_status: newStatus } : ad));
-
-    try {
-      // 🌟 ទាញយក Token ពី localStorage យកមកផ្ញើទៅជាមួយ
-      const token = localStorage.getItem('fb_user_token');
-
-      const res = await fetch('/api/ads', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          id: adId, 
-          status: newStatus,
-          access_token: token // 👈 បញ្ជូន access_token ទៅជាមួយដើម្បីកុំឱ្យ Error Missing Token
-        })
-      });
-      const data = await res.json();
-      if (!data.success) {
-        alert("❌ បរាជ័យក្នុងការប្ដូរ Status របស់ Ad: " + data.error);
-        fetchAds(); // ទាញយកទិន្នន័យដើមមកវិញបើមាន Error
-      }
-    } catch (error) {
-      console.error("Error toggling ad status:", error);
-      fetchAds();
     }
   };
 
@@ -9025,17 +9033,6 @@ const handleOpenDuplicateModal = () => {
                   onChange={(e) => setEditClientEmail(e.target.value)} 
                   required 
                   className={`w-full p-3 rounded-xl border text-sm outline-none font-medium ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-900'}`} 
-                />
-              </div>
-
-              <div>
-                <label className="block font-bold mb-1 text-slate-500 uppercase">លេខសម្ងាត់ (Password)</label>
-                <input 
-                  type="text" 
-                  value={editClientPassword} 
-                  onChange={(e) => setEditClientPassword(e.target.value)} 
-                  required 
-                  className={`w-full p-3 rounded-xl border text-sm outline-none font-bold text-blue-500 ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 text-blue-400' : 'bg-white border-slate-300 text-blue-600'}`} 
                 />
               </div>
 
