@@ -30,10 +30,10 @@ export default function SignUpPage() {
 
       if (authError) throw authError;
 
-      // ២. 🌟 បន្ថែមទិន្នន័យអតិថិជនចូលទៅក្នុងតារាង customer_subscriptions ជាមួយស្ថានភាព Pending (ដើម្បីឱ្យលោតមក Admin CRM ភ្លាម)
+      // ២. 🌟 បន្ថែមទិន្នន័យអតិថិជនចូលទៅក្នុងតារាង customer_subscriptions របស់ Admin ផ្ទាល់
       const today = new Date();
       const expiryDate = new Date();
-      expiryDate.setDate(today.getDate() - 1); // ដាក់ហួសថ្ងៃបន្តិច ដើម្បីចាក់សោរមិនទាន់ឱ្យប្រើប្រាស់រហូតទាល់តែ Admin Approve
+      expiryDate.setDate(today.getDate() - 1); // ដាក់ហួសថ្ងៃបន្តិច ដើម្បីរុញឱ្យរង់ចាំការ Approve ពី Admin
 
       const { error: dbError } = await supabase
         .from('customer_subscriptions')
@@ -41,19 +41,19 @@ export default function SignUpPage() {
           {
             client_name: clientName,
             email: email.trim().toLowerCase(),
-            password: password,
             phone: phone,
             package_name: '១ ខែ (Standard)',
             amount: 5.00,
             start_date: today.toISOString(),
-            expiry_date: expiryDate.toISOString(), // 🔒 ហួសថ្ងៃសិន ដើម្បីឱ្យរុញទៅទំព័រទូទាត់ប្រាក់/រង់ចាំ Approve
+            expiry_date: expiryDate.toISOString(),
             status: 'pending',
-            slip_status: 'pending' // ⏳ រង់ចាំ Admin ពិនិត្យ និង Approve
+            slip_status: 'pending' // ⏳ រង់ចាំ Admin ពិនិត្យ និង Approve ឱ្យលោតលេខរôngចាំ
           }
         ]);
 
       if (dbError) {
-        console.error("Database insert warning:", dbError.message);
+        // បោះ Error មកក្រៅដើម្បីឱ្យលោតពណ៌ក្រហមប្រាប់បងឱ្យដឹងថាខុសអី
+        throw new Error("Supabase Error: " + dbError.message);
       }
 
       setLoading(false);
@@ -169,21 +169,41 @@ export default function SignUpPage() {
       {/* Success Modal */}
       {isSuccessModal && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-          <div className="bg-white p-8 rounded-2xl shadow-2xl flex flex-col items-center max-w-sm w-full mx-4 border border-slate-100 text-center">
-            <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-3xl font-bold mb-4 shadow-inner">
-              ✓
+          <div className="bg-white p-8 rounded-3xl shadow-2xl flex flex-col items-center max-w-md w-full mx-4 border border-slate-100 text-center animate-in fade-in zoom-in-95 duration-200">
+            <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-3xl font-bold mb-4 shadow-inner">
+              ✉️
             </div>
-            <h3 className="text-[18px] font-bold text-slate-800 mb-2">ចុះឈ្មោះជោគជ័យ!</h3>
-            <p className="text-[13px] text-slate-500 leading-relaxed mb-6">
-              គណនីរបស់អ្នកត្រូវបានបង្កើតរួចរាល់ហើយ។ សូមចូលទៅកាន់ប្រព័ន្ធដើម្បីធ្វើការទូទាត់ប្រាក់ និងរង់ចាំការអនុម័តពី Admin។
+            
+            <h3 className="text-[20px] font-black text-slate-800 mb-2">ចុះឈ្មោះជោគជ័យ!</h3>
+            
+            <p className="text-[13.5px] text-slate-600 leading-relaxed mb-6">
+              យើងបានផ្ញើសារបញ្ជាក់ទៅកាន់ <strong className="text-blue-600 font-bold">{email}</strong> ហើយ។<br />
+              <span className="text-orange-600 font-bold block mt-2">
+                សូមពិនិត្យមើលរដ្ឋបាល Gmail របស់អ្នក (Inbox ឬ Spam) ហើយចុចប៊ូតុងបញ្ជាក់ (Confirm) ជាមុនសិន!
+              </span>
             </p>
-            <button
-              type="button"
-              onClick={() => router.push('/login')}
-              className="w-full py-3 rounded-xl bg-[#1877F2] hover:bg-blue-600 text-white font-bold text-[14px] transition shadow-md cursor-pointer"
-            >
-              ចូលគណនី (Login)
-            </button>
+
+            <div className="flex flex-col gap-2.5 w-full">
+              {/* 🌟 ប៊ូតុងរត់ទៅកាន់ Gmail ផ្ទាល់ */}
+              <a
+                href="https://mail.google.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full py-3.5 rounded-xl bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white font-bold text-sm transition shadow-lg shadow-red-500/20 flex items-center justify-center gap-2"
+              >
+                <span>📥</span> <span>បើកចូលទៅកាន់ Gmail (Check Email)</span>
+              </a>
+
+              {/* ប៊ូតុងទៅកាន់ Login វិញ */}
+              <button
+                type="button"
+                onClick={() => router.push('/login')}
+                className="w-full py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition cursor-pointer border border-slate-200"
+              >
+                រួចរាល់ហើយ? ទៅកាន់ទំព័រ Login
+              </button>
+            </div>
+
           </div>
         </div>
       )}

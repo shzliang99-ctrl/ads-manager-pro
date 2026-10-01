@@ -2199,15 +2199,30 @@ export default function Home() {
   const clientRowRefs = useRef<{ [key: string]: HTMLTableRowElement | null }>({});
   const [highlightedClientId, setHighlightedClientId] = useState<string | null>(null);
 
-  const fetchClients = async () => {
-    setLoadingClients(true);
+  const fetchClients = async (isInitialLoad = true) => {
+    if (isInitialLoad) setLoadingClients(true); // លោត Loading តែពេលបើកដំបូងប៉ុណ្ណោះ
     const { data, error } = await supabase
       .from('customer_subscriptions')
       .select('*')
       .order('created_at', { ascending: false });
-    if (!error) setClients(data || []);
-    setLoadingClients(false);
+    if (!error && data) {
+      setClients(data);
+    }
+    if (isInitialLoad) setLoadingClients(false);
   };
+
+  // 🌟 មុខងារ Auto-Fetch៖ ឆែកមើលអតិថិជនថ្មីរៀងរាល់ ៥ វិនាទី ដើម្បីឱ្យលោត Alert និងលេខ (1, 2, 3...) ភ្លាមៗ
+  useEffect(() => {
+    // ហៅទិន្នន័យភ្លាមៗពេលបើកទំព័រ
+    fetchClients(true);
+    
+    // ឆែកទិន្នន័យស្ងាត់ៗជារៀងរាល់ ៥ វិនាទី (៥០០០ មីលីវិនាទី)
+    const interval = setInterval(() => {
+      fetchClients(false); // false = ទាញយកស្ងាត់ៗ មិនបាច់លោតរង្វង់កង Loading
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, []); // ដក [activeTab] ចេញ ដើម្បីឱ្យវាដើរគ្រប់ទំព័រ (ទោះ Admin កំពុងមើល Tab ផ្សេង ក៏វានៅតែលោត Notification ប្រាប់ដែរ)
 
   // 🌟 Auto-Sync ឈ្មោះផេក និង Token ពី Browser ចូលទៅក្នុង Supabase តាមអ៊ីមែលគណនីដែលកំពុង Login (១ ទល់ ១)
   useEffect(() => {
@@ -2291,7 +2306,6 @@ export default function Home() {
     if (!editingClient) return;
 
     try {
-      // 🌟 រៀបចំទិន្នន័យសម្រាប់ Update (ដក Password ចោល ដើម្បីកុំឱ្យវា overwriting លេខសម្ងាត់ចាស់ខុស)
       const updatePayload: any = {
         client_name: editClientName,
         email: editClientEmail,
@@ -2300,7 +2314,9 @@ export default function Home() {
         package_name: editPackageName,
         amount: editAmountPaid ? Number(editAmountPaid) : 0,
         start_date: editStartDate ? new Date(editStartDate).toISOString() : editingClient.start_date,
-        expiry_date: editExpiryDate ? new Date(editExpiryDate).toISOString() : editingClient.expiry_date
+        expiry_date: editExpiryDate ? new Date(editExpiryDate).toISOString() : editingClient.expiry_date,
+        slip_status: 'approved', 
+        status: 'active'
       };
 
       const { error } = await supabase
@@ -2310,9 +2326,13 @@ export default function Home() {
 
       if (error) throw error;
 
+      // 🌟🌟 ថែមបន្ទាត់នេះ 🌟🌟
+      setClients(prev => prev.map(c => c.id === editingClient.id ? { ...c, ...updatePayload } : c));
+
       showToast("✅ បានកែប្រែព័ត៌មានអតិថិជនដោយជោគជ័យ!", "success");
       setIsEditClientModalOpen(false);
       fetchClients(); 
+      
     } catch (err: any) {
       alert("❌ បរាជ័យក្នុងការកែប្រែ: " + err.message);
     }
@@ -2345,17 +2365,26 @@ export default function Home() {
     }
   };
 
-  // 🟢 មុខងារអនុម័ត Slip ទឹកប្រាក់ (Approve Slip)
+ // 🟢 មុខងារអនុម័ត Slip ទឹកប្រាក់ (Approve Slip) និងបំបាត់ Alert
   const handleApproveSlip = async (client: any) => {
+    // បង្ហាញការបញ្ជាក់ (Confirm) មុនពេល Approve ជៀសវាងចុចច្រឡំ
+    if (!confirm(`តើអ្នកពិតជាចង់អនុម័ត (Approve) គណនី ${client.client_name} នេះមែនទេ?`)) return;
+
     try {
       const { error } = await supabase
         .from('customer_subscriptions')
-        .update({ slip_status: 'approved' })
+        .update({ 
+          slip_status: 'approved',
+          status: 'active' // ធ្វើអោយគណនីក្លាយជា Active តែម្តង
+        })
         .eq('id', client.id);
 
       if (error) throw error;
 
-      showToast(`✅ បានអនុម័ត Slip របស់ ${client.client_name} រួចរាល់! ប្រាក់បានបញ្ចូលក្នុងចំណូលសរុប។`, "success");
+      showToast(`✅ បានអនុម័តគណនី ${client.client_name} រួចរាល់!`, "success");
+      
+      // 🌟 សំខាន់បំផុត: ហៅ fetchClients() មកវិញ ដើម្បីអោយវា Refresh ទិន្នន័យ
+      // ពេលនោះវាលែងឃើញ slip_status: 'pending' ទៀតហើយ Alert នឹងបាត់ដោយស្វ័យប្រវត្តិ
       fetchClients(); 
     } catch (err: any) {
       alert("❌ បរាជ័យ: " + err.message);
@@ -4137,7 +4166,7 @@ const handleOpenDuplicateModal = () => {
                       <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-600 border-2 border-white dark:border-[#242526] rounded-full"></span>
                     )}
                   </span> 
-                  <span className="text-[13.5px]">{t.subscriptions}</span>
+                  <span className="text-[13.5px]">គ្រប់គ្រងអតិថិជន</span>
                 </div>
 
                 {pendingSlipsCount > 0 ? (
@@ -5018,10 +5047,8 @@ const handleOpenDuplicateModal = () => {
                                                     try {
                                                       const customAmountEl = document.getElementById('adminCustomAmount') as HTMLInputElement;
                                                       const finalAmount = customAmountEl ? Number(customAmountEl.value) || 0 : (selectedClientSlip.amount || 0);
-
                                                       const updatedHist = records.map((r: any, i: number) => i === idx ? { ...r, amount: finalAmount, status: 'approved' } : r);
-                                                      
-                                                      // បន្ថែមថ្ងៃផុតកំណត់ (+30 ថ្ងៃ) ស្វ័យប្រវត្តិ
+
                                                       const currentExpiry = selectedClientSlip.expiry_date ? new Date(selectedClientSlip.expiry_date) : new Date();
                                                       const baseDate = currentExpiry > new Date() ? currentExpiry : new Date();
                                                       baseDate.setDate(baseDate.getDate() + 30);
@@ -5039,6 +5066,9 @@ const handleOpenDuplicateModal = () => {
                                                         .eq('id', selectedClientSlip.id);
 
                                                       if (error) throw error;
+
+                                                      // 🌟🌟 ថែមបន្ទាត់នេះ ដើម្បីឱ្យលេខ Alert ធ្លាក់ចុះបាត់ភ្លាមៗមួយរំពេច 🌟🌟
+                                                      setClients(prev => prev.map(c => c.id === selectedClientSlip.id ? { ...c, slip_status: 'approved', status: 'active' } : c));
 
                                                       showToast(`✅ បាន Approve ទឹកប្រាក់ $${finalAmount.toFixed(2)} និងបន្តសេវា ៣០ថ្ងៃជោគជ័យ!`, "success");
                                                       setIsSlipModalOpen(false);
@@ -5069,6 +5099,9 @@ const handleOpenDuplicateModal = () => {
                                                         .eq('id', selectedClientSlip.id);
 
                                                       if (error) throw error;
+
+                                                      // 🌟🌟 ថែមបន្ទាត់នេះ ដើម្បីបំបាត់ Alert ពេលចុច Reject 🌟🌟
+                                                      setClients(prev => prev.map(c => c.id === selectedClientSlip.id ? { ...c, slip_status: 'rejected' } : c));
 
                                                       showToast("❌ បាន Reject Slip រួចរាល់!", "error");
                                                       setIsSlipModalOpen(false);

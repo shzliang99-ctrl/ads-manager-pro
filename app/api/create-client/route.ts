@@ -25,10 +25,10 @@ export async function POST(request: Request) {
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: email.trim().toLowerCase(),
       password: password,
-      email_confirm: true // អនុញ្ញាតឱ្យ Login បានភ្លាមៗដោយមិនបាច់ Verify Gmail
+      email_confirm: true // អនុញ្ញាតឱ្យ Login ได้ភ្លាមៗโดยไม่บាច់ Verify Gmail
     });
 
-    // ប្រសិនបើ Email ហ្នឹងមានរួចហើយក្នុង Auth គឺយើងរំលងការបង្កើត Auth ចោល
+    // ប្រសិនបើ Email ហ្នឹងមានរួចហើយក្នុង Auth គឺយើងរំលងการបង្កើត Auth ចោល
     if (authError && !authError.message.includes("already been registered")) {
       return NextResponse.json({ success: false, error: authError.message });
     }
@@ -38,7 +38,7 @@ export async function POST(request: Request) {
     const expiryDate = new Date();
     expiryDate.setDate(startDate.getDate() + Number(durationDays || 30));
 
-    // ៣. ពិនិត្យមើលសិនថាមាន Email នេះក្នុង Database customer_subscriptions ហើយឬยัง
+    // ៣. ពិនិត្យមើលសិនថាមាន Email នេះក្នុង Database customer_subscriptions ហើយឬยัง (លុប password ចออกទាំង Update និង Insert)
     const { data: existingUser } = await supabaseAdmin
       .from('customer_subscriptions')
       .select('id')
@@ -47,10 +47,9 @@ export async function POST(request: Request) {
 
     let dbError;
     if (existingUser) {
-      // បើមានរួចហើយ ធ្វើការ Update ព័ត៌មានថ្មី
+      // បើមានរួចហើយ ធ្វើការ Update ព័ត៌មានថ្មី (គ្មាន password ទេ)
       const { error } = await supabaseAdmin.from('customer_subscriptions').update({
         client_name: clientName || 'No Name',
-        password: password, 
         phone: phone || '',
         linked_fb_page: linkedFbPage || null,
         package_name: packageName || '១ ខែ (Standard)',
@@ -60,11 +59,10 @@ export async function POST(request: Request) {
       }).eq('email', email.trim().toLowerCase());
       dbError = error;
     } else {
-      // បើអត់ទាន់មាន ធ្វើការ Insert ថ្មីចូល Database
+      // បើអត់ទាន់មាន ធ្វើការ Insert ថ្មីចូល Database (គ្មាន password ទេ)
       const { error } = await supabaseAdmin.from('customer_subscriptions').insert([{
         client_name: clientName || 'No Name',
         email: email.trim().toLowerCase(),
-        password: password, 
         phone: phone || '',
         linked_fb_page: linkedFbPage || null,
         package_name: packageName || '១ ខែ (Standard)',
@@ -72,6 +70,7 @@ export async function POST(request: Request) {
         expiry_date: expiryDate.toISOString(),
         amount: Number(amountPaid) || 0,
         status: 'active',
+        slip_status: 'approved'
       }]);
       dbError = error;
     }
