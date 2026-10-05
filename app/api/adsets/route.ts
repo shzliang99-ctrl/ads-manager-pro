@@ -34,28 +34,19 @@ export async function GET(request: Request) {
         const response = await fetch(url, { cache: 'no-store' });
         const data = await response.json();
 
-        if (data.error) {
-          console.warn(`⚠️ Warning for campaign ${campId}:`, data.error.message);
-          continue;
-        }
+        if (data.error) continue;
 
         if (data.data) {
           const processedAdsets = data.data.map((adset: any) => {
             const adsList = adset.ads?.data || [];
-            
-            if (adsList.length === 0) {
-              adset.hasNoAds = true; 
-            }
+            if (adsList.length === 0) adset.hasNoAds = true; 
 
             const hasReviewAd = adsList.some((ad: any) => {
               const adStatus = (ad.effective_status || ad.status || "").toUpperCase();
               return adStatus.includes('REVIEW') || adStatus.includes('PENDING') || adStatus === 'IN_PROCESS';
             });
 
-            if (hasReviewAd) {
-              adset.effective_status = 'PENDING_REVIEW';
-            }
-
+            if (hasReviewAd) adset.effective_status = 'PENDING_REVIEW';
             return adset;
           });
 
@@ -70,26 +61,19 @@ export async function GET(request: Request) {
       const response = await fetch(url, { cache: 'no-store' });
       const data = await response.json();
 
-      if (data.error) {
-        throw new Error(data.error.message);
-      }
+      if (data.error) throw new Error(data.error.message);
 
       const rawAdsets = data.data || [];
       allAdsets = rawAdsets.map((adset: any) => {
         const adsList = adset.ads?.data || [];
-        if (adsList.length === 0) {
-          adset.hasNoAds = true;
-        }
+        if (adsList.length === 0) adset.hasNoAds = true;
 
         const hasReviewAd = adsList.some((ad: any) => {
           const adStatus = (ad.effective_status || ad.status || "").toUpperCase();
           return adStatus.includes('REVIEW') || adStatus.includes('PENDING') || adStatus === 'IN_PROCESS';
         });
 
-        if (hasReviewAd) {
-          adset.effective_status = 'PENDING_REVIEW';
-        }
-
+        if (hasReviewAd) adset.effective_status = 'PENDING_REVIEW';
         return adset;
       });
     } else {
@@ -102,11 +86,11 @@ export async function GET(request: Request) {
   }
 }
 
-// 🌟 មុខងារ POST ឆ្លាតវៃ៖ ដោះស្រាយទាំងកែឈ្មោះ, ម៉ោង និងថវិកា (CBO vs ABO)
+// 🌟 មុខងារ POST ឆ្លាតវៃកម្រិតខ្ពស់ ១០០%៖ Auto-Detect Campaign ID & CBO vs ABO Routing
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { campaignId, adsetId, budget, stopTime, name } = body;
+    let { campaignId, adsetId, budget, stopTime, name } = body;
     const accessToken = getAccessToken(request, body);
 
     if (!campaignId && !adsetId) {
@@ -115,100 +99,111 @@ export async function POST(request: Request) {
 
     let targetAdSetIds = adsetId ? [adsetId] : [];
     if (targetAdSetIds.length === 0 && campaignId) {
-      const adsetRes = await fetch(`https://graph.facebook.com/v18.0/${campaignId}/adsets?fields=id,lifetime_budget&access_token=${accessToken}`);
+      const adsetRes = await fetch(`https://graph.facebook.com/v18.0/${campaignId}/adsets?fields=id&access_token=${accessToken}`);
       const adsetData = await adsetRes.json();
-      if (adsetData.data) {
-        targetAdSetIds = adsetData.data.map((a: any) => a.id);
-      }
+      if (adsetData.data) targetAdSetIds = adsetData.data.map((a: any) => a.id);
     }
 
-    if (targetAdSetIds.length === 0) {
-      throw new Error("No Ad Sets found to update");
-    }
+    if (targetAdSetIds.length === 0) throw new Error("No Ad Sets found to update");
 
-    for (const targetId of targetAdSetIds) {
-      const infoRes = await fetch(`https://graph.facebook.com/v18.0/${targetId}?fields=daily_budget,lifetime_budget,campaign{id,daily_budget,lifetime_budget}&access_token=${accessToken}`);
+    for (const tId of targetAdSetIds) {
+      // 🌟 ១. ទាញយកព័ត៌មាន Ad Set ព្រមទាំង campaign_id ផ្ទាល់ពី Facebook Graph API
+      const infoRes = await fetch(`https://graph.facebook.com/v18.0/${tId}?fields=daily_budget,lifetime_budget,campaign_id&access_token=${accessToken}`);
       const infoData = await infoRes.json();
 
       if (infoData.error) {
         throw new Error(infoData.error.message);
       }
 
-      const adsetPayload: any = { access_token: accessToken };
-      let updateNeeded = false;
+      // យក Campaign ID ដែលជាប់ជាមួយ Ad Set នោះមកប្រើប្រាស់ផ្ទាល់
+      const resolvedCampId = campaignId || infoData.campaign_id;
 
-      // 1. កែប្រែឈ្មោះ (Name)
-      if (name && name.trim() !== "") {
-        adsetPayload.name = name;
-        updateNeeded = true;
+      // 🌟 ២. ឆែកមើលថាតើ Campaign មេប្រើប្រាស់ CBO ដែរឬទេ
+      let isUsingCBO = false;
+      let campLifetime = 0;
+      let campDaily = 0;
+
+      if (resolvedCampId) {
+        const campRes = await fetch(`https://graph.facebook.com/v18.0/${resolvedCampId}?fields=daily_budget,lifetime_budget&access_token=${accessToken}`);
+        const campData = await campRes.json();
+        if (!campData.error) {
+          campDaily = Number(campData.daily_budget || 0);
+          campLifetime = Number(campData.lifetime_budget || 0);
+          if (campDaily > 0 || campLifetime > 0) {
+            isUsingCBO = true;
+          }
+        }
       }
 
-      // 2. កែប្រែពេលវេលា (Stop Time)
+      // 🌟 ៣. Update ឈ្មោះ និង ពេលវេលា (Basic Update)
+      let hasBasicUpdate = false;
+      const basicPayload: any = { access_token: accessToken };
+
+      if (name && name.trim() !== "") {
+        basicPayload.name = name;
+        hasBasicUpdate = true;
+      }
       if (stopTime) {
         const dateObj = new Date(stopTime);
         if (!isNaN(dateObj.getTime())) {
-          adsetPayload.end_time = dateObj.toISOString();
-          updateNeeded = true;
+          basicPayload.end_time = dateObj.toISOString();
+          hasBasicUpdate = true;
         }
       }
 
-      // បាញ់ Update ឈ្មោះ និង ម៉ោង ទៅ Ad Set ផ្ទាល់
-      if (updateNeeded) {
-        const updateRes = await fetch(`https://graph.facebook.com/v18.0/${targetId}`, {
+      if (hasBasicUpdate) {
+        const upRes = await fetch(`https://graph.facebook.com/v18.0/${tId}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(adsetPayload),
+          body: JSON.stringify(basicPayload)
         });
-        const updateData = await updateRes.json();
-        if (updateData.error) {
-          throw new Error(`[AdSet Update Failed]: ${updateData.error.message}`);
-        }
+        const upData = await upRes.json();
+        if (upData.error) throw new Error(`[Update Name/Time Failed]: ${upData.error.message}`);
       }
 
-      // 3. កែប្រែថវិកា (CBO vs ABO Smart Routing)
+      // 🌟 ៤. កែប្រែថវិកា (Smart Routing: CBO vs ABO 100%)
       if (budget !== undefined && budget !== "") {
-        const budgetInCents = Math.round(Number(budget) * 100);
-        const isUsingCBO = !infoData.daily_budget && !infoData.lifetime_budget && infoData.campaign;
+        const budgetCents = Math.round(Number(budget) * 100);
 
-        if (isUsingCBO) {
-          // បើប្រើ CBO គឺបង្វែរថវិកាទៅកែនៅកម្រិត Campaign មេវិញ
-          const campId = infoData.campaign.id;
+        if (isUsingCBO && resolvedCampId) {
+          // 👉 បើជា CBO គឺបង្វែរថវិកាទៅកែនៅកម្រិត Campaign មេភ្លាម
           const campPayload: any = { access_token: accessToken };
+          if (campLifetime > 0) {
+            campPayload.lifetime_budget = budgetCents;
+          } else {
+            campPayload.daily_budget = budgetCents;
+          }
+
+          const cboRes = await fetch(`https://graph.facebook.com/v18.0/${resolvedCampId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(campPayload)
+          });
+          const cboData = await cboRes.json();
+          if (cboData.error) throw new Error(`[CBO Budget Failed]: ${cboData.error.message}`);
           
-          if (infoData.campaign.lifetime_budget) {
-            campPayload.lifetime_budget = budgetInCents;
-          } else {
-            campPayload.daily_budget = budgetInCents;
-          }
-
-          const cboUpdateRes = await fetch(`https://graph.facebook.com/v18.0/${campId}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(campPayload),
-          });
-          const cboUpdateData = await cboUpdateRes.json();
-          if (cboUpdateData.error) throw new Error(`[CBO Budget Update Failed]: ${cboUpdateData.error.message}`);
-
         } else {
-          // បើប្រើ ABO គឺ Update ថវិកាផ្ទាល់លើ Ad Set ហ្នឹង
+          // 👉 បើជា ABO គឺ Update ថវិកាផ្ទាល់លើ Ad Set ហ្នឹង (គាំទ្រទាំង Daily $5)
           const aboPayload: any = { access_token: accessToken };
-          if (infoData.lifetime_budget) {
-            aboPayload.lifetime_budget = budgetInCents;
+          const adsetLifetime = Number(infoData.lifetime_budget || 0);
+
+          if (adsetLifetime > 0) {
+            aboPayload.lifetime_budget = budgetCents;
           } else {
-            aboPayload.daily_budget = budgetInCents;
+            aboPayload.daily_budget = budgetCents;
           }
 
-          const aboUpdateRes = await fetch(`https://graph.facebook.com/v18.0/${targetId}`, {
+          const aboRes = await fetch(`https://graph.facebook.com/v18.0/${tId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(aboPayload),
+            body: JSON.stringify(aboPayload)
           });
-          const aboUpdateData = await aboUpdateRes.json();
-          if (aboUpdateData.error) throw new Error(`[Ad Set Budget Update Failed]: ${aboUpdateData.error.message}`);
+          const aboData = await aboRes.json();
+          if (aboData.error) throw new Error(`[Ad Set Budget Failed]: ${aboData.error.message}`);
         }
       }
     }
-
+    
     return NextResponse.json({ success: true, message: "Ad Set updated successfully" });
   } catch (error: any) {
     console.error("AdSet Update API Error:", error.message);
@@ -222,28 +217,17 @@ export async function PUT(request: Request) {
     const { id, status } = body;
     const accessToken = getAccessToken(request, body);
 
-    if (!accessToken) {
-      throw new Error("Missing Facebook Access Token");
-    }
-
-    if (!id || !status) {
-      throw new Error("Missing Ad Set ID or Status");
-    }
+    if (!accessToken) throw new Error("Missing Facebook Access Token");
+    if (!id || !status) throw new Error("Missing Ad Set ID or Status");
 
     const res = await fetch(`https://graph.facebook.com/v18.0/${id}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        status: status,
-        access_token: accessToken
-      })
+      body: JSON.stringify({ status, access_token: accessToken })
     });
 
     const data = await res.json();
-
-    if (data.error) {
-      throw new Error(data.error.message);
-    }
+    if (data.error) throw new Error(data.error.message);
 
     return NextResponse.json({ success: true, data });
   } catch (error: any) {

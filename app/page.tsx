@@ -7071,20 +7071,42 @@ const handleOpenDuplicateModal = () => {
                                   )}
                                 </td>
 
-                                {/* Delivery */}
+                                {/* Delivery (យកកូដ និង UI ពី Tab Ads មកដាក់ 100% ដូចបងចង់បាន) */}
                                 <td className={`p-3 border-r align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
                                   {(() => {
-                                    const status = (c.effective_status || c.status || "").toUpperCase();
-                                    if (status.includes('REVIEW') || status === 'PENDING_REVIEW' || status === 'IN_PROCESS') {
+                                    // ១. ស្វែងរក Ad ទាំងអស់ដែលស្ថិតក្រោម Campaign នេះ (ទាំងពី API និង State របស់កូដ)
+                                    const innerAds = c.ads?.data || [];
+                                    const stateAds = adsList.filter(ad => String(ad.campaign_id) === String(c.id));
+                                    const allAssociatedAds = [...innerAds, ...stateAds];
+
+                                    // ២. រកមើល Ad ណាមួយដែលមានស្ថានភាព IN_PROCESS ឬ PENDING_REVIEW
+                                    const reviewingAd = allAssociatedAds.find((ad: any) => {
+                                      const adStatus = (ad.effective_status || ad.status || "").toUpperCase();
+                                      return adStatus.includes('REVIEW') || adStatus.includes('PENDING') || adStatus === 'IN_PROCESS';
+                                    });
+
+                                    // ៣. បើមាន Ad កំពុង IN_PROCESS គឺទាញយក Status របស់ Ad នោះមកប្រើផ្ទាល់ បើអត់ទេ យក Status ដើម
+                                    const status = reviewingAd 
+                                      ? (reviewingAd.effective_status || reviewingAd.status || "").toUpperCase() 
+                                      : (c.effective_status || c.status || "").toUpperCase();
+
+                                    // ៤. Copy កូដ Render ពី Tab Ads មកប្រើទាំងស្រុង ១០០% ដើម្បីឱ្យចេញទម្រង់អក្សរនិងពណ៌ដូចគ្នា
+                                    if (status.includes('CAMPAIGN_OFF') || status.includes('CAMPAIGN OFF')) {
+                                      return (
+                                        <span className="flex items-center gap-1.5 font-medium text-slate-400 dark:text-slate-400">
+                                          <span className="w-2 h-2 rounded-full bg-slate-400"></span> Campaign off
+                                        </span>
+                                      );
+                                    } else if (status.includes('REVIEW') || status.includes('PENDING') || status === 'PENDING_REVIEW' || status === 'IN_REVIEW') {
                                       return (
                                         <span className="flex items-center gap-1.5 font-medium text-amber-500">
-                                          <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span> In review
+                                          <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span> PENDING_REVIEW
                                         </span>
                                       );
                                     } else if (status === 'ACTIVE') {
                                       return (
                                         <span className="flex items-center gap-1.5 font-medium text-[#31A24C]">
-                                          <span className="w-2 h-2 rounded-full bg-[#31A24C]"></span> Active
+                                          <span className="w-2 h-2 rounded-full bg-[#31A24C]"></span> ACTIVE
                                         </span>
                                       );
                                     } else if (status === 'PAUSED' || status === 'OFF') {
@@ -7094,6 +7116,7 @@ const handleOpenDuplicateModal = () => {
                                         </span>
                                       );
                                     } else {
+                                      // 🌟 ករណី IN_PROCESS វានឹងរត់ចូលកន្លែងនេះ ហើយចេញជាពណ៌ប្រផេះដូច Tab Ads បេះបិទ
                                       return (
                                         <span className="flex items-center gap-1.5 font-medium text-slate-400">
                                           <span className="w-2 h-2 rounded-full bg-slate-400"></span> {status}
