@@ -5,16 +5,21 @@ export async function POST(request: Request) {
   try {
     const { adName, spend, results, impressions, reach, ctr, cpa } = await request.json();
 
-    // 🔑 ប្រមូលបញ្ជី API Keys ទាំងអស់ (តម្រូវឱ្យឡើងដើមដោយ AIzaSy...)
+    // 🔑 ប្រមូលបញ្ជី API Keys ទាំងអស់ (គាំទ្រទាំងក្បាល AIzaSy និង AQ)
     const apiKeys = [
       { name: 'Gemini Key #1', key: process.env.GEMINI_API_KEY_1 || process.env.GEMINI_API_KEY },
       { name: 'Gemini Key #2', key: process.env.GEMINI_API_KEY_2 },
       { name: 'Gemini Key #3', key: process.env.GEMINI_API_KEY_3 },
       { name: 'Gemini Key #4', key: process.env.GEMINI_API_KEY_4 },
-    ].filter(item => item.key && item.key.startsWith("AIzaSy") && item.key.length > 20);
+      { name: 'Gemini Key #5', key: process.env.GEMINI_API_KEY_5 }, // 👈 បានបន្ថែម Key ទី៥
+    ].filter(item => 
+      item.key && 
+      (item.key.startsWith("AIzaSy") || item.key.startsWith("AQ")) && // 👈 អនុញ្ញាតទាំង AIzaSy និង AQ
+      item.key.length > 20
+    );
 
     if (apiKeys.length === 0) {
-      return NextResponse.json({ success: false, error: "រកមិនឃើញ Gemini API Key ត្រឹមត្រូវ (ត្រូវឡើងដើមដោយ AIzaSy) ក្នុង .env.local ទេ។" }, { status: 500 });
+      return NextResponse.json({ success: false, error: "រកមិនឃើញ Gemini API Key ត្រឹមត្រូវ (ត្រូវឡើងដើមដោយ AIzaSy ឬ AQ) ក្នុង .env.local ទេ។" }, { status: 500 });
     }
 
     const prompt = `
