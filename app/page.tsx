@@ -2543,13 +2543,19 @@ export default function Home() {
     }
   }, []);
 
-  // 🌟 ទាញយកទិន្នន័យថ្មីៗរាល់ពេលប្ដូរ Ad Account ឬប្ដូរថ្ងៃខែ
+  // 🌟 ១. ទាញយកទិន្នន័យ Campaign សម្រាប់តែពេលចូលផ្ទាំង MANAGE ប៉ុណ្ណោះ
   useEffect(() => {
     if (selectedAdAccount && activeTab === "MANAGE") {
       fetchCampaigns();
-      fetchBillingInfo(); // 👈 ថែមបន្ទាត់នេះទីនេះ ដើម្បីឱ្យវាទាញលុយរាល់ពេលប្ដូរ Account
     }
   }, [selectedAdAccount, selectedDatePreset, activeTab]);
+
+  // 🌟 ២. ទាញយកទឹកប្រាក់ជំពាក់ (Billing) ជានិច្ច មិនថាបងស្ថិតនៅផ្ទាំងណាក៏ដោយ (Global)
+  useEffect(() => {
+    if (selectedAdAccount && isFbConnected) {
+      fetchBillingInfo();
+    }
+  }, [selectedAdAccount, isFbConnected]);
 
   // 🌟 1. ទាញយក Posts ដោយមានប្រព័ន្ធ Cache (រក្សាទុកក្នុង localStorage កុំឱ្យទាញញឹកញាប់ពេក)
   useEffect(() => {
@@ -3908,12 +3914,21 @@ const handleOpenDuplicateModal = () => {
         
         {/* ជួរទី១ សម្រាប់ Mobile (Logo និងប៊ូតុង Connect Facebook) */}
         <div className="flex items-center justify-between w-full md:w-auto gap-3">
-          {/* Logo */}
-          <div className="flex items-center gap-3 min-w-0">
+          {/* Logo និង ទឹកប្រាក់ជំពាក់សម្រាប់ Mobile */}
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <div className="w-10 h-10 bg-white rounded-[22.5%] overflow-hidden shadow-sm border border-slate-200 flex items-center justify-center shrink-0">
               <img src="/logo.png" alt="1 Click Boost Logo" className="w-[85%] h-[85%] object-contain pointer-events-none" />
             </div>
             <h1 className="text-sm sm:text-lg font-black text-blue-600 truncate">Ads Manager Pro</h1>
+
+            {/* 🌟 ដាក់កូដនេះនៅទីនេះ៖ បង្ហាញទឹកប្រាក់ជំពាក់សម្រាប់ Mobile App ចំកន្លែងគូសរង្វង់ */}
+            <div className="flex lg:hidden items-center gap-1.5 px-2.5 py-1 rounded-xl border bg-white border-slate-200 text-slate-800 dark:bg-[#242526] dark:border-slate-700 dark:text-slate-200 shadow-xs shrink-0">
+              <span className="text-xs">💳</span>
+              <div className="flex flex-col leading-none">
+                <span className="text-[11px] font-black text-red-500">${billingInfo.balance.toFixed(2)}</span>
+                <span className="text-[8px] text-slate-400">Limit: ${billingInfo.threshold.toFixed(2)}</span>
+              </div>
+            </div>
           </div>
 
           {/* ផ្នែកប៊ូតុង Connect Facebook & Logout */}
@@ -3983,7 +3998,6 @@ const handleOpenDuplicateModal = () => {
               </span>
               <span className="text-[10px] text-slate-400 font-normal">ជំពាក់</span>
             </div>
-            
             <div className="flex items-center gap-1">
               <span className="text-[10.5px] font-bold text-slate-500 dark:text-slate-400">
                 Limit: ${billingInfo.threshold.toFixed(2)}
