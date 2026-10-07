@@ -1489,6 +1489,7 @@ export default function Home() {
   
   const [posts, setPosts] = useState<any[]>([]);
 
+
   // 📥 មុខងារទាញយក Posts ពី Facebook Page មកបង្ហាញក្នុង Modal
   const fetchPagePosts = async (pageIdToFetch: string) => {
     try {
@@ -2058,6 +2059,8 @@ export default function Home() {
       setLoadingCampaigns(false);
     }
   };
+
+  
 
   // 🌟 មុខងារសម្រាប់ចុច Refresh ទិន្នន័យដោយដៃ (Manual Refresh)
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -3936,6 +3939,24 @@ const handleOpenDuplicateModal = () => {
         {/* ជួរទី២ សម្រាប់ Mobile (Ad Account, Date, Lang, Theme - រៀបចំឱ្យស្អាតស្មើគ្នា) */}
         <div className="flex items-center w-full md:w-auto gap-2.5">
           
+          {/* 🌟 ផ្នែកបង្ហាញទឹកប្រាក់ជំពាក់ Facebook ($2.69 & Threshold $10) នៅពីមុខសេវាកម្មនៅសល់ */}
+          <div className={`hidden lg:flex px-3.5 h-[44px] items-center gap-2.5 rounded-xl text-[12px] font-bold border shadow-sm transition-colors ${
+            theme === 'dark' ? 'bg-[#242526] border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-800'
+          }`}>
+            <span className="text-base">💳</span>
+            <div className="flex flex-col leading-tight">
+              {/* លេខ ២.៦៩ ដុល្លារ (ដាក់ឱ្យធំ និងលេចធ្លោ) */}
+              <div className="flex items-center gap-1">
+                <span className="text-[14px] font-black text-red-500">$2.69</span>
+                <span className="text-[10px] text-slate-400 font-normal">ជំពាក់</span>
+              </div>
+              {/* លេខ ១០ ដុល្លារ (ដាក់តូចនៅពីក្រោម ឬកៀនគ្នា) */}
+              <div className="flex items-center gap-1">
+                <span className="text-[10.5px] font-bold text-slate-500 dark:text-slate-400">Limit: $10.00</span>
+              </div>
+            </div>
+          </div>
+
           {/* 🌟 ដាក់កូដ Badge ថ្ងៃផុតកំណត់នៅទីនេះ (ទើបវានៅជាប់ប្រអប់ Ad Account ខាងឆ្វេងដៃ) */}
           {clientExpiryDaysLeft !== null && (
             <div className={`hidden lg:flex px-3.5 h-[44px] items-center gap-1.5 rounded-xl text-[12px] font-bold border shadow-sm transition-colors ${
