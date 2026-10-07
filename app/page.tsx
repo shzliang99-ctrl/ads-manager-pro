@@ -3971,27 +3971,26 @@ const handleOpenDuplicateModal = () => {
         {/* ជួរទី២ សម្រាប់ Mobile (Ad Account, Date, Lang, Theme - រៀបចំឱ្យស្អាតស្មើគ្នា) */}
         <div className="flex items-center w-full md:w-auto gap-2.5">
           
-          {/* 🌟 ផ្នែកបង្ហាញទឹកប្រាក់ជំពាក់ Facebook (Dynamic API) */}
-          <div className={`hidden lg:flex px-3.5 h-[44px] items-center gap-2.5 rounded-xl text-[12px] font-bold border shadow-sm transition-colors ${
-            theme === 'dark' ? 'bg-[#242526] border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-800'
-          }`}>
-            <span className="text-base">💳</span>
-            <div className="flex flex-col leading-tight">
-              {/* បង្ហាញលុយដែលទាញបានពី API ពិតប្រាកដ */}
-              <div className="flex items-center gap-1">
-                <span className="text-[14px] font-black text-red-500">
-                  ${billingInfo.balance.toFixed(2)}
-                </span>
-                <span className="text-[10px] text-slate-400 font-normal">ជំពាក់</span>
-              </div>
-              
-              <div className="flex items-center gap-1">
-                <span className="text-[10.5px] font-bold text-slate-500 dark:text-slate-400">
-                  Limit: ${billingInfo.threshold.toFixed(2)}
-                </span>
-              </div>
+          {/* 🌟 ផ្នែកបង្ហាញទឹកប្រាក់ជំពាក់ Facebook សម្រាប់ Website / Desktop */}
+        <div className={`hidden lg:flex px-3.5 h-[44px] items-center gap-2.5 rounded-xl text-[12px] font-bold border shadow-sm transition-colors ${
+          theme === 'dark' ? 'bg-[#242526] border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-800'
+        }`}>
+          <span className="text-base">💳</span>
+          <div className="flex flex-col leading-tight">
+            <div className="flex items-center gap-1">
+              <span className="text-[14px] font-black text-red-500">
+                ${billingInfo.balance.toFixed(2)}
+              </span>
+              <span className="text-[10px] text-slate-400 font-normal">ជំពាក់</span>
+            </div>
+            
+            <div className="flex items-center gap-1">
+              <span className="text-[10.5px] font-bold text-slate-500 dark:text-slate-400">
+                Limit: ${billingInfo.threshold.toFixed(2)}
+              </span>
             </div>
           </div>
+        </div>
 
           {/* 🌟 ដាក់កូដ Badge ថ្ងៃផុតកំណត់នៅទីនេះ (ទើបវានៅជាប់ប្រអប់ Ad Account ខាងឆ្វេងដៃ) */}
           {clientExpiryDaysLeft !== null && (
