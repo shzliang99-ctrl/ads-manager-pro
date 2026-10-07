@@ -37,6 +37,8 @@ const datePresetOptions = [
 
 export default function Home() {
 
+
+
   const [isMobileSettingsOpen, setIsMobileSettingsOpen] = useState(false);
 
   const [showSettingSubTabs, setShowSettingSubTabs] = useState(false);
@@ -1219,6 +1221,21 @@ export default function Home() {
     }
     return "";
   });
+
+  const [userProfilePic, setUserProfilePic] = useState("");
+  useEffect(() => {
+  const token = localStorage.getItem('fb_user_token');
+  if (!token) return;
+
+  fetch(`https://graph.facebook.com/v18.0/me?fields=id,name,picture&access_token=${token}`)
+    .then(res => res.json())
+    .then(data => {
+      if (data.picture?.data?.url) {
+        setUserProfilePic(data.picture.data.url);
+      }
+    })
+    .catch(err => console.error("Error fetching user profile:", err));
+}, [isFbConnected]);
 
   // 🌟 2. មុខងារពេលចុចប្ដូរ Page ក្នុង Dropdown (ចងចាំទុកអចិន្ត្រៃយ៍ និងរក្សាទុកចូល Supabase តាមអ៊ីមែលអតិថិជន)
   const handlePageSelect = async (pageId: string) => {
@@ -3921,7 +3938,7 @@ const handleOpenDuplicateModal = () => {
             </div>
             <h1 className="text-sm sm:text-lg font-black text-blue-600 truncate">Ads Manager Pro</h1>
 
-            {/* 🌟 ដាក់កូដនេះនៅទីនេះ៖ បង្ហាញទឹកប្រាក់ជំពាក់សម្រាប់ Mobile App ចំកន្លែងគូសរង្វង់ */}
+            {/* ទឹកប្រាក់ជំពាក់សម្រាប់ Mobile App */}
             <div className="flex lg:hidden items-center gap-1.5 px-2.5 py-1 rounded-xl border bg-white border-slate-200 text-slate-800 dark:bg-[#242526] dark:border-slate-700 dark:text-slate-200 shadow-xs shrink-0">
               <span className="text-xs">💳</span>
               <div className="flex flex-col leading-none">
@@ -3931,14 +3948,45 @@ const handleOpenDuplicateModal = () => {
             </div>
           </div>
 
-          {/* ផ្នែកប៊ូតុង Connect Facebook & Logout */}
+          {/* ផ្នែកបង្ហាញប៊ូតុង Connect Facebook និង Profile ទាំងពីរ (User & Page) នៅត្រង់ Header ទីតាំងទី១ */}
           <div className="flex items-center gap-2">
             {isFbConnected ? (
               <div className="flex items-center gap-2">
-                <div className="px-3 py-2 bg-green-500 text-white font-bold rounded-xl flex items-center gap-1.5 text-xs shadow-sm shrink-0 cursor-default">
-                  <span>✅</span> <span className="hidden md:inline">{fbPageName || "Connected"}</span>
-                </div>
+                {/* 🌟 ផ្នែកបង្ហាញរូប Profile ផ្ទាល់ខ្លួន និង Logo Page ធំច្បាស់ល្អ */}
+<div className="px-3.5 py-2 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 font-bold rounded-2xl flex items-center gap-2.5 text-xs shadow-xs shrink-0">
+  
+  <div className="flex items-center -space-x-3 overflow-hidden py-0.5">
+    {/* ១. រូប Profile ផ្ទាល់ខ្លួនរបស់ User */}
+    <div className="relative inline-block" title="User Profile">
+      <img 
+        src={userProfilePic || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&q=80"} 
+        alt="User Profile" 
+        className="w-7 h-7 rounded-full object-cover border-2 border-white dark:border-[#242526] shadow-xs" 
+      />
+    </div>
+
+    {/* ២. រូប Logo របស់ Facebook Page (ពង្រីកទំហំឱ្យធំជាងមុន w-8 h-8 ស្អាតពេញភ្នែក) */}
+    <div className="relative inline-block" title="Facebook Page Logo">
+      {selectedPageData?.picture?.data?.url ? (
+        <img 
+          src={selectedPageData.picture.data.url} 
+          alt="Facebook Page Profile" 
+          className="w-8 h-8 rounded-full object-cover border-2 border-white dark:border-[#242526] shadow-sm" 
+        />
+      ) : (
+        <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-[10px] border-2 border-white dark:border-[#242526]">f</div>
+      )}
+      <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-white"></span>
+    </div>
+  </div>
+
+  {/* ឈ្មោះ Page */}
+  <span className="hidden sm:inline font-bold text-[13px] truncate max-w-[150px] pl-1">
+    {fbPageName || selectedPageData?.name || "Connected"}
+  </span>
+</div>
                 
+                {/* ប៊ូតុង Disconnect */}
                 <button 
                   onClick={async () => {
                     try {
@@ -3967,6 +4015,7 @@ const handleOpenDuplicateModal = () => {
                       ? 'bg-red-950/40 border-red-900/50 text-red-400 hover:bg-red-900/40' 
                       : 'bg-white border-red-200 text-red-600 hover:bg-red-50'
                   }`}
+                  title="ចាកចេញពីការតភ្ជាប់ Facebook"
                 >
                   <span>🚪</span> <span className="hidden sm:inline">Disconnect</span>
                 </button>
@@ -3987,26 +4036,26 @@ const handleOpenDuplicateModal = () => {
         <div className="flex items-center w-full md:w-auto gap-2.5">
           
           {/* 🌟 ផ្នែកបង្ហាញទឹកប្រាក់ជំពាក់ Facebook សម្រាប់ Website / Desktop */}
-        <div className={`hidden lg:flex px-3.5 h-[44px] items-center gap-2.5 rounded-xl text-[12px] font-bold border shadow-sm transition-colors ${
-          theme === 'dark' ? 'bg-[#242526] border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-800'
-        }`}>
-          <span className="text-base">💳</span>
-          <div className="flex flex-col leading-tight">
-            <div className="flex items-center gap-1">
-              <span className="text-[14px] font-black text-red-500">
-                ${billingInfo.balance.toFixed(2)}
-              </span>
-              <span className="text-[10px] text-slate-400 font-normal">ជំពាក់</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <span className="text-[10.5px] font-bold text-slate-500 dark:text-slate-400">
-                Limit: ${billingInfo.threshold.toFixed(2)}
-              </span>
+          <div className={`hidden lg:flex px-3.5 h-[44px] items-center gap-2.5 rounded-xl text-[12px] font-bold border shadow-sm transition-colors ${
+            theme === 'dark' ? 'bg-[#242526] border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-800'
+          }`}>
+            <span className="text-base">💳</span>
+            <div className="flex flex-col leading-tight">
+              <div className="flex items-center gap-1">
+                <span className="text-[14px] font-black text-red-500">
+                  ${billingInfo.balance.toFixed(2)}
+                </span>
+                <span className="text-[10px] text-slate-400 font-normal">ជំពាក់</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-[10.5px] font-bold text-slate-500 dark:text-slate-400">
+                  Limit: ${billingInfo.threshold.toFixed(2)}
+                </span>
+              </div>
             </div>
           </div>
-        </div>
 
-          {/* 🌟 ដាក់កូដ Badge ថ្ងៃផុតកំណត់នៅទីនេះ (ទើបវានៅជាប់ប្រអប់ Ad Account ខាងឆ្វេងដៃ) */}
+          {/* 🌟 ផ្នែក Badge ថ្ងៃផុតកំណត់ */}
           {clientExpiryDaysLeft !== null && (
             <div className={`hidden lg:flex px-3.5 h-[44px] items-center gap-1.5 rounded-xl text-[12px] font-bold border shadow-sm transition-colors ${
               clientExpiryDaysLeft < 0 
@@ -4075,7 +4124,6 @@ const handleOpenDuplicateModal = () => {
           </div>
 
           {/* Date Preset Dropdown */}
-          {/* Date Preset Dropdown */}
           <div className="relative flex-1 md:flex-none">
             <div 
               onClick={() => setIsDateMenuOpen(!isDateMenuOpen)}
@@ -4108,7 +4156,6 @@ const handleOpenDuplicateModal = () => {
                         setIsDateMenuOpen(false);
                         localStorage.setItem("selectedDatePreset", option.value);
                         
-                        // 🌟 ហៅទិន្នន័យ Campaign មកវិញភ្លាមៗតាមថ្ងៃខែថ្មី
                         if (typeof fetchCampaigns === 'function') {
                           fetchCampaigns();
                         }
@@ -4128,7 +4175,7 @@ const handleOpenDuplicateModal = () => {
             )}
           </div>
 
-          {/* Lang & Theme Icons (ប្រអប់តូចៗនៅកៀន) */}
+          {/* Lang & Theme Icons */}
           <div className="flex items-center gap-1.5 shrink-0">
              <button 
                onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} 
