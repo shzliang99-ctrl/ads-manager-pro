@@ -1518,6 +1518,9 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [isSuccessModal, setIsSuccessModal] = useState(false); // 🌟 បន្ថែម State សម្រាប់បង្ហាញផ្ទាំងជោគជ័យ និងប៊ូតុង OK
   
+  // 🌟 State សម្រាប់រក្សាទុកទឹកប្រាក់ជំពាក់ និង Limit របស់ Ad Account នីមួយៗ
+  const [billingInfo, setBillingInfo] = useState({ balance: 0, threshold: 10.00 });
+
   // 1. ប្រកាស State ធម្មតា (ការពារ Next.js Hydration Error)
   const [activeManageTab, setActiveManageTab] = useState("CAMPAIGNS");
   const [selectedAdAccount, setSelectedAdAccount] = useState(() => {
@@ -2060,7 +2063,34 @@ export default function Home() {
     }
   };
 
-  
+  // 🌟 មុខងារទាញយកទិន្នន័យទឹកប្រាក់ជំពាក់ (Outstanding Balance) ពី Facebook API តាម Ad Account នីមួយៗ
+  const fetchBillingInfo = async () => {
+    const token = localStorage.getItem('fb_user_token');
+    const adAccountId = selectedAdAccount || localStorage.getItem('selectedAdAccount');
+
+    if (!token || !adAccountId) return;
+
+    try {
+      const cleanAccountId = String(adAccountId).replace('act_', '');
+      
+      // ទាញយក Field 'balance' ពី Facebook Graph API ផ្ទាល់
+      const fbUrl = `https://graph.facebook.com/v18.0/act_${cleanAccountId}?fields=balance&access_token=${token}`;
+      const res = await fetch(fbUrl);
+      const data = await res.json();
+
+      if (!data.error && data.balance !== undefined) {
+        setBillingInfo(prev => ({
+          ...prev,
+          // Facebook បញ្ជូនមកជាសេន (cents) ដូច្នេះត្រូវចែកនឹង 100 ដើម្បីបានជាដុល្លារ
+          balance: data.balance / 100 
+        }));
+      } else {
+        setBillingInfo(prev => ({ ...prev, balance: 0 }));
+      }
+    } catch (error) {
+      console.error("Fetch Billing Error:", error);
+    }
+  };
 
   // 🌟 មុខងារសម្រាប់ចុច Refresh ទិន្នន័យដោយដៃ (Manual Refresh)
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -2513,9 +2543,11 @@ export default function Home() {
     }
   }, []);
 
+  // 🌟 ទាញយកទិន្នន័យថ្មីៗរាល់ពេលប្ដូរ Ad Account ឬប្ដូរថ្ងៃខែ
   useEffect(() => {
     if (selectedAdAccount && activeTab === "MANAGE") {
       fetchCampaigns();
+      fetchBillingInfo(); // 👈 ថែមបន្ទាត់នេះទីនេះ ដើម្បីឱ្យវាទាញលុយរាល់ពេលប្ដូរ Account
     }
   }, [selectedAdAccount, selectedDatePreset, activeTab]);
 
@@ -3939,20 +3971,24 @@ const handleOpenDuplicateModal = () => {
         {/* ជួរទី២ សម្រាប់ Mobile (Ad Account, Date, Lang, Theme - រៀបចំឱ្យស្អាតស្មើគ្នា) */}
         <div className="flex items-center w-full md:w-auto gap-2.5">
           
-          {/* 🌟 ផ្នែកបង្ហាញទឹកប្រាក់ជំពាក់ Facebook ($2.69 & Threshold $10) នៅពីមុខសេវាកម្មនៅសល់ */}
+          {/* 🌟 ផ្នែកបង្ហាញទឹកប្រាក់ជំពាក់ Facebook (Dynamic API) */}
           <div className={`hidden lg:flex px-3.5 h-[44px] items-center gap-2.5 rounded-xl text-[12px] font-bold border shadow-sm transition-colors ${
             theme === 'dark' ? 'bg-[#242526] border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-800'
           }`}>
             <span className="text-base">💳</span>
             <div className="flex flex-col leading-tight">
-              {/* លេខ ២.៦៩ ដុល្លារ (ដាក់ឱ្យធំ និងលេចធ្លោ) */}
+              {/* បង្ហាញលុយដែលទាញបានពី API ពិតប្រាកដ */}
               <div className="flex items-center gap-1">
-                <span className="text-[14px] font-black text-red-500">$2.69</span>
+                <span className="text-[14px] font-black text-red-500">
+                  ${billingInfo.balance.toFixed(2)}
+                </span>
                 <span className="text-[10px] text-slate-400 font-normal">ជំពាក់</span>
               </div>
-              {/* លេខ ១០ ដុល្លារ (ដាក់តូចនៅពីក្រោម ឬកៀនគ្នា) */}
+              
               <div className="flex items-center gap-1">
-                <span className="text-[10.5px] font-bold text-slate-500 dark:text-slate-400">Limit: $10.00</span>
+                <span className="text-[10.5px] font-bold text-slate-500 dark:text-slate-400">
+                  Limit: ${billingInfo.threshold.toFixed(2)}
+                </span>
               </div>
             </div>
           </div>
