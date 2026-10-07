@@ -3856,8 +3856,9 @@ const handleOpenDuplicateModal = () => {
     const option = datePresetOptions.find(opt => opt.value === selectedDatePreset);
     return option ? option.label : "Select Date";
   };
-
-  const selectedPageData = pages.find(p => p.id === selectedPage);
+  
+  // 🌟 កែសម្រួលកូដនេះ ដើម្បីការពារកុំឱ្យអត់ស្គាល់ Page លើ Mobile
+  const selectedPageData = pages.find(p => String(p.id) === String(selectedPage)) || facebookPages.find(p => String(p.id) === String(selectedPage)) || facebookPages[0];
   // ដោយសារយើងអាច Enter ID ផ្ទាល់ ពេលខ្លះ selectedPostData អាចអត់មានក្នុង posts list ទេ
   const selectedPostData = posts.find(p => p.id === selectedPost);
 
@@ -3953,38 +3954,38 @@ const handleOpenDuplicateModal = () => {
             {isFbConnected ? (
               <div className="flex items-center gap-2">
                 {/* 🌟 ផ្នែកបង្ហាញរូប Profile ផ្ទាល់ខ្លួន និង Logo Page ធំច្បាស់ល្អ */}
-<div className="px-3.5 py-2 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 font-bold rounded-2xl flex items-center gap-2.5 text-xs shadow-xs shrink-0">
-  
-  <div className="flex items-center -space-x-3 overflow-hidden py-0.5">
-    {/* ១. រូប Profile ផ្ទាល់ខ្លួនរបស់ User */}
-    <div className="relative inline-block" title="User Profile">
-      <img 
-        src={userProfilePic || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&q=80"} 
-        alt="User Profile" 
-        className="w-7 h-7 rounded-full object-cover border-2 border-white dark:border-[#242526] shadow-xs" 
-      />
-    </div>
+                <div className="px-3.5 py-2 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 font-bold rounded-2xl flex items-center gap-2.5 text-xs shadow-xs shrink-0">
+                  
+                  <div className="flex items-center -space-x-3 overflow-hidden py-0.5">
+                    {/* ១. រូប Profile ផ្ទាល់ខ្លួនរបស់ User */}
+                    <div className="relative inline-block" title="User Profile">
+                      <img 
+                        src={userProfilePic || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&q=80"} 
+                        alt="User Profile" 
+                        className="w-7 h-7 rounded-full object-cover border-2 border-white dark:border-[#242526] shadow-xs" 
+                      />
+                    </div>
 
-    {/* ២. រូប Logo របស់ Facebook Page (ពង្រីកទំហំឱ្យធំជាងមុន w-8 h-8 ស្អាតពេញភ្នែក) */}
-    <div className="relative inline-block" title="Facebook Page Logo">
-      {selectedPageData?.picture?.data?.url ? (
-        <img 
-          src={selectedPageData.picture.data.url} 
-          alt="Facebook Page Profile" 
-          className="w-8 h-8 rounded-full object-cover border-2 border-white dark:border-[#242526] shadow-sm" 
-        />
-      ) : (
-        <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-[10px] border-2 border-white dark:border-[#242526]">f</div>
-      )}
-      <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-white"></span>
-    </div>
-  </div>
+                    {/* ២. រូប Logo របស់ Facebook Page (ពង្រីកទំហំឱ្យធំជាងមុន w-8 h-8 ស្អាតពេញភ្នែក) */}
+                    <div className="relative inline-block" title="Facebook Page Logo">
+                      {selectedPageData?.picture?.data?.url ? (
+                        <img 
+                          src={selectedPageData.picture.data.url} 
+                          alt="Facebook Page Profile" 
+                          className="w-8 h-8 rounded-full object-cover border-2 border-white dark:border-[#242526] shadow-sm" 
+                        />
+                      ) : (
+                        <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-[10px] border-2 border-white dark:border-[#242526]">f</div>
+                      )}
+                      <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-white"></span>
+                    </div>
+                  </div>
 
-  {/* ឈ្មោះ Page */}
-  <span className="hidden sm:inline font-bold text-[13px] truncate max-w-[150px] pl-1">
-    {fbPageName || selectedPageData?.name || "Connected"}
-  </span>
-</div>
+                  {/* ឈ្មោះ Page */}
+                  <span className="hidden sm:inline font-bold text-[13px] truncate max-w-[150px] pl-1">
+                    {fbPageName || selectedPageData?.name || "Connected"}
+                  </span>
+                </div>
                 
                 {/* ប៊ូតុង Disconnect */}
                 <button 
