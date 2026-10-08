@@ -1,9 +1,4 @@
 import { NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
-
-// ហៅយក Gemini API Key ពី Environment Variables
-const apiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY || "";
-const genAI = new GoogleGenerativeAI(apiKey);
 
 export async function POST(req: Request) {
   try {
@@ -13,12 +8,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: "Missing product description" }, { status: 400 });
     }
 
-    if (!apiKey) {
-      return NextResponse.json({ success: false, error: "Missing GEMINI_API_KEY" }, { status: 500 });
-    }
+    // 🔑 ប្រមូលបញ្ជី API Keys ទាំងអស់
+    const apiKeys = [
+      process.env.GEMINI_API_KEY,
+      process.env.GEMINI_API_KEY_1,
+      process.env.GEMINI_API_KEY_2,
+      process.env.GEMINI_API_KEY_3,
+      process.env.GEMINI_API_KEY_4,
+      process.env.GEMINI_API_KEY_5,
+      process.env.GEMINI_API_KEY_6,
+    ].filter(key => typeof key === 'string' && key.length > 20);
 
-    // 🌟 ប្រើប្រាស់ Model ស្តង់ដារដែលដំណើរការបានរលូនបំផុត
-    const model = genAI.getGenerativeModel({ model: 'gemini-3.5-flash' });
+    if (apiKeys.length === 0) {
+      return NextResponse.json({ success: false, error: "រកមិនឃើញ API Keys ក្នុង .env.local ទេ" }, { status: 500 });
+    }
 
     const prompt = `
     You are an expert Facebook Ads Manager in Cambodia. 
@@ -38,24 +41,49 @@ export async function POST(req: Request) {
     }
     `;
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    let text = response.text();
+    let jsonResult = null;
 
-    // សម្អាត Format ឱ្យចេញមកជា JSON សុទ្ធ ១០០% មិនឱ្យបែក Error ពេល Parse
-    text = text.replace(/```json/gi, '').replace(/```/g, '').trim();
-    const firstBrace = text.indexOf('{');
-    const lastBrace = text.lastIndexOf('}');
-    
-    if (firstBrace !== -1 && lastBrace !== -1) {
-      text = text.substring(firstBrace, lastBrace + 1);
+    // 🔄 បង្វិលហៅ API Key តាមរយៈ REST API ផ្ទាល់
+    for (let i = 0; i < apiKeys.length; i++) {
+      try {
+        const apiKey = apiKeys[i];
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`;
+        
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }]
+          })
+        });
+
+        if (!res.ok) continue;
+
+        const data = await res.json();
+        let textResponse = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+        
+        // សម្អាត JSON
+        textResponse = textResponse.replace(/```json/gi, '').replace(/```/g, '').trim();
+        const firstBrace = textResponse.indexOf('{');
+        const lastBrace = textResponse.lastIndexOf('}');
+        if (firstBrace !== -1 && lastBrace !== -1) {
+          textResponse = textResponse.substring(firstBrace, lastBrace + 1);
+        }
+
+        jsonResult = JSON.parse(textResponse);
+        break; // ជោគជ័យ បញ្ឈប់ការ Loop
+      } catch (err) {
+        continue;
+      }
     }
 
-    const jsonResult = JSON.parse(text);
+    if (!jsonResult) {
+      return NextResponse.json({ success: false, error: "API Keys ទាំងអស់កំពុងជាប់ Limit ឬមិនអាចប្រើបាន។" }, { status: 500 });
+    }
 
     return NextResponse.json({ success: true, result: jsonResult });
+
   } catch (error: any) {
-    console.error("AI Auto-Fill API Error:", error);
     return NextResponse.json({ success: false, error: error.message || "Server Error" }, { status: 500 });
   }
 }

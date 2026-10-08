@@ -1,29 +1,26 @@
 import { NextResponse } from 'next/server';
-import { GoogleGenAI } from '@google/genai';
 
 export async function POST(request: Request) {
   try {
     const { adName, spend, results, impressions, reach, ctr, cpa } = await request.json();
 
-    // 🔑 ប្រមូលបញ្ជី API Keys ទាំងអស់ (គាំទ្រទាំងក្បាល AIzaSy និង AQ)
+    // 🔑 ប្រមូលបញ្ជី API Keys ទាំងអស់
     const apiKeys = [
-      { name: 'Gemini Key #1', key: process.env.GEMINI_API_KEY_1 || process.env.GEMINI_API_KEY },
-      { name: 'Gemini Key #2', key: process.env.GEMINI_API_KEY_2 },
-      { name: 'Gemini Key #3', key: process.env.GEMINI_API_KEY_3 },
-      { name: 'Gemini Key #4', key: process.env.GEMINI_API_KEY_4 },
-      { name: 'Gemini Key #5', key: process.env.GEMINI_API_KEY_5 }, // 👈 បានបន្ថែម Key ទី៥
-    ].filter(item => 
-      item.key && 
-      (item.key.startsWith("AIzaSy") || item.key.startsWith("AQ")) && // 👈 អនុញ្ញាតទាំង AIzaSy និង AQ
-      item.key.length > 20
-    );
+      process.env.GEMINI_API_KEY,
+      process.env.GEMINI_API_KEY_1,
+      process.env.GEMINI_API_KEY_2,
+      process.env.GEMINI_API_KEY_3,
+      process.env.GEMINI_API_KEY_4,
+      process.env.GEMINI_API_KEY_5,
+      process.env.GEMINI_API_KEY_6,
+    ].filter(key => typeof key === 'string' && key.length > 20);
 
     if (apiKeys.length === 0) {
-      return NextResponse.json({ success: false, error: "រកមិនឃើញ Gemini API Key ត្រឹមត្រូវ (ត្រូវឡើងដើមដោយ AIzaSy ឬ AQ) ក្នុង .env.local ទេ។" }, { status: 500 });
+      return NextResponse.json({ success: false, error: "រកមិនឃើញ API Keys ក្នុង .env.local ទេ" }, { status: 500 });
     }
 
     const prompt = `
-      អ្នកគឺជាអ្នកជំនាញខាង Meta Ads Marketing អាជីព។ សូមវិភាគទិន្នន័យ Facebook Ad នេះជាភាសាខ្មែរឱ្យได้ច្បាស់លាស់៖
+      អ្នកគឺជាអ្នកជំនាញខាង Meta Ads Marketing អាជីព។ សូមវិភាគទិន្នន័យ Facebook Ad នេះជាភាសាខ្មែរឱ្យបានច្បាស់លាស់៖
       - ឈ្មោះ Ad: ${adName || 'N/A'}
       - ប្រាក់ចំណាយ (Spend): $${spend || 0}
       - លទ្ធផលឆាត (Results): ${results || 0}
@@ -37,7 +34,7 @@ export async function POST(request: Request) {
       2. "yellow" (ប្រសិនបើលទ្ធផលមធ្យម ធម្មតា)
       3. "red" (ប្រសិនបើខាតលុយ ស៊ីលុយច្រើនគ្មានលទ្ធផល ឬ CTR ទាបពេក)
 
-      សូមឆ្លើយតបមកវិញជាទម្រង់ JSON សុទ្ធសាធ (មិនមាន Markdown formatting ដូចជា \`\`\`json ទេ) តាមទម្រង់ខាងក្រោមនេះ៖
+      សូមឆ្លើយតបមកវិញជាទម្រង់ JSON សុទ្ធសាធ តាមទម្រង់ខាងក្រោមនេះ៖
       {
         "statusColor": "green ឬ yellow ឬ red",
         "title": "ចំណងជើងសង្ខេបជាភាសាខ្មែរ",
@@ -49,47 +46,51 @@ export async function POST(request: Request) {
     let jsonResult = null;
     let usedSource = "";
 
-    // 🔄 វដ្តប្តូរវេនហៅ API Key នីមួយៗ
+    // 🔄 បង្វិលហៅ API Key តាមរយៈ REST API ផ្ទាល់ (មិនបាច់ប្រើ SDK) ធានាថាដើរ 100%
     for (let i = 0; i < apiKeys.length; i++) {
-      const item = apiKeys[i];
       try {
-        console.log(`➡️ កំពុងព្យាយាមហៅ ${item.name}...`);
+        const apiKey = apiKeys[i];
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`;
         
-        const ai = new GoogleGenAI({ apiKey: item.key });
-        const response = await ai.models.generateContent({
-          model: 'gemini-3.5-flash', // 🌟 ប្ដូរមកប្រើ Model ស្តង់ដារជំនាន់ថ្មីដែលមានស្ថេរភាពខ្ពស់
-          contents: prompt,
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }]
+          })
         });
 
-        let textResponse = response.text || "{}";
-        textResponse = textResponse.replace(/```json/g, '').replace(/```/g, '').trim();
-
-        if (textResponse) {
-          jsonResult = JSON.parse(textResponse);
-          usedSource = `✨ ដំណើរការដោយ៖ ${item.name}`;
-          console.log(`✅ ជោគជ័យជាមួយ ${item.name}`);
-          break;
+        if (!res.ok) {
+          console.warn(`⚠️ Key ទី ${i + 1} បរាជ័យ កំពុងបន្តទៅ Key ថ្មី...`);
+          continue; // បើ Error ឱ្យលោតទៅ Key បន្ទាប់
         }
-      } catch (err: any) {
-        console.warn(`⚠️ ${item.name} Error: ${err.message} -> កំពុងប្តូរទៅ Key បន្ទាប់...`);
+
+        const data = await res.json();
+        let textResponse = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+        
+        // សម្អាត JSON
+        textResponse = textResponse.replace(/```json/gi, '').replace(/```/g, '').trim();
+        const firstBrace = textResponse.indexOf('{');
+        const lastBrace = textResponse.lastIndexOf('}');
+        if (firstBrace !== -1 && lastBrace !== -1) {
+          textResponse = textResponse.substring(firstBrace, lastBrace + 1);
+        }
+
+        jsonResult = JSON.parse(textResponse);
+        usedSource = `✨ ដំណើរការដោយ Key ទី ${i + 1}`;
+        break; // ជោគជ័យ បញ្ឈប់ការ Loop
+      } catch (err) {
         continue;
       }
     }
 
     if (!jsonResult) {
-      return NextResponse.json({ success: false, error: "API Keys ទាំងអស់កំពុងជាប់ Limit ឬមិនមាន Key ត្រឹមត្រូវ។" }, { status: 500 });
+      return NextResponse.json({ success: false, error: "API Keys ទាំងអស់កំពុងជាប់ Limit!" }, { status: 500 });
     }
 
-    return NextResponse.json({ 
-      success: true, 
-      audit: { 
-        ...jsonResult, 
-        source: usedSource 
-      } 
-    });
+    return NextResponse.json({ success: true, audit: { ...jsonResult, source: usedSource } });
 
   } catch (error: any) {
-    console.error("AI Audit Error:", error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
