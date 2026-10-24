@@ -2090,19 +2090,25 @@ export default function Home() {
     try {
       const cleanAccountId = String(adAccountId).replace('act_', '');
       
-      // ទាញយក Field 'balance' ពី Facebook Graph API ផ្ទាល់
-      const fbUrl = `https://graph.facebook.com/v18.0/act_${cleanAccountId}?fields=balance&access_token=${token}`;
+      // 🌟 ត្រង់នេះ៖ Facebook ពេលខ្លះສົ່ງ Field 'balance' មកជាចំនួនសេន (Cents) 
+      // ឬក៏ Ad Account របស់បងប្រើប្រាស់រូបិយប័ណ្ណផ្សេង (Currency) ដែលធ្វើឱ្យខុសខ្នាត
+      const fbUrl = `https://graph.facebook.com/v18.0/act_${cleanAccountId}?fields=balance,currency&access_token=${token}`;
       const res = await fetch(fbUrl);
       const data = await res.json();
 
       if (!data.error && data.balance !== undefined) {
+        // បើ data.balance ផ្ញើមកជាសេន (ឧ. 40298  = $402.98) ពេលចែកនឹង 100 វានឹងត្រូវ
+        // ប៉ុន្តែបើគណនីខ្លះវាផ្ញើជាដុល្លារស្រាប់ ហើយយើងទៅចែកនឹង 100 ទៀត វានឹងខុសប្រាកដណាស់!
+        
+        let calculatedBalance = data.balance / 100;
+        
+        // ពិនិត្យមើល Currency របស់ Ad Account ផងដែរ
+        console.log("Account Currency:", data.currency);
+
         setBillingInfo(prev => ({
           ...prev,
-          // Facebook បញ្ជូនមកជាសេន (cents) ដូច្នេះត្រូវចែកនឹង 100 ដើម្បីបានជាដុល្លារ
-          balance: data.balance / 100 
+          balance: calculatedBalance 
         }));
-      } else {
-        setBillingInfo(prev => ({ ...prev, balance: 0 }));
       }
     } catch (error) {
       console.error("Fetch Billing Error:", error);
@@ -7319,9 +7325,10 @@ const handleOpenDuplicateModal = () => {
                                           <div className="text-[11px] text-slate-400 italic">Using ad set budget</div>
                                         )}
                                       </div>
+                                      {/* 🌟 ដក opacity-0 ចេញ ជំនួសដោយ opacity-100 md:opacity-0 ដើម្បីឱ្យវាបង្ហាញជាប់លើ Mobile */}
                                       <button 
                                         onClick={() => setEditingBudgetId(c.id)}
-                                        className="opacity-0 group-hover/budget:opacity-100 transition-opacity p-1 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded cursor-pointer"
+                                        className="opacity-100 md:opacity-0 md:group-hover/budget:opacity-100 transition-opacity p-1 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded cursor-pointer"
                                         title="Quick Edit Budget"
                                       >
                                         ✏️
@@ -7711,73 +7718,73 @@ const handleOpenDuplicateModal = () => {
 
                                 {/* 🌟 Budget (Inline Quick Edit សម្រាប់ Tab Ad Sets) */}
                                 <td className={`p-3 border-r text-right align-middle text-slate-500 relative group/adsetbudget ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-                                  {editingAdSetBudgetId === adset.id ? (
-                                    <div className="flex items-center justify-end gap-1">
-                                      <input 
-                                        type="number" 
-                                        step="0.5"
-                                        defaultValue={adset.daily_budget ? Number(adset.daily_budget)/100 : (adset.lifetime_budget ? Number(adset.lifetime_budget)/100 : 5)}
-                                        id={`adsetInput_${adset.id}`}
-                                        className="w-20 px-2 py-1 text-xs border rounded font-bold text-emerald-500 bg-white dark:bg-[#3A3B3C] outline-none"
-                                        autoFocus
-                                      />
-                                      <button 
-                                        onClick={async () => {
-                                          const val = (document.getElementById(`adsetInput_${adset.id}`) as HTMLInputElement)?.value;
-                                          if (!val) return;
-                                          try {
-                                            const token = localStorage.getItem('fb_user_token');
-                                            const res = await fetch('/api/adsets', {
-                                              method: 'POST',
-                                              headers: { 'Content-Type': 'application/json' },
-                                              body: JSON.stringify({ adsetId: adset.id, budget: val, access_token: token })
-                                            });
-                                            const data = await res.json();
-                                            if (data.success) {
-                                              showToast("✅ បានកែប្រែថវិកា Ad Set ដោយជោគជ័យ!", "success");
-                                              setEditingAdSetBudgetId(null);
-                                              fetchAdsets();
-                                            } else {
-                                              alert("❌ បរាជ័យ: " + data.error);
-                                            }
-                                          } catch(err: any) {
-                                            alert("❌ Error: " + err.message);
-                                          }
-                                        }}
-                                        className="text-white bg-emerald-600 px-1.5 py-1 rounded text-[10px] font-bold cursor-pointer"
-                                      >
-                                        ✓
-                                      </button>
-                                      <button 
-                                        onClick={() => setEditingAdSetBudgetId(null)}
-                                        className="text-slate-500 hover:text-red-500 px-1 text-xs font-bold cursor-pointer"
-                                      >
-                                        ✕
-                                      </button>
-                                    </div>
-                                  ) : (
-                                    <div className="flex items-center justify-end gap-2">
-                                      <div>
-                                        {(() => {
-                                          if (adset.daily_budget) {
-                                            return <div className="font-semibold">${(Number(adset.daily_budget) / 100).toFixed(2)} Daily</div>;
-                                          } else if (adset.lifetime_budget) {
-                                            return <div className="font-semibold">${(Number(adset.lifetime_budget) / 100).toFixed(2)} Lifetime</div>;
+                                {editingAdSetBudgetId === adset.id ? (
+                                  <div className="flex items-center justify-end gap-1">
+                                    <input 
+                                      type="number" 
+                                      step="0.5"
+                                      defaultValue={adset.daily_budget ? Number(adset.daily_budget)/100 : (adset.lifetime_budget ? Number(adset.lifetime_budget)/100 : 5)}
+                                      id={`adsetInput_${adset.id}`}
+                                      className="w-20 px-2 py-1 text-xs border rounded font-bold text-emerald-500 bg-white dark:bg-[#3A3B3C] outline-none"
+                                      autoFocus
+                                    />
+                                    <button 
+                                      onClick={async () => {
+                                        const val = (document.getElementById(`adsetInput_${adset.id}`) as HTMLInputElement)?.value;
+                                        if (!val) return;
+                                        try {
+                                          const token = localStorage.getItem('fb_user_token');
+                                          const res = await fetch('/api/adsets', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ adsetId: adset.id, budget: val, access_token: token })
+                                          });
+                                          const data = await res.json();
+                                          if (data.success) {
+                                            showToast("✅ បានកែប្រែថវិកា Ad Set ដោយជោគជ័យ!", "success");
+                                            setEditingAdSetBudgetId(null);
+                                            fetchAdsets(); 
                                           } else {
-                                            return <div className="text-[11px] text-slate-500 italic">Using campaign budget</div>;
+                                            alert("❌ បរាជ័យ: " + data.error);
                                           }
-                                        })()}
-                                      </div>
-
-                                      <button 
-                                        onClick={() => setEditingAdSetBudgetId(adset.id)}
-                                        className="opacity-0 group-hover/adsetbudget:opacity-100 transition-opacity p-1 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded cursor-pointer"
-                                        title="Quick Edit Budget"
-                                      >
-                                        ✏️
-                                      </button>
+                                        } catch(err: any) {
+                                          alert("❌ Error: " + err.message);
+                                        }
+                                      }}
+                                      className="text-white bg-emerald-600 px-1.5 py-1 rounded text-[10px] font-bold cursor-pointer"
+                                    >
+                                      ✓
+                                    </button>
+                                    <button 
+                                      onClick={() => setEditingAdSetBudgetId(null)}
+                                      className="text-slate-500 hover:text-red-500 px-1 text-xs font-bold cursor-pointer"
+                                    >
+                                      ✕
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center justify-end gap-2">
+                                    <div>
+                                      {(() => {
+                                        if (adset.daily_budget) {
+                                          return <div className="font-semibold">${(Number(adset.daily_budget) / 100).toFixed(2)} Daily</div>;
+                                        } else if (adset.lifetime_budget) {
+                                          return <div className="font-semibold">${(Number(adset.lifetime_budget) / 100).toFixed(2)} Lifetime</div>;
+                                        } else {
+                                          return <div className="text-[11px] text-slate-500 italic">Using campaign budget</div>;
+                                        }
+                                      })()}
                                     </div>
-                                  )}
+                                    {/* 🌟 ដក opacity-0 ចេញ ជំនួសដោយ opacity-100 md:opacity-0 ដើម្បីឱ្យវាបង្ហាញជាប់លើ Mobile */}
+                                    <button 
+                                      onClick={() => setEditingAdSetBudgetId(adset.id)}
+                                      className="opacity-100 md:opacity-0 md:group-hover/adsetbudget:opacity-100 transition-opacity p-1 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded cursor-pointer"
+                                      title="Quick Edit Budget"
+                                    >
+                                      ✏️
+                                    </button>
+                                  </div>
+                                )}
                                 </td>
 
                                 <td className={`p-3 border-r text-right font-bold align-middle ${theme === 'dark' ? 'border-slate-700 text-white' : 'border-slate-200 text-slate-900'}`}>
@@ -7862,6 +7869,44 @@ const handleOpenDuplicateModal = () => {
                           })
                         )}
                       </tbody>
+                      
+                      {/* 🌟 ដាក់កូដ Total Footer Ad Sets ថ្មីនៅទីនេះ */}
+                      <tfoot className={`sticky bottom-0 z-20 font-bold text-[13px] border-t-2 ${theme === 'dark' ? 'bg-[#18191A] border-slate-600 text-white' : 'bg-[#F5F6F8] border-slate-300 text-slate-900'}`}>
+                        <tr>
+                          <td colSpan={4} className="p-3 border-r border-slate-300 dark:border-slate-700">
+                            <div className="flex items-center gap-2">
+                              <span className="bg-indigo-600 text-white text-[11px] px-2 py-0.5 rounded">Results</span>
+                              <span>From {adsetsList.length} ad sets</span>
+                            </div>
+                          </td>
+                          <td className="p-3 border-r text-right border-slate-300 dark:border-slate-700">
+                            {formatNumber(adsetsList.reduce((acc, a) => {
+                              const parentCamp = campaignsList.find(c => c.id === a.campaign_id) || campaignsList[0];
+                              const res = getResults(getInsights(a), parentCamp?.objective || 'OUTCOME_ENGAGEMENT');
+                              return acc + (res !== "-" ? Number(res) : 0);
+                            }, 0))}
+                          </td>
+                          <td className="p-3 border-r text-right border-slate-300 dark:border-slate-700">-</td>
+                          <td className="p-3 border-r text-right border-slate-300 dark:border-slate-700">
+                            {formatCurrency(adsetsList.reduce((acc, a) => acc + Number(a.daily_budget || a.lifetime_budget || 0), 0))}
+                          </td>
+                          <td className="p-3 border-r text-right font-black text-indigo-600 dark:text-indigo-400 border-slate-300 dark:border-slate-700">
+                            {formatCurrency(adsetsList.reduce((acc, a) => acc + (getInsights(a)?.spend ? Number(getInsights(a).spend) : 0), 0) * 100)}
+                          </td>
+                          <td className="p-3 border-r text-right border-slate-300 dark:border-slate-700">
+                            {formatNumber(adsetsList.reduce((acc, a) => acc + Number(getInsights(a)?.impressions || 0), 0))}
+                          </td>
+                          <td className="p-3 border-r text-right border-slate-300 dark:border-slate-700">
+                            {formatNumber(adsetsList.reduce((acc, a) => acc + Number(getInsights(a)?.reach || 0), 0))}
+                          </td>
+                          <td className="p-3 border-r text-right border-slate-300 dark:border-slate-700">-</td>
+                          <td className="p-3 border-r text-right border-slate-300 dark:border-slate-700">-</td>
+                          <td className="p-3 border-r text-right border-slate-300 dark:border-slate-700">-</td>
+                          <td className="p-3 border-r text-right border-slate-300 dark:border-slate-700">-</td>
+                          <td className="p-3">-</td>
+                        </tr>
+                      </tfoot>
+
                     </table>
                   </div>
                 )}
@@ -8371,8 +8416,51 @@ const handleOpenDuplicateModal = () => {
                             })
                           )}
                         </tbody>
-                      </table>
-                    </div>
+                      
+                      {/* 🌟 ដាក់កូដ Total Footer Ads ថ្មីនៅទីនេះ */}
+                      <tfoot className={`sticky bottom-0 z-20 font-bold text-[13px] border-t-2 ${theme === 'dark' ? 'bg-[#18191A] border-slate-600 text-white' : 'bg-[#F5F6F8] border-slate-300 text-slate-900'}`}>
+                        <tr>
+                          <td colSpan={4} className="p-3 border-r border-slate-300 dark:border-slate-700">
+                            <div className="flex items-center gap-2">
+                              <span className="bg-sky-600 text-white text-[11px] px-2 py-0.5 rounded">Results</span>
+                              <span>From {adsList.length} ads</span>
+                            </div>
+                          </td>
+                          <td className="p-3 border-r text-right border-slate-300 dark:border-slate-700">
+                            {formatNumber(adsList.reduce((acc, ad) => {
+                              const ins = ad.insights && ad.insights.data && ad.insights.data.length > 0 ? ad.insights.data[0] : null;
+                              const parentCamp = campaignsList.find(c => c.id === (ad.campaign_id || selectedCampaigns[0])) || campaignsList[0];
+                              const res = getResults(ins, parentCamp?.objective || 'OUTCOME_ENGAGEMENT');
+                              return acc + (res !== "-" ? Number(res) : 0);
+                            }, 0))}
+                          </td>
+                          <td className="p-3 border-r text-right border-slate-300 dark:border-slate-700">-</td>
+                          <td className="p-3 border-r text-center border-slate-300 dark:border-slate-700">-</td>
+                          <td className="p-3 border-r text-right border-slate-300 dark:border-slate-700">-</td>
+                          <td className="p-3 border-r text-right font-black text-sky-600 dark:text-sky-400 border-slate-300 dark:border-slate-700">
+                            {formatCurrency(adsList.reduce((acc, ad) => {
+                              const ins = ad.insights && ad.insights.data && ad.insights.data.length > 0 ? ad.insights.data[0] : null;
+                              return acc + (ins?.spend ? Number(ins.spend) : 0);
+                            }, 0) * 100)}
+                          </td>
+                          <td className="p-3 border-r text-right border-slate-300 dark:border-slate-700">
+                            {formatNumber(adsList.reduce((acc, ad) => {
+                              const ins = ad.insights && ad.insights.data && ad.insights.data.length > 0 ? ad.insights.data[0] : null;
+                              return acc + Number(ins?.impressions || 0);
+                            }, 0))}
+                          </td>
+                          <td className="p-3 border-r text-right border-slate-300 dark:border-slate-700">
+                            {formatNumber(adsList.reduce((acc, ad) => {
+                              const ins = ad.insights && ad.insights.data && ad.insights.data.length > 0 ? ad.insights.data[0] : null;
+                              return acc + Number(ins?.reach || 0);
+                            }, 0))}
+                          </td>
+                          <td className="p-3">-</td>
+                        </tr>
+                      </tfoot>
+
+                    </table>
+                  </div>
                   )}
 
                 </div>
