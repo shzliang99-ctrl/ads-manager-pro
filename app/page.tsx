@@ -5311,7 +5311,7 @@ const handleOpenDuplicateModal = () => {
 
                     <div className="text-xs space-y-1 font-medium text-slate-500 dark:text-slate-400 mb-6">
                       <p>ឈ្មោះគណនី៖ <strong className="text-slate-800 dark:text-white">SENG SOVEASNA</strong></p>
-                      <p>លេខគណនី ABA៖ <strong className="text-blue-600 dark:text-blue-400">000 123 456</strong></p>
+                      <p>លេខគណនី ABA៖ <strong className="text-blue-600 dark:text-blue-400">010 72 30 80</strong></p>
                     </div>
 
                     {/* 🌟 ផ្នែកសម្រាប់ Admin Upload QR Code ថ្មី */}
@@ -7432,9 +7432,12 @@ const handleOpenDuplicateModal = () => {
 
                                       {c.stop_time && (
                                         <button 
-                                          type="button"
-                                          onClick={() => setEditingAdSetEndTimeId(c.id)}
-                                          className="opacity-0 group-hover/campend:opacity-100 transition-opacity p-1 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded cursor-pointer"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setEditingAdSetEndTimeId(c.id);
+                                          }}
+                                          // 👇 កែប្រែបន្ទាត់នេះ
+                                          className="opacity-100 md:opacity-0 md:group-hover/adsetend:opacity-100 transition-opacity p-1 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded cursor-pointer"
                                           title="Quick Edit End Time"
                                         >
                                           ✏️
@@ -7796,7 +7799,7 @@ const handleOpenDuplicateModal = () => {
                                 <td className={`p-3 border-r text-right align-middle ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>{newMsg}</td>
                                 <td className={`p-3 border-r text-[12px] align-middle ${theme === 'dark' ? 'border-slate-700 text-slate-400' : 'border-slate-200 text-slate-600'}`}>{endDate}</td>
                                 <td className={`p-3 border-r text-[12px] capitalize align-middle ${theme === 'dark' ? 'border-slate-700 text-slate-400' : 'border-slate-200 text-slate-600'}`}>{bidStrategy}</td>
-                                {/* 🌟 Ends Column (Inline Quick Edit សម្រាប់ Ad Sets ដែលមានថ្ងៃខែច្បាស់លាស់) */}
+                                {/* 🌟 Ends Column (Inline Quick Edit សម្រាប់ Ad Sets) */}
                                 <td className={`p-3 border-r text-left align-middle text-slate-500 relative group/adsetend ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
                                   {editingAdSetEndTimeId === adset.id ? (
                                     <div className="flex items-center gap-1">
@@ -7804,7 +7807,7 @@ const handleOpenDuplicateModal = () => {
                                         type="datetime-local" 
                                         defaultValue={adset.end_time ? new Date(adset.end_time).toISOString().slice(0, 16) : ''}
                                         id={`adsetEndTimeInput_${adset.id}`}
-                                        className="px-2 py-1 text-xs border rounded font-bold text-emerald-500 bg-white dark:bg-[#3A3B3C] outline-none"
+                                        className="px-2 py-1 text-xs border rounded font-bold text-emerald-500 bg-white dark:bg-[#3A3B3C] outline-none w-[130px]"
                                         autoFocus
                                       />
                                       <button 
@@ -7822,7 +7825,7 @@ const handleOpenDuplicateModal = () => {
                                             if (data.success) {
                                               showToast("✅ បានកែប្រែពេលវេលាបញ្ចប់ដោយជោគជ័យ!", "success");
                                               setEditingAdSetEndTimeId(null);
-                                              fetchAdsets(); // ទាញយកទិន្នន័យ Ad Sets មកបង្ហាញឡើងវិញ
+                                              fetchAdsets(); 
                                             } else {
                                               alert("❌ បរាជ័យ: " + data.error);
                                             }
@@ -7830,7 +7833,7 @@ const handleOpenDuplicateModal = () => {
                                             alert("❌ Error: " + err.message);
                                           }
                                         }}
-                                        className="text-white bg-emerald-600 px-1.5 py-1 rounded text-[10px] font-bold cursor-pointer"
+                                        className="text-white bg-emerald-600 px-1.5 py-1 rounded text-[10px] font-bold cursor-pointer hover:bg-emerald-700 transition"
                                       >
                                         ✓
                                       </button>
@@ -7845,17 +7848,19 @@ const handleOpenDuplicateModal = () => {
                                     <div className="flex items-center justify-between gap-2">
                                       <div>
                                         {adset.end_time ? (
-                                          <span>{new Date(adset.end_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                                          <div className="flex flex-col text-[11px] leading-tight font-medium text-slate-700 dark:text-slate-300">
+                                            <span>{new Date(adset.end_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                                          </div>
                                         ) : (
-                                          <span className="text-slate-500">Ongoing</span>
+                                          <span className="text-slate-500 text-[11px]">Ongoing</span>
                                         )}
                                       </div>
 
-                                      {/* 🌟 បង្ហាញសញ្ញាខ្មៅដៃ เฉพาะករណីដែលមាន end_time (មិនមែន Ongoing) */}
+                                      {/* 🌟 បង្ហាញរូបខ្មៅដៃតែពេលមានថ្ងៃបញ្ចប់ (adset.end_time) ប៉ុណ្ណោះ បើ Ongoing គឺលាក់បាត់ */}
                                       {adset.end_time && (
                                         <button 
                                           onClick={() => setEditingAdSetEndTimeId(adset.id)}
-                                          className="opacity-0 group-hover/adsetend:opacity-100 transition-opacity p-1 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded cursor-pointer"
+                                          className="opacity-100 md:opacity-0 md:group-hover/adsetend:opacity-100 transition-opacity p-1 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded cursor-pointer"
                                           title="Quick Edit End Time"
                                         >
                                           ✏️
@@ -8328,75 +8333,76 @@ const handleOpenDuplicateModal = () => {
 
                                   {/* 🌟 Budget (Inline Quick Edit សម្រាប់ Ad / Ad Set) */}
                                   <td className={`p-3 border-r text-right align-middle text-slate-500 relative group/adsetbudget ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-                                  {editingAdSetBudgetId === ad.id ? (
-                                    <div className="flex items-center justify-end gap-1">
-                                      <input 
-                                        type="number" 
-                                        step="0.5"
-                                        defaultValue={ad.daily_budget ? Number(ad.daily_budget)/100 : (ad.lifetime_budget ? Number(ad.lifetime_budget)/100 : 5)}
-                                        id={`adsetInput_${ad.id}`}
-                                        className="w-20 px-2 py-1 text-xs border rounded font-bold text-emerald-500 bg-white dark:bg-[#3A3B3C] outline-none"
-                                        autoFocus
-                                      />
-                                      <button 
-                                        onClick={async () => {
-                                          const val = (document.getElementById(`adsetInput_${ad.id}`) as HTMLInputElement)?.value;
-                                          if (!val) return;
-                                          try {
-                                            const token = localStorage.getItem('fb_user_token');
-                                            // 🌟 ហៅទៅកាន់ API /api/adsets ព្រោះ Budget ស្ថិតនៅកម្រិត Ad Set
-                                            const res = await fetch('/api/adsets', {
-                                              method: 'POST',
-                                              headers: { 'Content-Type': 'application/json' },
-                                              body: JSON.stringify({ adsetId: ad.adset_id || ad.id, budget: val, access_token: token })
-                                            });
-                                            const data = await res.json();
-                                            if (data.success) {
-                                              showToast("✅ បានកែប្រែថវិកាដោយជោគជ័យ!", "success");
-                                              setEditingAdSetBudgetId(null);
-                                              fetchAds(); // ទាញយកទិន្នន័យ Ads មកបង្ហាញឡើងវិញ
-                                            } else {
-                                              alert("❌ បរាជ័យ: " + data.error);
+                                    {editingAdSetBudgetId === ad.id ? (
+                                      <div className="flex items-center justify-end gap-1">
+                                        <input 
+                                          type="number" 
+                                          step="0.5"
+                                          defaultValue={ad.daily_budget ? Number(ad.daily_budget)/100 : (ad.lifetime_budget ? Number(ad.lifetime_budget)/100 : 5)}
+                                          id={`adsetInput_${ad.id}`}
+                                          className="w-20 px-2 py-1 text-xs border rounded font-bold text-emerald-500 bg-white dark:bg-[#3A3B3C] outline-none"
+                                          autoFocus
+                                        />
+                                        <button 
+                                          onClick={async () => {
+                                            const val = (document.getElementById(`adsetInput_${ad.id}`) as HTMLInputElement)?.value;
+                                            if (!val) return;
+                                            try {
+                                              const token = localStorage.getItem('fb_user_token');
+                                              // 🌟 ហៅទៅកាន់ API /api/adsets ព្រោះ Budget ស្ថិតនៅកម្រិត Ad Set
+                                              const res = await fetch('/api/adsets', {
+                                                method: 'POST',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({ adsetId: ad.adset_id || ad.id, budget: val, access_token: token })
+                                              });
+                                              const data = await res.json();
+                                              if (data.success) {
+                                                showToast("✅ បានកែប្រែថវិកាដោយជោគជ័យ!", "success");
+                                                setEditingAdSetBudgetId(null);
+                                                fetchAds(); // ទាញយកទិន្នន័យ Ads មកបង្ហាញឡើងវិញ
+                                              } else {
+                                                alert("❌ បរាជ័យ: " + data.error);
+                                              }
+                                            } catch(err: any) {
+                                              alert("❌ Error: " + err.message);
                                             }
-                                          } catch(err: any) {
-                                            alert("❌ Error: " + err.message);
-                                          }
-                                        }}
-                                        className="text-white bg-emerald-600 px-1.5 py-1 rounded text-[10px] font-bold cursor-pointer"
-                                      >
-                                        ✓
-                                      </button>
-                                      <button 
-                                        onClick={() => setEditingAdSetBudgetId(null)}
-                                        className="text-slate-500 hover:text-red-500 px-1 text-xs font-bold cursor-pointer"
-                                      >
-                                        ✕
-                                      </button>
-                                    </div>
-                                  ) : (
-                                    <div className="flex items-center justify-end gap-2">
-                                      <div>
-                                        {(() => {
-                                          if (ad.daily_budget) {
-                                            return <div className="font-semibold">${(Number(ad.daily_budget) / 100).toFixed(2)} Daily</div>;
-                                          } else if (ad.lifetime_budget) {
-                                            return <div className="font-semibold">${(Number(ad.lifetime_budget) / 100).toFixed(2)} Lifetime</div>;
-                                          } else {
-                                            return <div className="text-[11px] text-slate-500 italic">Using campaign budget</div>;
-                                          }
-                                        })()}
+                                          }}
+                                          className="text-white bg-emerald-600 px-1.5 py-1 rounded text-[10px] font-bold cursor-pointer"
+                                        >
+                                          ✓
+                                        </button>
+                                        <button 
+                                          onClick={() => setEditingAdSetBudgetId(null)}
+                                          className="text-slate-500 hover:text-red-500 px-1 text-xs font-bold cursor-pointer"
+                                        >
+                                          ✕
+                                        </button>
                                       </div>
+                                    ) : (
+                                      <div className="flex items-center justify-end gap-2">
+                                        <div>
+                                          {(() => {
+                                            if (ad.daily_budget) {
+                                              return <div className="font-semibold">${(Number(ad.daily_budget) / 100).toFixed(2)} Daily</div>;
+                                            } else if (ad.lifetime_budget) {
+                                              return <div className="font-semibold">${(Number(ad.lifetime_budget) / 100).toFixed(2)} Lifetime</div>;
+                                            } else {
+                                              return <div className="text-[11px] text-slate-500 italic">Using campaign budget</div>;
+                                            }
+                                          })()}
+                                        </div>
 
-                                      <button 
-                                        onClick={() => setEditingAdSetBudgetId(ad.id)}
-                                        className="opacity-0 group-hover/adsetbudget:opacity-100 transition-opacity p-1 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded cursor-pointer"
-                                        title="Quick Edit Budget"
-                                      >
-                                        ✏️
-                                      </button>
-                                    </div>
-                                  )}
-                                </td>
+                                        {/* 🌟 ប្រើ opacity-100 md:opacity-0 ដើម្បីឱ្យរូបខ្មៅដៃបង្ហាញជាប់នៅលើ Mobile ជានិច្ច */}
+                                        <button 
+                                          onClick={() => setEditingAdSetBudgetId(ad.id)}
+                                          className="opacity-100 md:opacity-0 md:group-hover/adsetbudget:opacity-100 transition-opacity p-1 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded cursor-pointer"
+                                          title="Quick Edit Budget"
+                                        >
+                                          ✏️
+                                        </button>
+                                      </div>
+                                    )}
+                                  </td>
 
                                   {/* Amount Spent */}
                                   <td className={`p-3 border-r text-right font-bold align-middle ${theme === 'dark' ? 'border-slate-700 text-white' : 'border-slate-200 text-slate-900'}`}>
