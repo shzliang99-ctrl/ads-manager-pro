@@ -687,19 +687,72 @@ export default function Home() {
   // 🌟 State សម្រាប់ເກັບបញ្ជី Facebook Pages របស់អ្នកប្រើប្រាស់
   const [facebookPages, setFacebookPages] = useState<any[]>([]);
 
-  // 🌟 Function សម្រាប់ទាញយក Facebook Pages របស់អ្នកប្រើប្រាស់
+  // 🌟 Function សម្រាប់ទាញយក Facebook Pages គ្រប់ប្រភពទាំងអស់ (Personal + BM + Ad Accounts)
   const fetchFacebookPages = async (token: string) => {
     try {
-      const res = await fetch(`https://graph.facebook.com/v18.0/me/accounts?access_token=${token}`);
-      const data = await res.json();
-      
-      if (data.data) {
-        setFacebookPages(data.data); // ទុកក្នុង state សម្រាប់បង្ហាញក្នុង Dropdown
-      } else {
-        console.error("No pages found or error:", data);
+      let allPages: any[] = [];
+
+      // ១. ទាញពីគណនីផ្ទាល់ខ្លួន (/me/accounts) ដាក់ limit=100
+      const accountsRes = await fetch(`https://graph.facebook.com/v18.0/me/accounts?fields=id,name,picture{url},access_token&limit=100&access_token=${token}`);
+      const accountsData = await accountsRes.json();
+      if (accountsData.data) {
+        allPages = [...allPages, ...accountsData.data];
+      }
+
+      // ២. ទាញពីក្នុង Business Managers (/me/businesses)
+      const bmRes = await fetch(`https://graph.facebook.com/v18.0/me/businesses?limit=100&access_token=${token}`);
+      const bmData = await bmRes.json();
+      if (bmData.data && bmData.data.length > 0) {
+        for (const bm of bmData.data) {
+          // Owned Pages ក្នុង BM
+          const ownedRes = await fetch(`https://graph.facebook.com/v18.0/${bm.id}/owned_pages?fields=id,name,picture{url},access_token&limit=100&access_token=${token}`);
+          const ownedData = await ownedRes.json();
+          if (ownedData.data) allPages = [...allPages, ...ownedData.data];
+
+          // Client Pages ក្នុង BM
+          const clientRes = await fetch(`https://graph.facebook.com/v18.0/${bm.id}/client_pages?fields=id,name,picture{url},access_token&limit=100&access_token=${token}`);
+          const clientData = await clientRes.json();
+          if (clientData.data) allPages = [...allPages, ...clientData.data];
+        }
+      }
+
+      // ៣. ទាញផេកដែលភ្ជាប់ជាមួយ Ad Accounts (promote_pages) ក្រែងលោផេកខ្លះស្ថិតក្នុង BM ផ្សេង
+      const adAccRes = await fetch(`https://graph.facebook.com/v18.0/me/adaccounts?fields=promote_pages{id,name,picture{url},access_token}&limit=50&access_token=${token}`);
+      const adAccData = await adAccRes.json();
+      if (adAccData.data) {
+        for (const acc of adAccData.data) {
+          if (acc.promote_pages && acc.promote_pages.data) {
+            allPages = [...allPages, ...acc.promote_pages.data];
+          }
+        }
+      }
+
+      // ៤. ច្រោះយកតែផេកមិនជាន់គ្នា និងរក្សាទុកផេកណាដែលមាន access_token ពេញលេញ
+      const pageMap = new Map();
+      for (const p of allPages) {
+        if (!p || !p.id) continue;
+        const existing = pageMap.get(p.id);
+        if (!existing || (!existing.access_token && p.access_token)) {
+          pageMap.set(p.id, p);
+        }
+      }
+      const uniquePages = Array.from(pageMap.values());
+
+      if (uniquePages.length > 0) {
+        setFacebookPages(uniquePages);
+        setPages(uniquePages);
+
+        const savedPageId = localStorage.getItem("selectedPage");
+        const targetPage = (savedPageId && uniquePages.find((p: any) => p.id === savedPageId)) || uniquePages[0];
+        if (targetPage) {
+          setSelectedPage(targetPage.id);
+          localStorage.setItem("selectedPage", targetPage.id);
+          setFbPageName(targetPage.name);
+          localStorage.setItem("fbPageName", targetPage.name);
+        }
       }
     } catch (err) {
-      console.error("Error fetching Facebook pages:", err);
+      console.error("Error fetching all Facebook pages:", err);
     }
   };
 
@@ -1001,7 +1054,7 @@ export default function Home() {
     }
   }, [auditResult, isAuditModalOpen]);
 
-  // 🔗 មុខងារ Connect Facebook ដែលบังคับបើកលើ Browser ខាងក្រៅ (Safari / Chrome) សម្រាប់ទូរសព្ទដៃ
+  // 🔗 មុខងារ Connect Facebook (បន្ថែមសិទ្ធិ business_management និងបង្ខំឱ្យរើសផេកឡើងវិញ)
   const handleFacebookConnect = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user || !user.email) {
@@ -1012,51 +1065,21 @@ export default function Home() {
     const appId = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID;
     if (!appId) return alert("❌ រកមិនឃើញ Facebook App ID ទេ!");
     
-    // 🌟 កំណត់ Redirect URI ឱ្យច្បាស់លាស់តាម Origin បច្ចុប្បន្ន
     const redirectUri = encodeURIComponent(`${window.location.origin}/api/auth/facebook/callback`);
-    const scope = 'public_profile,ads_management,ads_read,pages_read_engagement,pages_show_list,pages_manage_ads';
+    // 👇 បន្ថែម business_management ដើម្បីអានផេកក្នុង BM បាន
+    const scope = 'public_profile,ads_management,ads_read,pages_read_engagement,pages_show_list,pages_manage_ads,business_management';
     const safeState = encodeURIComponent(user.email);
     
-    const fbOAuthUrl = `https://www.facebook.com/v18.0/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&scope=${scope}&state=${safeState}&response_type=code`;
+    // 👇 បន្ថែម auth_type=rerequest ដើម្បីឱ្យលោតផ្ទាំងរើសផេកទាំង ១០ ឡើងវិញពេលចុច Connect
+    const fbOAuthUrl = `https://www.facebook.com/v18.0/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&scope=${scope}&state=${safeState}&response_type=code&auth_type=rerequest`;
 
-    // 🌟 បង្ខំឱ្យបើកលោតចេញទៅកាន់ Browser ខាងក្រៅ ( Safari ឬ Chrome លើទូរសព្ទដៃ )
-    // ដើម្បីការពារកុំឱ្យជាប់គាំងក្នុង Facebook In-app Browser
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
     if (isMobile) {
-      // បើកក្នុង Window ថ្មី ឬបង្ខំឱ្យ Redirect ផ្ទាល់
       window.open(fbOAuthUrl, '_system') || (window.location.href = fbOAuthUrl);
     } else {
       window.location.href = fbOAuthUrl;
     }
   };
-
-  // 🌟 មុខងារទាញយក Facebook Pages មកដាក់បង្ហាញក្នុង Dropdown យ៉ាងរលូន
-  useEffect(() => {
-    const token = localStorage.getItem('fb_user_token');
-    if (!token) return;
-
-    fetch(`https://graph.facebook.com/v18.0/me/accounts?fields=id,name,picture,access_token&access_token=${token}`)
-      .then(res => res.json())
-      .then(data => {
-        if (data.data && data.data.length > 0) {
-          setFacebookPages(data.data);
-          setPages(data.data);
-
-          const savedPageId = localStorage.getItem("selectedPage");
-          const targetPage = savedPageId && data.data.find((p: any) => p.id === savedPageId) 
-            ? data.data.find((p: any) => p.id === savedPageId) 
-            : data.data[0];
-
-          if (targetPage) {
-            setSelectedPage(targetPage.id);
-            localStorage.setItem("selectedPage", targetPage.id);
-            setFbPageName(targetPage.name);
-            localStorage.setItem("fbPageName", targetPage.name);
-          }
-        }
-      })
-      .catch(err => console.error("Error fetching pages:", err));
-  }, []); 
 
   // 🌟 មុខងារ AI Auto-Fill វិភាគ និងបំពេញទិន្នន័យទាំង Targeting & Placements ស្វ័យប្រវត្តិ ១០០%
   const handleAiAutoFill = async () => {
@@ -1331,30 +1354,12 @@ export default function Home() {
     }
   }, []);
 
-  // 🌟 Auto-fetch Facebook Pages ស្វ័យប្រវត្តិពេលបើកទំព័រ
+  // 🌟 ទាញយក Facebook Pages ទាំងអស់ដោយស្វ័យប្រវត្តិពេលបើកទំព័រ ឬពេល Connect រួច
   useEffect(() => {
     const token = localStorage.getItem('fb_user_token');
-    if (!token) return;
-
-    // ហៅ Graph API ទាញយក Pages មកផ្ទុកទុកក្នុង State ភ្លាមៗ
-    fetch(`https://graph.facebook.com/v18.0/me/accounts?fields=id,name,picture,access_token&access_token=${token}`)
-      .then(res => res.json())
-      .then(data => {
-        if (data.data && data.data.length > 0) {
-          setFacebookPages(data.data);
-          setPages(data.data);
-
-          // បើគ្មាន Page ណាត្រូវបានជ្រើសរើសទេ យក Page ទី១ ដាក់ជា Default
-          const savedPageId = localStorage.getItem("selectedPage");
-          if (!savedPageId || !data.data.find((p: any) => p.id === savedPageId)) {
-            setSelectedPage(data.data[0].id);
-            localStorage.setItem("selectedPage", data.data[0].id);
-            setFbPageName(data.data[0].name);
-            localStorage.setItem("fbPageName", data.data[0].name);
-          }
-        }
-      })
-      .catch(err => console.error("Error auto-fetching pages:", err));
+    if (token) {
+      fetchFacebookPages(token);
+    }
   }, [isFbConnected]);
 
 
