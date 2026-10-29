@@ -4389,154 +4389,198 @@ const handleOpenDuplicateModal = () => {
           <div className="max-w-[1400px] mx-auto w-full">
             
             {/* ========================================================= */}
-            {/* ផ្ទាំងជំនួយការ AI Copywriter (Dark/Light Mode Supported) */}
+            {/* ផ្ទាំងជំនួយការ AI Copywriter (Gemini Clone UI 100%) */}
             {/* ========================================================= */}
             {activeTab === "AI" && (
-              <div className={`p-6 rounded-xl shadow-sm border w-full max-w-4xl mx-auto my-6 animate-in fade-in zoom-in-95 duration-300 transition-colors ${theme === 'dark' ? 'bg-[#242526] border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-900'}`}>
+              <div className={`flex flex-col w-full h-[calc(100vh-90px)] max-w-5xl mx-auto animate-in fade-in duration-300 ${theme === 'dark' ? 'text-slate-200' : 'text-slate-800'}`}>
                 
-                {/* Header */}
-                <div className={`flex items-center gap-4 mb-6 p-4 rounded-xl border ${theme === 'dark' ? 'bg-gradient-to-r from-indigo-950/40 to-purple-950/40 border-indigo-900/50' : 'bg-gradient-to-r from-indigo-50 to-purple-50 border-indigo-100/50'}`}>
-                  <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center text-white text-2xl shadow-lg shadow-indigo-200/20">✨</div>
-                  <div>
-                    <h2 className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>AI Copywriting Generator</h2>
-                    <p className={`text-sm mt-1 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>បង្កើតអត្ថបទលក់ប្រកបដោយភាពច្នៃប្រឌិតជាមួយ AI</p>
-                  </div>
-                </div>
-
-                {/* ប្រអប់បញ្ចូលអត្ថបទ និង ប៊ូតុង Upload រូបភាព/វីដេអូ */}
-                <div className="mb-6">
-                  <label className={`block text-[14px] font-bold mb-2 ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`}>តើអ្នកចង់លក់ផលិតផល ឬសេវាកម្មអ្វី?</label>
-                  <div className={`relative rounded-xl border transition-all shadow-sm ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-600 focus-within:border-indigo-400' : 'bg-white border-slate-300 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-100'}`}>
-                    <textarea
-                      value={aiInput}
-                      onChange={(e) => setAiInput(e.target.value)}
-                      placeholder={`ឧ. ចង់សរសេរអត្ថបទលក់ខោអាវ, ស្បែកជើង... (អ្នកអាចបញ្ចូលរូបភាព/វីដេអូ)
-      ឈ្មោះហាង Mario
-      phone 0967205522
-      សូម Hashtag ចំនួន 5`}
-                      className={`w-full p-4 min-h-[190px] text-[14.5px] outline-none resize-y pb-16 bg-transparent leading-relaxed ${theme === 'dark' ? 'text-white placeholder:text-slate-500' : 'text-slate-800 placeholder:text-slate-400'}`}
-                    ></textarea>
+                {aiResults.length === 0 && !aiLoading ? (
+                  /* 🌟 ១. ទំព័រចាប់ផ្តើម (Initial State - ដូចរូបទី១) */
+                  <div className="flex flex-col items-center justify-center flex-1 w-full px-4 mt-10 sm:mt-20">
+                    <h1 className="text-3xl sm:text-[40px] mb-10 font-medium text-transparent bg-clip-text bg-gradient-to-r from-blue-500 via-purple-500 to-rose-500 tracking-tight text-center">
+                      តើអ្នកចង់ចាប់ផ្តើមពីចំណុចណា?
+                    </h1>
                     
-                    {/* Toolbar ខាងក្រោមប្រអប់ Text */}
-                    <div className={`absolute bottom-2 left-2 right-2 flex items-center justify-between backdrop-blur-sm pt-2 px-3 pb-2 border-t ${theme === 'dark' ? 'bg-[#242526]/95 border-slate-700' : 'bg-white/95 border-slate-100'}`}>
-                      <div className="flex items-center gap-3">
-                        {/* ប៊ូតុង Upload រូបភាព/វីដេអូ */}
-                        <label className={`cursor-pointer flex items-center justify-center w-9 h-9 rounded-full transition-colors shadow-sm border ${theme === 'dark' ? 'bg-slate-700 hover:bg-slate-600 text-slate-300 border-slate-600' : 'bg-slate-100 hover:bg-slate-200 text-slate-600 border-slate-200'}`} title="បញ្ចូលរូបថត ឬវីដេអូ">
-                          <input type="file" accept="image/*,video/*" className="hidden" onChange={handleAiMediaChange} />
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path></svg>
-                        </label>
-                        
-                        {/* រូបភាពបង្ហាញជាមុន (Preview Thumbnail) */}
+                    {/* ប្រអប់ Input កណ្តាល */}
+                    <div className={`w-full max-w-3xl relative flex items-end p-2 rounded-[28px] transition-all border ${theme === 'dark' ? 'bg-[#1E1F20] border-slate-700' : 'bg-[#F0F4F9] border-transparent focus-within:bg-white focus-within:shadow-md'}`}>
+                      <label className={`cursor-pointer p-3 rounded-full transition-colors mb-0.5 ${theme === 'dark' ? 'hover:bg-white/10 text-slate-300' : 'hover:bg-black/5 text-slate-600'}`} title="Upload image/video">
+                        <input type="file" accept="image/*,video/*" className="hidden" onChange={handleAiMediaChange} />
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 5V19M5 12H19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                      </label>
+                      
+                      <div className="flex-1 flex flex-col py-3 px-2">
                         {aiMediaPreview && (
-                          <div className="relative group animate-in zoom-in duration-200">
+                          <div className="relative mb-3 w-fit animate-in zoom-in duration-200">
                             {aiMedia?.type.startsWith('video') ? (
-                              <video src={aiMediaPreview} className="w-10 h-10 object-cover rounded border border-slate-500 shadow-sm" />
+                              <video src={aiMediaPreview} className="h-14 w-14 object-cover rounded-xl border shadow-sm" />
                             ) : (
-                              <img src={aiMediaPreview} alt="Preview" className="w-10 h-10 object-cover rounded border border-slate-500 shadow-sm" />
+                              <img src={aiMediaPreview} alt="Preview" className="h-14 w-14 object-cover rounded-xl border shadow-sm" />
                             )}
-                            <button onClick={removeAiMedia} className="absolute -top-1.5 -right-1.5 bg-red-500 text-white w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold hover:bg-red-600 shadow-md">✕</button>
+                            <button onClick={removeAiMedia} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow">✕</button>
                           </div>
                         )}
+                        <textarea
+                          value={aiInput}
+                          onChange={(e) => setAiInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                              e.preventDefault();
+                              generateAiCopy();
+                            }
+                          }}
+                          placeholder="សរសេរសំណួរ ឬបញ្ចូលព័ត៌មានផលិតផលរបស់អ្នកទីនេះ..."
+                          className="w-full bg-transparent border-none outline-none text-[16px] resize-none max-h-[150px] overflow-y-auto custom-scrollbar placeholder-slate-500"
+                          rows={aiInput.split('\n').length > 1 ? Math.min(aiInput.split('\n').length, 5) : 1}
+                        />
                       </div>
-                      
-                      {/* ប៊ូតុង Generate */}
-                      <button 
-                        type="button"
-                        onClick={generateAiCopy}
-                        disabled={!aiInput.trim() || aiLoading}
-                        className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold py-2.5 px-6 rounded-lg text-[13.5px] shadow-md shadow-indigo-200/20 flex items-center gap-2 transition-transform hover:scale-[1.02] active:scale-95 cursor-pointer disabled:opacity-50"
-                      >
-                        {aiLoading ? (
-                          <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> កំពុងបង្កើត...</>
+
+                      <div className="p-2 mb-0.5">
+                        {aiInput.trim() || aiMedia ? (
+                          <button onClick={generateAiCopy} className="p-2.5 rounded-full bg-blue-600 text-white hover:bg-blue-700 transition-colors cursor-pointer">
+                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="transform rotate-90"><path d="M22 2L11 13M22 2L15 22L11 13M11 13L2 9L22 2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                          </button>
                         ) : (
-                          <>⚡ បង្កើតអត្ថបទ</>
+                          <button className={`p-3 rounded-full transition-colors ${theme === 'dark' ? 'hover:bg-white/10 text-slate-300' : 'hover:bg-black/5 text-slate-600'}`}>
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2a3 3 0 00-3 3v7a3 3 0 006 0V5a3 3 0 00-3-3z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                          </button>
                         )}
-                      </button>
+                      </div>
+                    </div>
+
+                    {/* គំរូសំណួរ (Suggestions) */}
+                    <div className="mt-10 w-full max-w-3xl grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {[
+                        { icon: "✨", text: "សរសេរអត្ថបទផ្សាយលក់ស្បែកជើងម៉ូដថ្មី" },
+                        { icon: "🎁", text: "ខ្លឹមសារបញ្ចុះតម្លៃពិសេសសម្រាប់អតិថិជនចាស់" },
+                        { icon: "⭐", text: "បង្កើតអត្ថបទផ្សាយលក់បែប Review ពីអតិថិជន" },
+                        { icon: "🎬", text: "សរសេរ Caption ខ្លីៗសម្រាប់ Reels/TikTok" }
+                      ].map((item, idx) => (
+                        <button key={idx} onClick={() => setAiInput(item.text)} className={`flex items-center gap-3 p-3.5 rounded-2xl transition-colors text-left text-[14px] font-medium cursor-pointer ${theme === 'dark' ? 'hover:bg-[#1E1F20] text-slate-300' : 'hover:bg-[#F0F4F9] text-slate-700'}`}>
+                           <span className="text-xl opacity-80">{item.icon}</span> {item.text}
+                        </button>
+                      ))}
                     </div>
                   </div>
-                </div>
-
-                {/* Quick Prompts (គំរូសំណួរតូចៗសម្រាប់ចុចយកលឿន) */}
-                <div className={`border rounded-xl p-4 shadow-inner mt-4 ${theme === 'dark' ? 'bg-[#3A3B3C] border-slate-700' : 'bg-[#F8FAFC] border-slate-200'}`}>
-                  <h3 className={`text-[13px] font-bold mb-3 flex items-center gap-2 ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`}>
-                    <span className="text-amber-500">💡</span> គំរូសំណួរ (ចុចដើម្បីប្រើប្រាស់លឿន):
-                  </h3>
-                  
-                  <div className="flex flex-wrap gap-2">
-                    {[
-                      { label: "👟 សរសេរអត្ថបទផ្សាយលក់ស្បែកជើងថ្មី...", text: "ជួយសរសេរអត្ថបទផ្សាយលក់ស្បែកជើងម៉ូដថ្មី ឱ្យទាក់ទាញខ្លាំង និងជំរុញឱ្យអតិថិជនឆាតមកសួរតម្លៃភ្លាមៗ។", color: theme === 'dark' ? "text-blue-300 bg-blue-950/50 border-blue-800 hover:bg-blue-900/50" : "text-blue-700 bg-blue-50 border-blue-200 hover:bg-blue-100" },
-                      { label: "💎 ប្រូម៉ូសិនពិសេសសម្រាប់អតិថិជនចាស់...", text: "ជួយសរសេរខ្លឹមសារបញ្ចុះតម្លៃពិសេសសម្រាប់អតិថិជនចាស់ ដែលធ្លាប់គាំទ្រហាងយើងផ្ទាល់ខ្លួន។", color: theme === 'dark' ? "text-blue-300 bg-blue-950/50 border-blue-800 hover:bg-blue-900/50" : "text-blue-700 bg-blue-50 border-blue-200 hover:bg-blue-100" },
-                      { label: "⭐ អត្ថបទ Review ពីអតិថិជនពិត...", text: "បង្កើតអត្ថបទផ្សាយលក់បែប Review ពីអតិថិជនដែលធ្លាប់បានទិញយកទៅពាក់រួច ឱ្យមានភាពគួរឱ្យទុកចិត្តខ្ពស់។", color: theme === 'dark' ? "text-blue-300 bg-blue-950/50 border-blue-800 hover:bg-blue-900/50" : "text-blue-700 bg-blue-50 border-blue-200 hover:bg-blue-100" },
-                      { label: "🎬 Caption ខ្លីៗសម្រាប់ Reels/TikTok...", text: "សរសេរអត្ថបទខ្លីៗ ចាប់អារម្មណ៍ខ្លាំង សម្រាប់យកទៅរៀបចំជា Caption ភ្ជាប់ជាមួយវីដេអូខ្លីៗ (Reels/TikTok)។", color: theme === 'dark' ? "text-purple-300 bg-purple-950/50 border-purple-800 hover:bg-purple-900/50" : "text-purple-700 bg-purple-50 border-purple-200 hover:bg-purple-100" },
-                      { label: "សរសេរអត្ថបទផ្សាយលក់ផលិតផល...", text: "ជួយសរសេរអត្ថបទផ្សាយលក់ផលិតផលឱ្យទាក់ទាញ និងមានអ្នកខំមិនទិញច្រើន។", color: theme === 'dark' ? "text-slate-300 bg-slate-800 border-slate-700 hover:bg-slate-700" : "text-slate-700 bg-slate-50 border-slate-200 hover:bg-slate-100" },
-                      { label: "បង្កើតចំណងជើង (Headline) ខ្លីៗ ញាក់ៗ...", text: "បង្កើតចំណងជើង (Headline) ខ្លីៗ ញាក់ៗ សម្រាប់ជម្រុញការលក់លើ Facebook Page ។", color: theme === 'dark' ? "text-slate-300 bg-slate-800 border-slate-700 hover:bg-slate-700" : "text-slate-700 bg-slate-50 border-slate-200 hover:bg-slate-100" },
-                      { label: "សរសេរប្រូម៉ូសិនបញ្ចុះតម្លៃ ៥០%...", text: "សរសេរអត្ថបទប្រូម៉ូសិនបញ្ចុះតម្លៃ ៥០% សម្រាប់ថ្ងៃបុណ្យខាងមុខនេះ។", color: theme === 'dark' ? "text-emerald-300 bg-emerald-950/50 border-emerald-800 hover:bg-emerald-900/50" : "text-emerald-700 bg-emerald-50 border-emerald-200 hover:bg-emerald-100" },
-                      { label: "ពន្យល់ពីគុណភាព កាត់បន្ថយការសង្ស័យ...", text: "សរសេរអត្ថបទពន្យល់ពីគុណភាពផលិតផល ដើម្បីកាត់បន្ថយការសង្ស័យរបស់អតិថិជន។", color: theme === 'dark' ? "text-emerald-300 bg-emerald-950/50 border-emerald-800 hover:bg-emerald-900/50" : "text-emerald-700 bg-emerald-50 border-emerald-200 hover:bg-emerald-100" },
-                      { label: "ឆ្លើយតបពេលអតិថិជនថាផលិតផលថ្លៃ...", text: "តើគួរឆ្លើយតបយ៉ាងណាពេលអតិថិជនថា ផលិតផលយើងថ្លៃជាងគេ? ជួយសរសេរមក។", color: theme === 'dark' ? "text-emerald-300 bg-emerald-950/50 border-emerald-800 hover:bg-emerald-900/50" : "text-emerald-700 bg-emerald-50 border-emerald-200 hover:bg-emerald-100" },
-                      { label: "អត្ថបទធានាគុណភាព (Warranty)...", text: "សរសេរអត្ថបទធានាគុណភាព (Warranty/Guarantee) ដើម្បីឱ្យអតិថិជនមានទំនុកចិត្តទិញ។", color: theme === 'dark' ? "text-emerald-300 bg-emerald-950/50 border-emerald-800 hover:bg-emerald-900/50" : "text-emerald-700 bg-emerald-50 border-emerald-200 hover:bg-emerald-100" },
-                      { label: "បង្កើតគំនិត Content រយៈពេល ៧ថ្ងៃ...", text: "បង្កើតគំនិតខ្លឹមសារ (Content Ideas) រយៈពេល ៧ថ្ងៃសម្រាប់ផេកលក់ផលិតផល។", color: theme === 'dark' ? "text-purple-300 bg-purple-950/50 border-purple-800 hover:bg-purple-900/50" : "text-purple-700 bg-purple-50 border-purple-200 hover:bg-purple-100" },
-                      { label: "សរសេររឿងរ៉ាវ (Storytelling)...", text: "សរសេររឿងរ៉ាវ (Storytelling) ពីរបៀបដែលផលិតផលយើងអាចជួយដោះស្រាយបញ្ហារបស់អតិថិជន។", color: theme === 'dark' ? "text-purple-300 bg-purple-950/50 border-purple-800 hover:bg-purple-900/50" : "text-purple-700 bg-purple-50 border-purple-200 hover:bg-purple-100" }
-                    ].map((prompt, idx) => (
-                      <button 
-                        key={idx} 
-                        type="button"
-                        onClick={() => {
-                          setAiInput(prompt.text);
-                        }}
-                        className={`border text-[12px] px-3 py-1.5 rounded-full transition-colors text-left max-w-full truncate shadow-sm cursor-pointer ${prompt.color}`}
-                        title={prompt.text}
-                      >
-                        {prompt.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* AI Results Display ជាមួយនឹងប៊ូតុង Save & Use for Ads */}
-                {aiResults.length > 0 && (
-                  <div className="mt-8 space-y-4 animate-in slide-in-from-top-4 duration-300">
-                    <h3 className={`font-bold text-[15px] border-b pb-2 ${theme === 'dark' ? 'text-white border-slate-700' : 'text-slate-800 border-slate-200'}`}>
-                      ជម្រើសអត្ថបទដែល AI បានបង្កើត៖
-                    </h3>
-                    {aiResults.map((res, idx) => (
-                      <div key={idx} className={`border p-5 rounded-xl shadow-sm hover:shadow-md transition relative group ${theme === 'dark' ? 'bg-[#3A3B3C] border-indigo-900/50 text-white' : 'bg-[#F8F9FE] border-indigo-100 text-slate-800'}`}>
-                        <p className="text-[14px] leading-relaxed pr-8 whitespace-pre-wrap mb-4">{res}</p>
-                        
-                        {/* 🌟 Toolbar ក្រោមអត្ថបទនីមួយៗ (Copy & Save & Use for Ads) */}
-                        <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-indigo-100/50 dark:border-slate-600">
-                          <button 
-                            type="button"
-                            onClick={() => { 
-                              navigator.clipboard.writeText(res); 
-                              showToast("✅ បានចម្លងអត្ថបទ (Copied!)", "success"); 
-                            }} 
-                            className={`px-3 py-1.5 border rounded-lg text-xs font-bold transition shadow-xs cursor-pointer flex items-center gap-1 ${theme === 'dark' ? 'bg-[#242526] border-slate-600 text-slate-300 hover:bg-slate-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
-                          >
-                            <span>📋</span> Copy
-                          </button>
-
-                          <button 
-                            type="button"
-                            onClick={() => {
-                              // ១. រក្សាទុកអត្ថបទនេះចូលក្នុង localStorage សម្រាប់ឱ្យផ្ទាំង Create Campaign អានយកទៅប្រើ
-                              localStorage.setItem("selected_ai_ad_copy", res);
-                              // ២. ប្ដូរ Tab ទៅកាន់ CREATE ស្វ័យប្រវត្តិ
-                              setActiveTab("CREATE");
-                              if (typeof window !== "undefined") {
-                                localStorage.setItem("activeTab", "CREATE");
-                              }
-                              showToast("🚀 បានរក្សាទុក និងផ្ដល់ជូនផ្ទាំង Create Campaign រួចរាល់!", "success");
-                            }}
-                            className="px-4 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg text-xs font-bold shadow-sm transition flex items-center gap-1.5 cursor-pointer"
-                          >
-                            <span>💾</span> Save & Use for Ads ➔
-                          </button>
+                ) : (
+                  /* 🌟 ២. ទំព័រសន្ទនា (Chat State - ដូចរូបទី២) */
+                  <>
+                    <div className="flex-1 overflow-y-auto p-4 sm:px-8 pt-8 custom-scrollbar flex flex-col gap-8">
+                      {/* សំណួររបស់ User */}
+                      <div className="flex justify-end w-full">
+                        <div className={`px-5 py-3.5 rounded-3xl rounded-tr-sm max-w-[85%] sm:max-w-[75%] text-[15px] leading-relaxed shadow-sm ${theme === 'dark' ? 'bg-[#3A3B3C] text-white' : 'bg-[#F0F4F9] text-[#050505]'}`}>
+                          {aiMediaPreview && (
+                            <img src={aiMediaPreview} className="max-w-[250px] max-h-[250px] object-cover rounded-xl mb-3 border shadow-sm" alt="Uploaded" />
+                          )}
+                          {aiInput || "ជួយសរសេរអត្ថបទលក់ផលិតផលក្នុងរូបភាពនេះឱ្យបានទាក់ទាញបំផុត"}
                         </div>
                       </div>
-                    ))}
-                  </div>
-                )}
 
+                      {/* ចម្លើយរបស់ AI (Loading State) */}
+                      {aiLoading && (
+                        <div className="flex items-start gap-4">
+                          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 via-purple-500 to-rose-500 flex items-center justify-center text-white shrink-0 animate-spin shadow-md">
+                            ✨
+                          </div>
+                          <div className="flex flex-col gap-3 w-full max-w-2xl pt-1">
+                            <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded-md w-3/4 animate-pulse"></div>
+                            <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded-md w-1/2 animate-pulse"></div>
+                            <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded-md w-5/6 animate-pulse"></div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* ចម្លើយរបស់ AI (Results) */}
+                      {!aiLoading && aiResults.map((res, idx) => (
+                        <div key={idx} className="flex items-start gap-4 animate-in slide-in-from-bottom-2 duration-300">
+                          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 via-purple-500 to-rose-500 flex items-center justify-center text-white shrink-0 shadow-md">
+                            ✨
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className={`text-[15px] leading-relaxed whitespace-pre-wrap ${theme === 'dark' ? 'text-slate-200' : 'text-[#050505]'}`}>
+                              {res}
+                            </div>
+                            
+                            {/* Toolbar ខាងក្រោមចម្លើយ */}
+                            <div className="flex items-center gap-1.5 mt-5">
+                              <button onClick={() => { navigator.clipboard.writeText(res); showToast("✅ បានចម្លងអត្ថបទ!", "success"); }} className={`p-2 rounded-full transition-colors cursor-pointer ${theme === 'dark' ? 'hover:bg-white/10 text-slate-400 hover:text-white' : 'hover:bg-black/5 text-slate-500 hover:text-slate-800'}`} title="Copy">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M16 4H8a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V6a2 2 0 00-2-2z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M19 8h2a2 2 0 012 2v10a2 2 0 01-2 2h-8a2 2 0 01-2-2v-2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                              </button>
+                              <button className={`p-2 rounded-full transition-colors cursor-pointer ${theme === 'dark' ? 'hover:bg-white/10 text-slate-400 hover:text-white' : 'hover:bg-black/5 text-slate-500 hover:text-slate-800'}`} title="Good response">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3H14z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M7 22H4a2 2 0 01-2-2v-7a2 2 0 012-2h3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                              </button>
+                              <button className={`p-2 rounded-full transition-colors cursor-pointer ${theme === 'dark' ? 'hover:bg-white/10 text-slate-400 hover:text-white' : 'hover:bg-black/5 text-slate-500 hover:text-slate-800'}`} title="Bad response">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="transform rotate-180"><path d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3H14z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M7 22H4a2 2 0 01-2-2v-7a2 2 0 012-2h3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                              </button>
+                              
+                              <button 
+                                onClick={() => {
+                                  localStorage.setItem("selected_ai_ad_copy", res);
+                                  setActiveTab("CREATE");
+                                  if (typeof window !== "undefined") localStorage.setItem("activeTab", "CREATE");
+                                  showToast("🚀 បានរក្សាទុក និងផ្ដល់ជូនផ្ទាំង Create Campaign រួចរាល់!", "success");
+                                }}
+                                className="ml-auto px-5 py-2 bg-[#1877F2] hover:bg-blue-600 text-white text-[13px] font-bold rounded-full transition shadow-sm flex items-center gap-2 cursor-pointer"
+                              >
+                                <span>💾</span> Save & Use for Ads
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* ប្រអប់ Input ផ្នែកខាងក្រោម (Sticky Bottom - ដូចរូបទី២) */}
+                    <div className="p-4 w-full bg-transparent">
+                      <div className="max-w-3xl mx-auto flex flex-col items-center">
+                        <div className={`w-full relative flex items-end p-2 rounded-[28px] shadow-sm transition-all border ${theme === 'dark' ? 'bg-[#1E1F20] border-slate-700' : 'bg-[#F0F4F9] border-slate-200 focus-within:bg-white focus-within:shadow-md focus-within:border-slate-300'}`}>
+                          <label className={`cursor-pointer p-3 rounded-full transition-colors mb-0.5 ${theme === 'dark' ? 'hover:bg-white/10 text-slate-300' : 'hover:bg-black/5 text-slate-600'}`} title="Upload image/video">
+                            <input type="file" accept="image/*,video/*" className="hidden" onChange={handleAiMediaChange} />
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 5V19M5 12H19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                          </label>
+                          
+                          <div className="flex-1 flex flex-col py-3 px-2">
+                            {aiMediaPreview && (
+                              <div className="relative mb-3 w-fit animate-in zoom-in duration-200">
+                                {aiMedia?.type.startsWith('video') ? (
+                                  <video src={aiMediaPreview} className="h-14 w-14 object-cover rounded-xl border shadow-sm" />
+                                ) : (
+                                  <img src={aiMediaPreview} alt="Preview" className="h-14 w-14 object-cover rounded-xl border shadow-sm" />
+                                )}
+                                <button onClick={removeAiMedia} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow">✕</button>
+                              </div>
+                            )}
+                            <textarea
+                              value={aiInput}
+                              onChange={(e) => setAiInput(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' && !e.shiftKey) {
+                                  e.preventDefault();
+                                  generateAiCopy();
+                                }
+                              }}
+                              placeholder="សួរសំណួរបន្ថែម..."
+                              className="w-full bg-transparent border-none outline-none text-[16px] resize-none max-h-[150px] overflow-y-auto custom-scrollbar placeholder-slate-500"
+                              rows={aiInput.split('\n').length > 1 ? Math.min(aiInput.split('\n').length, 5) : 1}
+                            />
+                          </div>
+
+                          <div className="p-2 mb-0.5">
+                            {aiInput.trim() || aiMedia ? (
+                              <button onClick={generateAiCopy} className="p-2.5 rounded-full bg-blue-600 text-white hover:bg-blue-700 transition-colors cursor-pointer">
+                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="transform rotate-90"><path d="M22 2L11 13M22 2L15 22L11 13M11 13L2 9L22 2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                              </button>
+                            ) : (
+                              <button className={`p-3 rounded-full transition-colors ${theme === 'dark' ? 'hover:bg-white/10 text-slate-300' : 'hover:bg-black/5 text-slate-600'}`}>
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2a3 3 0 00-3 3v7a3 3 0 006 0V5a3 3 0 00-3-3z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        <p className={`text-[11px] mt-3 ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>Gemini is AI and can make mistakes.</p>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             )}
 
