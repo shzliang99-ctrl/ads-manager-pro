@@ -37,7 +37,57 @@ const datePresetOptions = [
 
 export default function Home() {
 
+  const [canUseAutoFill, setCanUseAutoFill] = useState(true);
 
+  useEffect(() => {
+    // ពិនិត្យមើលសិទ្ធិប្រើប្រាស់ពេលទំព័រដើរដំបូង
+    const checkAutoFillLimit = () => {
+      const lastUsedStr = localStorage.getItem('lastAiAutoFillDate');
+      if (lastUsedStr) {
+        const lastUsedDate = new Date(parseInt(lastUsedStr, 10));
+        const today = new Date();
+
+        // ប្រៀបធៀបតែថ្ងៃ ខែ ឆ្នាំ (មិនគិតម៉ោង)
+        if (
+          lastUsedDate.getDate() === today.getDate() &&
+          lastUsedDate.getMonth() === today.getMonth() &&
+          lastUsedDate.getFullYear() === today.getFullYear()
+        ) {
+          setCanUseAutoFill(false); // បានប្រើរួចហើយថ្ងៃនេះ
+        }
+      }
+    };
+
+    if (typeof window !== 'undefined') {
+       checkAutoFillLimit();
+    }
+  }, []);
+
+  // សម្រាប់ AI Audit
+  const [canUseAiAudit, setCanUseAiAudit] = useState(true);
+
+  useEffect(() => {
+    const checkAiAuditLimit = () => {
+      const lastUsedStr = localStorage.getItem('lastAiAuditDate');
+      if (lastUsedStr) {
+        const lastUsedDate = new Date(parseInt(lastUsedStr, 10));
+        const today = new Date();
+
+        // ប្រៀបធៀបតែថ្ងៃ ខែ ឆ្នាំ
+        if (
+          lastUsedDate.getDate() === today.getDate() &&
+          lastUsedDate.getMonth() === today.getMonth() &&
+          lastUsedDate.getFullYear() === today.getFullYear()
+        ) {
+          setCanUseAiAudit(false); // បានប្រើរួចហើយថ្ងៃនេះ
+        }
+      }
+    };
+
+    if (typeof window !== 'undefined') {
+       checkAiAuditLimit();
+    }
+  }, []);
 
   const [isMobileSettingsOpen, setIsMobileSettingsOpen] = useState(false);
 
@@ -798,6 +848,11 @@ export default function Home() {
   const [isAuditCoolingDown, setIsAuditCoolingDown] = useState(false);
 
   const handleAiAudit = async (adItem: any) => {
+    // 👇 ថែមលក្ខខណ្ឌថ្មីនេះចូលនៅជួរទី 851
+    if (!canUseAiAudit) {
+      alert("⚠️ លោកអ្នកបានប្រើប្រាស់មុខងារ AI Audit រួចហើយសម្រាប់ថ្ងៃនេះ។ សូមសាកល្បងម្ដងទៀតនៅថ្ងៃស្អែក!");
+      return;
+    }
     // បើកំពុងជាប់ Lock មិនទាន់គ្រប់ពេល ឱ្យវាប្រាប់សិនដើម្បីការពារ Error 429
     if (isAuditCoolingDown) {
       alert("⏳ សូមស្ងប់ចិត្តបន្តិច! ប្រព័ន្ធកំពុងសម្រាករំពេចដើម្បីការពារការកកស្ទះ AI (Rate Limit)។ សូមរង់ចាំប្រហែល ១០ វិនាទីសិន។");
@@ -887,6 +942,10 @@ export default function Home() {
           statusColor: standardStatusColor,
           title: standardTitle
         });
+        // 👇 ថែមកូដ ២ ជួរនេះចូល ដើម្បីកត់ចំណាំថាប្រើរួចហើយ ថ្ងៃនេះ
+        localStorage.setItem('lastAiAuditDate', Date.now().toString());
+        setCanUseAiAudit(false);
+
       } else {
         if (data.error && data.error.includes("429")) {
           alert("⚠️ AI ជាប់ដែនកំណត់ Free Tier មួយភ្លែត (Rate Limit)! សូមរង់ចាំ ១០ វិនាទីរួចចុចមើលម្ដងទៀត។");
@@ -1083,11 +1142,16 @@ export default function Home() {
 
   // 🌟 មុខងារ AI Auto-Fill វិភាគ និងបំពេញទិន្នន័យទាំង Targeting & Placements ស្វ័យប្រវត្តិ ១០០%
   const handleAiAutoFill = async () => {
+    if (!canUseAutoFill) {
+      showToast("⚠️ លោកអ្នកបានប្រើប្រាស់មុខងារនេះរួចហើយសម្រាប់ថ្ងៃនេះ។ សូមសាកល្បងម្ដងទៀតនៅថ្ងៃស្អែក!", "error");
+      return;
+    }
+
     if (!autoFillInput.trim()) {
       showToast("⚠️ សូមវាយបញ្ចូលប្រភេទផលិតផល ឬសេវាកម្មជាមុនសិន!", "error");
       return;
     }
-    
+
     setIsAutoFilling(true);
     try {
       const res = await fetch('/api/ai-auto-fill', {
@@ -1099,38 +1163,38 @@ export default function Home() {
 
       if (data.success && data.result) {
         const resData = data.result;
-        
+
         // 1. បំពេញ Campaign & Ad Set Name
         if (resData.campaignName) saveParam("campaignName", resData.campaignName, setCampaignName);
         if (resData.adsetName) saveParam("adsetName", resData.adsetName, setAdsetName);
-        
+
         // 2. កំណត់ Age & Gender
         if (resData.ageMin) saveParam("ageMin", String(resData.ageMin), setAgeMin);
         if (resData.ageMax) saveParam("ageMax", String(resData.ageMax), setAgeMax);
         if (resData.gender) saveParam("gender", resData.gender, setGender);
-        
+
         // 3. បំពេញ Targeting Keywords (Interests) ស្វ័យប្រវត្តិ
         if (resData.targeting) {
           setTargeting(resData.targeting);
           localStorage.setItem("targeting", resData.targeting);
         }
 
-        // 4. 🌟 កំណត់ PlacementType និង Auto-Tick លើប្រអប់ Placements ផ្ទាល់ស្វ័យប្រវត្តិ
+        // 4. កំណត់ PlacementType ស្វ័យប្រវត្តិ
         if (resData.placementType) {
            const pType = resData.placementType.toLowerCase();
-           
            if (pType === 'photo') {
-              // កំណត់ស្តង់ដារសម្រាប់រូបភាព (Feed & Marketplace ប៉ុណ្ណោះ មិនយក Reels/Stories)
               handleBoostPhotos(); 
            } else if (pType === 'video') {
-              // កំណត់ស្តង់ដារសម្រាប់វីដេអូ (Feed, Stories & Reels)
               handleBoostVideos(); 
            } else {
-              // បើមិនច្បាស់ ទុកជា Advantage+ (Manual Placements ពេញលេញ)
               setPlacementType("MANUAL");
               localStorage.setItem("placementType", "MANUAL");
            }
         }
+
+        // 👉👉 កត់ត្រាថាបានប្រើប្រាស់ថ្ងៃនេះ 👈👈
+        localStorage.setItem('lastAiAutoFillDate', Date.now().toString());
+        setCanUseAutoFill(false);
 
         showToast("✨ AI បានបំពេញការកំណត់ (Targeting & Placements) ជូនរួចរាល់ដោយជោគជ័យ!", "success");
       } else {
@@ -5614,11 +5678,13 @@ const handleOpenDuplicateModal = () => {
                         <button 
                           type="button"
                           onClick={handleAiAutoFill}
-                          disabled={isAutoFilling || !autoFillInput.trim()}
-                          className="px-6 py-3 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 transition shadow-md shadow-indigo-500/20 shrink-0 cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
+                          disabled={isAutoFilling || !autoFillInput.trim() || !canUseAutoFill} // 👈 ថែម !canUseAutoFill ត្រង់នេះ
+                          className={`px-6 py-3 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 transition shadow-md shadow-indigo-500/20 shrink-0 cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5 ${!canUseAutoFill ? 'grayscale cursor-not-allowed' : ''}`} // 👈 ថែម style តិចតួច
                         >
                           {isAutoFilling ? (
                             <><div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div><span>កំពុងគិត...</span></>
+                          ) : !canUseAutoFill ? (
+                            <><span>⏳</span><span>សាកល្បងម្ដងទៀតនៅថ្ងៃស្អែក</span></> // 👈 ប្តូរអត្ថបទពេល disabled
                           ) : (
                             <><span>⚡</span><span>AI Auto-Fill</span></>
                           )}
@@ -8310,11 +8376,16 @@ const handleOpenDuplicateModal = () => {
 
                                         <button 
                                           type="button"
-                                          disabled={auditLoading}
+                                          disabled={auditLoading || !canUseAiAudit}
                                           onClick={(e) => { e.stopPropagation(); handleAiAudit(ad); }}
-                                          className="px-2.5 py-1 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold rounded-lg text-[11px] flex items-center gap-1.5 shadow-sm hover:opacity-90 cursor-pointer shrink-0 disabled:opacity-50"
+                                          className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1.5 shadow-sm shrink-0 ${
+                                            !canUseAiAudit 
+                                              ? 'bg-gray-300 text-gray-500 cursor-not-allowed dark:bg-slate-700 dark:text-slate-400' 
+                                              : 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:opacity-90 cursor-pointer'
+                                          }`}
+                                          title={!canUseAiAudit ? "អាចប្រើបានម្ដងទៀតនៅថ្ងៃស្អែក" : "វិភាគជាមួយ AI"}
                                         >
-                                          <span>✨</span> <span>AI Audit</span>
+                                          <span>✨</span> <span>{!canUseAiAudit ? "AI Audit (រួចរាល់)" : "AI Audit"}</span>
                                         </button>
                                       </div>
                                     )}
